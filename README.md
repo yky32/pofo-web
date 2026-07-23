@@ -73,9 +73,10 @@ See [docs/CI.md](docs/CI.md) for secrets (`VERCEL_*`, `SUPABASE_*`).
 
 1. Sign up / log in  
 2. **New project** → Main Gallery container  
-3. **Add sample photos** (previews until R2 upload)  
-4. **Create share link** → client opens `/g/{token}`  
-5. Client **hearts** favorites (limit enforced)
+3. **Upload photos** (Supabase Storage) or add samples  
+4. **Create share link** (optional expiry) → client opens `/g/{token}`  
+5. Client **hearts** favorites (limit enforced)  
+6. Review **Selections**, **Export** list, **Mark as final**
 
 ### Cloudflare R2 setup
 

@@ -33,6 +33,7 @@ export function ShareLinkPanel({
     initial
   );
   const [copied, setCopied] = useState<string | null>(null);
+  const [expiresDays, setExpiresDays] = useState("30");
 
   useEffect(() => {
     if (!copied) return;
@@ -55,9 +56,24 @@ export function ShareLinkPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex flex-col gap-1 text-xs text-stone-500">
+          Expires
+          <select
+            value={expiresDays}
+            onChange={(e) => setExpiresDays(e.target.value)}
+            className="h-8 rounded-full border border-stone-200 bg-white px-3 text-xs text-stone-800 outline-none focus:border-stone-400"
+            disabled={!hasPhotos || createPending}
+          >
+            <option value="7">7 days</option>
+            <option value="30">30 days</option>
+            <option value="90">90 days</option>
+            <option value="0">Never</option>
+          </select>
+        </label>
         <form action={createAction}>
           <input type="hidden" name="project_id" value={projectId} />
+          <input type="hidden" name="expires_days" value={expiresDays} />
           <Button
             type="submit"
             variant="outline"
@@ -101,7 +117,7 @@ export function ShareLinkPanel({
 
       {!hasPhotos ? (
         <p className="text-xs text-stone-500">
-          Add sample photos first, then create a client link.
+          Upload or add sample photos first, then create a client link.
         </p>
       ) : null}
 
@@ -121,6 +137,9 @@ export function ShareLinkPanel({
         <ul className="space-y-2">
           {active.map((link) => {
             const url = `${appUrl}/g/${link.token}`;
+            const exp = link.expires_at
+              ? new Date(link.expires_at).toLocaleDateString()
+              : "No expiry";
             return (
               <li
                 key={link.id}
@@ -131,7 +150,8 @@ export function ShareLinkPanel({
                     {url}
                   </p>
                   <p className="text-xs text-stone-400">
-                    Created {new Date(link.created_at).toLocaleString()}
+                    {exp} · created{" "}
+                    {new Date(link.created_at).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">

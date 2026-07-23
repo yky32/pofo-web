@@ -71,6 +71,13 @@ export async function createShareLink(
 
   if (!project) return { error: "Project not found." };
 
+  const expiresDaysRaw = String(formData.get("expires_days") ?? "").trim();
+  let expires_at: string | null = null;
+  if (expiresDaysRaw && expiresDaysRaw !== "0") {
+    const days = Math.min(365, Math.max(1, Number(expiresDaysRaw) || 30));
+    expires_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+  }
+
   const token = createShareToken();
   const { data: link, error } = await supabase
     .from("share_links")
@@ -79,6 +86,7 @@ export async function createShareLink(
       token,
       is_active: true,
       allow_download: true,
+      expires_at,
     })
     .select("token")
     .single();
