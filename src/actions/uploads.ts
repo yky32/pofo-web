@@ -1,21 +1,33 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { isR2Ready, createUploadUrl, photoStorageKey, r2PublicObjectUrl } from "@/lib/r2";
+import {
+  createUploadUrl,
+  photoStorageKey,
+  r2PublicObjectUrl,
+  isR2Ready,
+  hasR2PublicBase,
+} from "@/lib/r2";
+import { getStorageBackend, type StorageBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/env";
 
 const MAX_PREPARE = 150;
 const MAX_BYTES = 30 * 1024 * 1024;
 
-export type UploadBackend = "r2" | "supabase";
+export type UploadBackend = StorageBackend;
 
 export type UploadSlot = {
   clientId: string;
   storagePath: string;
-  /** Presigned PUT for R2; null when using Supabase client upload */
+  /** Presigned PUT for R2; null when using Supabase session upload */
   uploadUrl: string | null;
+  /**
+   * Optional hint URL — for R2 may be public base path;
+   * for Supabase private, leave empty (client registers storage_key only).
+   */
   previewUrl: string;
   contentType: string;
+  backend: UploadBackend;
 };
 
 export type PrepareBatchResult =
@@ -28,8 +40,8 @@ export type PrepareBatchResult =
   | { ok: false; error: string };
 
 /**
- * Mint upload slots for a batch (R2 presign when configured, else Supabase paths).
- * Client uploads files directly — never through Next.js body.
+ * Mint upload slots. Files go browser → storage (never through Next body).
+ * Backend switches automatically: R2 when env ready, else Supabase Storage.
  */
 export async function prepareBatchUpload(input: {
   projectId: string;
@@ -77,7 +89,7 @@ export async function prepareBatchUpload(input: {
 
   if (!project) return { ok: false, error: "Project not found." };
 
-  const useR2 = isR2Ready();
+  const backend = getStorageBackend();
   const slots: UploadSlot[] = [];
 
   try {
@@ -89,24 +101,26 @@ export async function prepareBatchUpload(input: {
         f.filename
       );
 
-      if (useR2) {
+      if (backend === "r2" && isR2Ready()) {
         const uploadUrl = await createUploadUrl(storagePath, contentType);
         slots.push({
           clientId: f.clientId,
           storagePath,
           uploadUrl,
-          previewUrl: r2PublicObjectUrl(storagePath),
+          // Prefer empty preview (signed GET at read time). Optional public base only if set.
+          previewUrl: hasR2PublicBase() ? r2PublicObjectUrl(storagePath) : "",
           contentType,
+          backend: "r2",
         });
       } else {
-        // Supabase public URL shape (upload via client SDK)
-        const base = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace(/\/$/, "");
+        // Supabase: upload with user JWT; store storage_key only (private bucket)
         slots.push({
           clientId: f.clientId,
           storagePath,
           uploadUrl: null,
-          previewUrl: `${base}/storage/v1/object/public/shots/${storagePath}`,
+          previewUrl: "",
           contentType,
+          backend: "supabase",
         });
       }
     }
@@ -119,12 +133,12 @@ export async function prepareBatchUpload(input: {
 
   return {
     ok: true,
-    backend: useR2 ? "r2" : "supabase",
+    backend,
     ownerId: user.id,
     slots,
   };
 }
 
 export async function getUploadBackend(): Promise<UploadBackend> {
-  return isR2Ready() ? "r2" : "supabase";
+  return getStorageBackend();
 }

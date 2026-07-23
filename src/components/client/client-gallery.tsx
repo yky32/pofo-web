@@ -21,10 +21,11 @@ export function ClientGallery({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const shotSrc = (s: (typeof initial.shots)[number]) =>
+    s.display_url ?? s.preview_url ?? null;
+
   const cover =
-    initial.shots.find((s) => s.preview_url)?.preview_url ??
-    initial.shots[0]?.preview_url ??
-    null;
+    initial.shots.map(shotSrc).find(Boolean) ?? null;
 
   const count = selected.size;
   const subtitle = useMemo(() => {
@@ -121,7 +122,7 @@ export function ClientGallery({
         ) : (
           <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 md:columns-4">
             {initial.shots.map((shot, i) => {
-              const src = shot.preview_url;
+              const src = shotSrc(shot);
               if (!src) return null;
               const tall = i % 5 === 0 || i % 7 === 3;
               const isOn = selected.has(shot.id);

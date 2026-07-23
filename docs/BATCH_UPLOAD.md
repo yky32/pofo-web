@@ -34,14 +34,23 @@ Async (later)
   └─► thumbnail / web-preview job (queue worker or Edge Function)
 ```
 
-### Storage choice
+### Storage choice (switchable)
+
+App code goes through `src/lib/storage.ts` + `prepareBatchUpload` — never hardcodes a CDN URL.
 
 | Option | Pros | Cons | When |
 |--------|------|------|------|
-| **Cloudflare R2** (S3 API) | Cheap egress, presigned PUT, multipart | Extra env/setup | **Recommended for production volume** |
-| **Supabase Storage** | Already wired | Cost/limits at multi‑GB; less ideal multipart story | MVP / moderate volume |
+| **Supabase Storage** (default) | Zero extra infra; private bucket + signed URLs | Cost/limits at multi‑GB | MVP / moderate volume |
+| **Cloudflare R2** (S3 API) | Cheap egress, presigned PUT/GET | Extra env/setup | Scale-up when volume grows |
 
-Pofo already has `src/lib/r2.ts` (presign helpers) and Supabase Storage for smaller batches.
+**How switching works**
+
+1. Default: no R2 env → `getStorageBackend()` = `"supabase"`.
+2. Set `R2_ACCOUNT_ID` + keys + `R2_BUCKET_NAME` → backend flips to `"r2"` (no code change).
+3. Rows always store **`storage_key`** (object path). **`preview_url`** is only for demo/external samples.
+4. UI reads **`display_url`**: short-lived signed GET (Supabase `createSignedUrls` or R2 presigned).
+
+Private by design: the `shots` bucket is non-public; client share galleries mint signed URLs after the share-token RPC (needs `SUPABASE_SERVICE_ROLE_KEY`).
 
 ### Concurrency model
 
@@ -62,9 +71,9 @@ Pofo already has `src/lib/r2.ts` (presign helpers) and Supabase Storage for smal
 
 Do **not** block upload on full-res re-encode.
 
-1. **v1:** Use full JPEG URL as `preview_url` (current). Client view loads with `sizes` / browser downscale.
+1. **v1 (current):** Store `storage_key` only; attach 1h signed `display_url` when listing / client gallery. Browser downscales with `sizes`.
 2. **v2:** Client generates small JPEG (e.g. 1600px long edge) with `createImageBitmap` + canvas **in parallel** with original upload (or after).
-3. **v3:** Worker queue: original in R2 → Cloudflare Image / Sharp worker → `thumbnail_key`.
+3. **v3:** Worker queue: original in storage → Cloudflare Image / Sharp worker → `thumbnail_key`.
 
 ### UX (photographer)
 
@@ -92,12 +101,18 @@ Do **not** block upload on full-res re-encode.
 | **C** | Resumable (tus or S3 multipart) for flaky hotel Wi‑Fi |
 | **D** | Async derivatives + optional RAW |
 
-## Phase B — R2 setup
+## Supabase Storage (default — private)
 
-1. Cloudflare dashboard → **R2** → Create bucket (e.g. `pofo-shots`).
+1. SQL Editor → run `supabase/storage.sql` (private `shots` bucket + owner folder policies).
+2. Set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` / Vercel (server only) so client share links can sign images.
+3. Re-run `schema.sql` or `slug.sql` so `get_client_gallery` returns `storage_key`.
+4. Upload UI shows **Supabase Storage**. Paths: `owners/{uid}/projects/{projectId}/{uuid}-{file}`.
+
+## Phase B — R2 setup (when you scale)
+
+1. Cloudflare dashboard → **R2** → Create bucket (e.g. `pofo-shots`). Keep it **private**.
 2. **Manage R2 API Tokens** → create token with Object Read & Write on that bucket.
-3. Enable **Public access** (r2.dev subdomain) **or** attach a custom domain → copy public base URL.
-4. **CORS policy** on the bucket (Settings → CORS), e.g.:
+3. **CORS policy** on the bucket (Settings → CORS), e.g.:
 
 ```json
 [
@@ -115,33 +130,37 @@ Do **not** block upload on full-res re-encode.
 ]
 ```
 
-5. Add to `.env.local` and Vercel:
+4. Add to `.env.local` and Vercel (no code change required):
 
 ```bash
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
 R2_BUCKET_NAME=pofo-shots
-R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
+# Optional — only if you want permanent public object URLs (not required for private delivery)
+# R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
 ```
 
-6. Restart dev / redeploy. Upload UI shows **Cloudflare R2** when ready.
+5. Restart dev / redeploy. Upload UI shows **Cloudflare R2**. New uploads go to R2; reads use presigned GET via the same `display_url` path.
+
+> Note: existing Supabase objects stay on Supabase unless you migrate keys. `resolveObjectKey` still signs legacy public Supabase URLs when present.
 
 ### Flow (code)
 
 ```text
-prepareBatchUpload (server) → presigned PUT slots
-  → client PUT file (pool of 5)
-  → registerUploadedShots (DB chunks)
+prepareBatchUpload (server) → R2 presigned PUT **or** Supabase path slots
+  → client PUT/upload (pool of 5)
+  → registerUploadedShots (storage_key; preview_url usually null)
+  → list / client gallery → withDisplayUrls → short-lived display_url
 ```
-
-If R2 env incomplete → same UI uses **Supabase Storage** (path upload via SDK).
 
 ## Security
 
-- Auth required; storage path prefix = `auth.uid()`.
-- Presigned URLs short-lived (5–15 min), scoped to key.
-- RLS: owner-only write on `shots`; clients still via share RPC only.
+- Auth required; storage path prefix = `owners/{auth.uid()}/…`.
+- Bucket private; no permanent public object URLs for uploads.
+- Signed / presigned read URLs short-lived (~1h), scoped to key.
+- Client access: share-token RPC first, then service-role signing only for that payload.
+- RLS: owner-only write on `shots`; clients only via share RPCs.
 - Virus/malware: optional later (ClamAV worker); not MVP.
 
 ## Cost sketch (order of magnitude)

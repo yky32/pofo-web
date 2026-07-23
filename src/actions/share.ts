@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
+import { withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
 import type { ClientGalleryPayload, ShareLink } from "@/types/database";
 
@@ -175,7 +177,26 @@ export async function getClientGalleryByToken(
 
   const payload = data as ClientGalleryPayload & { error?: string };
   if (payload?.error) return { error: payload.error };
-  return payload;
+
+  // Token already validated by RPC. Sign private objects with service role
+  // (anon cannot createSignedUrls when the bucket is private). Falls back to
+  // user session client if service role is unset (demo / external preview_urls).
+  const signer = createAdminClient() ?? supabase;
+  const shots = await withDisplayUrls(signer, payload.shots ?? []);
+
+  return {
+    ...payload,
+    shots: shots.map((s) => ({
+      id: s.id,
+      storage_key: s.storage_key ?? null,
+      preview_url: s.preview_url ?? null,
+      display_url: s.display_url,
+      filename: s.filename ?? null,
+      sort_order: s.sort_order,
+      width: s.width ?? null,
+      height: s.height ?? null,
+    })),
+  };
 }
 
 export async function toggleClientSelection(

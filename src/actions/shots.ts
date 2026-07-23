@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { contactSheet } from "@/lib/photos";
+import { withDisplayUrls } from "@/lib/storage";
 import type { Shot } from "@/types/database";
 
 export type ShotActionState = {
@@ -11,7 +12,11 @@ export type ShotActionState = {
   success?: string;
 };
 
-export async function listProjectShots(projectId: string): Promise<Shot[]> {
+export type ShotWithDisplay = Shot & { display_url: string | null };
+
+export async function listProjectShots(
+  projectId: string
+): Promise<ShotWithDisplay[]> {
   if (!isSupabaseConfigured()) return [];
 
   const supabase = await createClient();
@@ -33,7 +38,7 @@ export async function listProjectShots(projectId: string): Promise<Shot[]> {
     return [];
   }
 
-  return (data ?? []) as Shot[];
+  return withDisplayUrls(supabase, (data ?? []) as Shot[]);
 }
 
 export async function countProjectSelections(
@@ -60,7 +65,7 @@ export async function countProjectSelections(
   return count ?? 0;
 }
 
-export type SelectedShot = Shot & { selected_at: string };
+export type SelectedShot = ShotWithDisplay & { selected_at: string };
 
 /** Client favorites for photographer review. */
 export async function listSelectedShots(
@@ -104,7 +109,8 @@ export async function listSelectedShots(
     return [];
   }
 
-  const byId = new Map(shots.map((s) => [s.id as string, s as Shot]));
+  const withUrls = await withDisplayUrls(supabase, shots as Shot[]);
+  const byId = new Map(withUrls.map((s) => [s.id, s]));
   const selectedAt = new Map(
     sels.map((s) => [s.shot_id as string, s.created_at as string])
   );
@@ -190,18 +196,23 @@ export async function registerUploadedShots(input: {
     baseOrder = count ?? 0;
   }
 
-  const rows = input.files.map((f, i) => ({
-    project_id: input.projectId,
-    container_id: container!.id,
-    owner_id: user.id,
-    kind: "jpeg" as const,
-    storage_key: f.storagePath,
-    preview_url: f.previewUrl,
-    filename: f.filename,
-    mime_type: f.mimeType,
-    size_bytes: f.sizeBytes,
-    sort_order: baseOrder! + i,
-  }));
+  const rows = input.files.map((f, i) => {
+    // Prefer storage_key only; never persist permanent public URLs for private buckets.
+    // Empty/placeholder previewUrl → null (signed display_url at read time).
+    const preview = f.previewUrl?.trim() || null;
+    return {
+      project_id: input.projectId,
+      container_id: container!.id,
+      owner_id: user.id,
+      kind: "jpeg" as const,
+      storage_key: f.storagePath,
+      preview_url: preview,
+      filename: f.filename,
+      mime_type: f.mimeType,
+      size_bytes: f.sizeBytes,
+      sort_order: baseOrder! + i,
+    };
+  });
 
   // Chunk inserts for safety even within one action call
   for (let i = 0; i < rows.length; i += REGISTER_CHUNK) {

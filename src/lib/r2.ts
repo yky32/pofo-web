@@ -49,8 +49,16 @@ export function r2PublicObjectUrl(key: string) {
   return `${r2PublicBaseUrl()}/${key.replace(/^\//, "")}`;
 }
 
+/**
+ * R2 is usable with credentials alone (private + presigned GET/PUT).
+ * R2_PUBLIC_URL is optional — only if you want permanent public object URLs.
+ */
 export function isR2Ready() {
-  return isR2Configured() && Boolean(process.env.R2_PUBLIC_URL);
+  return isR2Configured();
+}
+
+export function hasR2PublicBase() {
+  return Boolean(process.env.R2_PUBLIC_URL?.replace(/\/$/, ""));
 }
 
 export async function createUploadUrl(

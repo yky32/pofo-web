@@ -18,12 +18,20 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "vjtdasuuxkxfiibziymb.supabase.co",
-        pathname: "/storage/v1/object/public/**",
+        hostname: "**.supabase.co",
+        pathname: "/storage/v1/object/sign/**",
       },
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.cloudflarestorage.com",
       },
     ],
   },

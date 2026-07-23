@@ -61,8 +61,8 @@ create index if not exists containers_project_idx
 
 -- ---------------------------------------------------------------------------
 -- Shots (single photo asset)
--- preview_url: external/demo URL until R2 upload (Phase 3 full)
--- storage_key: R2 object key when uploaded
+-- preview_url: external/demo sample URLs only (Unsplash seed). Uploads leave null.
+-- storage_key: object path in Supabase Storage or R2 (private; signed at read time)
 -- ---------------------------------------------------------------------------
 do $$ begin
   create type public.shot_kind as enum (
@@ -315,6 +315,7 @@ begin
   select coalesce(jsonb_agg(
     jsonb_build_object(
       'id', s.id,
+      'storage_key', s.storage_key,
       'preview_url', s.preview_url,
       'filename', s.filename,
       'sort_order', s.sort_order,

@@ -20,8 +20,9 @@ export function ExportSelectionButton({
       `# exported ${new Date().toISOString()}`,
       "",
       ...shots.map((s, i) => {
-        const url = shotDisplayUrl(s) ?? "";
-        return `${i + 1}\t${s.filename ?? s.id}\t${url}`;
+        // Prefer stable storage_key over short-lived signed display URLs
+        const ref = s.storage_key || shotDisplayUrl(s) || "";
+        return `${i + 1}\t${s.filename ?? s.id}\t${ref}`;
       }),
     ];
 

@@ -232,6 +232,7 @@ begin
   select coalesce(jsonb_agg(
     jsonb_build_object(
       'id', s.id,
+      'storage_key', s.storage_key,
       'preview_url', s.preview_url,
       'filename', s.filename,
       'sort_order', s.sort_order,

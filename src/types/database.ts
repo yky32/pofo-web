@@ -59,7 +59,12 @@ export interface Shot {
   container_id: string;
   owner_id: string;
   kind: ShotKind;
+  /** Object key in Supabase Storage or R2 — not a public URL */
   storage_key: string | null;
+  /**
+   * Optional permanent external URL (demo Unsplash samples only).
+   * Uploaded files should leave this null and use signed `display_url`.
+   */
   preview_url: string | null;
   thumbnail_key: string | null;
   filename: string | null;
@@ -70,6 +75,8 @@ export interface Shot {
   sort_order: number;
   captured_at: string | null;
   created_at: string;
+  /** Short-lived signed URL attached at read time (not stored in DB) */
+  display_url?: string | null;
 }
 
 export interface ShareLink {
@@ -95,10 +102,13 @@ export interface ShotSelection {
   created_at: string;
 }
 
-/** Client gallery payload from get_client_gallery RPC */
+/** Client gallery payload from get_client_gallery RPC (+ signed display_url) */
 export interface ClientGalleryShot {
   id: string;
+  storage_key?: string | null;
   preview_url: string | null;
+  /** Short-lived signed URL for private storage objects */
+  display_url?: string | null;
   filename: string | null;
   sort_order: number;
   width: number | null;
@@ -122,8 +132,16 @@ export interface ClientGalleryPayload {
   error?: string;
 }
 
-/** Display URL for a shot (demo URLs or future signed R2). */
-export function shotDisplayUrl(shot: Pick<Shot, "preview_url" | "storage_key">) {
+/**
+ * Prefer short-lived display_url (signed), then demo/external preview_url.
+ * Never treat raw storage_key as a browser URL unless it is already http(s).
+ */
+export function shotDisplayUrl(
+  shot: Pick<Shot, "preview_url" | "storage_key"> & {
+    display_url?: string | null;
+  }
+) {
+  if (shot.display_url) return shot.display_url;
   if (shot.preview_url) return shot.preview_url;
   if (shot.storage_key?.startsWith("http")) return shot.storage_key;
   return null;

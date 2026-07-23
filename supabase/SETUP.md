@@ -20,7 +20,7 @@ In Supabase: **Project Settings → API**
 |---------|--------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon` `public` key |
-| `SUPABASE_SERVICE_ROLE_KEY` | `service_role` (server only — optional for Phase 1) |
+| `SUPABASE_SERVICE_ROLE_KEY` | `service_role` (server only — **needed for private share images**) |
 
 Also set:
 
@@ -34,7 +34,7 @@ Example `.env.local`:
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-# SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...   # not required for Phase 1
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...   # server only; signs client gallery images
 ```
 
 **Never commit** `.env.local` or the service role key.
@@ -50,19 +50,23 @@ bun dev
 ## 3. Run the SQL schema
 
 1. Supabase → **SQL Editor** → **New query**
-2. Paste the full contents of `supabase/schema.sql`
-3. **Run**
+2. Paste the full contents of `supabase/schema.sql` → **Run**
+3. Paste `supabase/storage.sql` → **Run** (private `shots` bucket)
+4. Optional: paste `supabase/slug.sql` if you use studio subdomains
 
 This creates:
 
 - `profiles` (+ auto row on signup)
 - `projects` / `containers`
-- `shots` (preview URLs or future R2 keys)
+- `shots` (`storage_key` for private objects; optional demo `preview_url`)
 - `share_links` + `shot_selections` (client proofing)
+- Private Storage bucket `shots` + owner folder policies
 - RLS (owners only on tables)
-- RPCs `get_client_gallery` / `toggle_client_selection` (token access for clients)
+- RPCs `get_client_gallery` / `toggle_client_selection` (token access for clients; RPC returns `storage_key` so the app can mint signed URLs)
 
-Re-running the script is safe (idempotent).
+Re-running the scripts is safe (idempotent).
+
+**Client share images:** without `SUPABASE_SERVICE_ROLE_KEY`, owner dashboard still works (session can sign), but anonymous client galleries cannot mint signed URLs for private objects.
 
 ---
 
