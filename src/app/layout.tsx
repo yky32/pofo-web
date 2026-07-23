@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Manrope, Space_Grotesk } from "next/font/google";
+import { Cormorant_Garamond, DM_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const heading = Space_Grotesk({
+const heading = Cormorant_Garamond({
   variable: "--font-heading",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
 
-const sans = Manrope({
+const sans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

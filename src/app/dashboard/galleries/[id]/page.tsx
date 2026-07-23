@@ -28,7 +28,7 @@ export default async function GalleryDetailPage({
       <Button
         variant="ghost"
         size="sm"
-        className="w-fit -ml-2 text-neutral-500"
+        className="w-fit -ml-2 text-muted-foreground"
         asChild
       >
         <Link href="/dashboard/galleries">
@@ -37,46 +37,36 @@ export default async function GalleryDetailPage({
         </Link>
       </Button>
 
-      <section className="relative aspect-[21/9] min-h-[200px] overflow-hidden bg-neutral-100">
+      <section className="photo-edge relative aspect-[21/9] min-h-[200px]">
         <PhotoImage src={cover} alt={gallery.title} sizes="100vw" priority />
       </section>
 
-      <div className="flex flex-col gap-6 border-b border-neutral-200 pb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-6 border-b border-border/70 pb-8 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <GalleryStatusBadge status={gallery.status} />
-            <span className="label-micro">
-              {gallery.photo_count} photos
-            </span>
+            <span className="label-quiet">{gallery.photo_count} photos</span>
           </div>
-          <h1 className="mt-3 font-heading text-3xl font-medium tracking-tight text-neutral-900 sm:text-4xl">
+          <h1 className="mt-3 font-heading text-3xl tracking-tight sm:text-4xl">
             {gallery.title}
           </h1>
-          <p className="mt-2 text-neutral-500">
+          <p className="mt-2 text-muted-foreground">
             {gallery.client_name}
             {gallery.description ? ` · ${gallery.description}` : null}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-none border-neutral-300"
-          >
+          <Button variant="outline" size="sm" className="rounded-md">
             <Upload className="mr-2 h-4 w-4" />
             Upload
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-none border-neutral-300"
-          >
+          <Button variant="outline" size="sm" className="rounded-md">
             <Link2 className="mr-2 h-4 w-4" />
             Share
           </Button>
           <Button
             size="sm"
-            className="rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
+            className="rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Download className="mr-2 h-4 w-4" />
             Export
@@ -84,29 +74,31 @@ export default async function GalleryDetailPage({
         </div>
       </div>
 
-      <div className="grid gap-8 border-b border-neutral-200 pb-8 sm:grid-cols-3">
+      <div className="grid gap-8 border-b border-border/70 pb-8 sm:grid-cols-3">
         <div>
-          <p className="label-micro">Photos</p>
-          <p className="mt-2 font-heading text-3xl font-medium">
+          <p className="label-quiet">Photos</p>
+          <p className="mt-2 font-heading text-3xl">
             {gallery.photo_count ?? 0}
           </p>
         </div>
         <div>
-          <p className="label-micro">Selected</p>
-          <p className="mt-2 font-heading text-3xl font-medium">
+          <p className="label-quiet">Selected</p>
+          <p className="mt-2 font-heading text-3xl">
             {gallery.selection_count ?? 0}
-            <span className="text-lg text-neutral-400">
+            <span className="text-lg text-muted-foreground">
               /{gallery.selection_limit}
             </span>
           </p>
         </div>
         <div>
-          <p className="label-micro">Client link</p>
-          <p className="mt-2 truncate text-sm text-neutral-500">{sharePreview}</p>
+          <p className="label-quiet">Client link</p>
+          <p className="mt-2 truncate text-sm text-muted-foreground">
+            {sharePreview}
+          </p>
           <Button
             variant="outline"
             size="sm"
-            className="mt-3 rounded-none border-neutral-300"
+            className="mt-3 rounded-md"
             asChild
           >
             <Link href={`/g/demo-${gallery.id}`} target="_blank">
@@ -117,22 +109,22 @@ export default async function GalleryDetailPage({
       </div>
 
       <Tabs defaultValue="photos">
-        <TabsList className="h-auto rounded-none border-b border-neutral-200 bg-transparent p-0">
+        <TabsList className="h-auto rounded-none border-b border-border/70 bg-transparent p-0">
           <TabsTrigger
             value="photos"
-            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Contact sheet
           </TabsTrigger>
           <TabsTrigger
             value="selections"
-            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Selections
           </TabsTrigger>
           <TabsTrigger
             value="settings"
-            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-neutral-900 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            className="rounded-none border-b-2 border-transparent px-4 pb-3 data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
           >
             Settings
           </TabsTrigger>
@@ -150,19 +142,19 @@ export default async function GalleryDetailPage({
           </div>
         </TabsContent>
         <TabsContent value="selections" className="mt-8">
-          <div className="border border-neutral-200 p-10 text-center">
-            <p className="font-heading text-xl font-medium">
+          <div className="panel p-10 text-center">
+            <p className="font-heading text-xl">
               {gallery.selection_count ?? 0} favorites
             </p>
-            <p className="mt-2 text-sm text-neutral-500">
+            <p className="mt-2 text-sm text-muted-foreground">
               Client picks appear here.
             </p>
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-8">
-          <div className="border border-neutral-200 p-10">
-            <p className="font-heading text-xl font-medium">Settings</p>
-            <p className="mt-2 text-sm text-neutral-500">
+          <div className="panel p-10">
+            <p className="font-heading text-xl">Settings</p>
+            <p className="mt-2 text-sm text-muted-foreground">
               Password, expiry, RAW window — next.
             </p>
           </div>

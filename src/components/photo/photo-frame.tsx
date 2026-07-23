@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { PhotoImage } from "@/components/photo/photo-image";
 
-/** V3 — floating image, no mat, lots of air */
+/** V6 — light paper edge (V1 warmth) with air (V3), soft radius */
 export function PhotoFrame({
   src,
   alt,
@@ -21,17 +21,19 @@ export function PhotoFrame({
 }) {
   return (
     <figure className={cn("group", className)}>
-      <div className={cn("photo-edge", aspect)}>
-        <PhotoImage
-          src={src}
-          alt={alt}
-          priority={priority}
-          sizes={sizes}
-          className="transition duration-700 ease-out group-hover:scale-[1.02]"
-        />
+      <div className="overflow-hidden rounded-lg bg-card p-1.5 shadow-[0_12px_36px_-16px_rgba(40,30,20,0.22)] ring-1 ring-black/[0.04]">
+        <div className={cn("relative overflow-hidden rounded-md bg-muted", aspect)}>
+          <PhotoImage
+            src={src}
+            alt={alt}
+            priority={priority}
+            sizes={sizes}
+            className="transition duration-700 ease-out group-hover:scale-[1.02]"
+          />
+        </div>
       </div>
       {caption ? (
-        <figcaption className="mt-3 label-micro text-neutral-500">
+        <figcaption className="mt-2.5 px-0.5 font-heading text-sm text-muted-foreground">
           {caption}
         </figcaption>
       ) : null}

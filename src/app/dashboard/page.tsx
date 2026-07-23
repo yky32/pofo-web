@@ -18,17 +18,17 @@ export default function DashboardPage() {
     <div className="space-y-12">
       <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="label-micro">Studio</p>
-          <h1 className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
+          <p className="label-quiet">Studio</p>
+          <h1 className="mt-2 font-heading text-4xl tracking-tight">
             Overview
           </h1>
-          <p className="mt-2 text-neutral-500">
+          <p className="mt-2 text-muted-foreground">
             {galleries.length} galleries · {totalPhotos} photos · {proofing}{" "}
             proofing
           </p>
         </div>
         <Button
-          className="w-fit rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
+          className="w-fit rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           asChild
         >
           <Link href="/dashboard/galleries/new">
@@ -38,7 +38,7 @@ export default function DashboardPage() {
         </Button>
       </section>
 
-      <section className="relative aspect-[21/7] min-h-[160px] overflow-hidden bg-neutral-100">
+      <section className="photo-edge relative aspect-[21/7] min-h-[160px]">
         <PhotoImage
           src={studioPhotos.outdoor}
           alt=""
@@ -47,15 +47,15 @@ export default function DashboardPage() {
         />
       </section>
 
-      <section className="grid grid-cols-3 gap-8 border-y border-neutral-200 py-8">
+      <section className="grid grid-cols-3 gap-8 border-y border-border/70 py-8">
         {[
           { label: "Galleries", value: galleries.length },
           { label: "Proofing", value: proofing },
           { label: "Photos", value: totalPhotos },
         ].map((stat) => (
           <div key={stat.label}>
-            <p className="label-micro">{stat.label}</p>
-            <p className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
+            <p className="label-quiet">{stat.label}</p>
+            <p className="mt-2 font-heading text-4xl tracking-tight">
               {stat.value}
             </p>
           </div>
@@ -64,10 +64,8 @@ export default function DashboardPage() {
 
       <section>
         <div className="mb-8 flex items-end justify-between">
-          <h2 className="font-heading text-2xl font-medium tracking-tight">
-            Recent
-          </h2>
-          <Button variant="ghost" size="sm" className="text-neutral-500" asChild>
+          <h2 className="font-heading text-2xl tracking-tight">Recent</h2>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard/galleries">View all</Link>
           </Button>
         </div>

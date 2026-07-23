@@ -4,6 +4,7 @@ import { PhotoImage } from "@/components/photo/photo-image";
 import { Logo } from "@/components/brand/logo";
 import { contactSheet, studioPhotos } from "@/lib/photos";
 
+/** V6 client — light room (V3) with soft paper warmth (V1) */
 export default async function ClientGalleryPage({
   params,
 }: {
@@ -13,11 +14,11 @@ export default async function ClientGalleryPage({
   const sheet = contactSheet;
 
   return (
-    <div className="min-h-screen bg-white text-neutral-900">
-      <header className="border-b border-neutral-200">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border/70 bg-card/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
           <Logo />
-          <span className="inline-flex items-center gap-1.5 label-micro text-neutral-500">
+          <span className="inline-flex items-center gap-1.5 label-quiet">
             <Lock className="h-3 w-3" />
             Private
           </span>
@@ -25,17 +26,17 @@ export default async function ClientGalleryPage({
       </header>
 
       <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-16">
-        <p className="label-micro">Shared with you</p>
-        <h1 className="mt-3 font-heading text-4xl font-medium tracking-tight sm:text-5xl">
+        <p className="label-quiet">Shared with you</p>
+        <h1 className="mt-3 font-heading text-4xl tracking-tight sm:text-5xl">
           Alicia & James
         </h1>
-        <p className="mt-2 text-neutral-500">
+        <p className="mt-2 text-muted-foreground">
           Wedding day · Tap hearts to select favorites
         </p>
       </div>
 
       <div className="mx-auto mt-8 max-w-6xl px-4 sm:px-6">
-        <div className="relative aspect-[21/9] min-h-[200px] overflow-hidden bg-neutral-100">
+        <div className="photo-edge relative aspect-[21/9] min-h-[200px] shadow-[0_16px_40px_-20px_rgba(40,30,20,0.25)]">
           <PhotoImage
             src={studioPhotos.heroMain}
             alt="Cover"
@@ -45,14 +46,14 @@ export default async function ClientGalleryPage({
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 mt-8 border-y border-neutral-200 bg-white/95 backdrop-blur">
+      <div className="sticky top-0 z-30 mt-8 border-y border-border/70 bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-          <p className="text-sm text-neutral-500">
-            Select up to <span className="text-neutral-900">40</span>
+          <p className="text-sm text-muted-foreground">
+            Select up to <span className="text-foreground">40</span>
           </p>
           <Button
             size="sm"
-            className="rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
+            className="rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Heart className="mr-1.5 h-3.5 w-3.5" />
             0 / 40
@@ -73,8 +74,8 @@ export default async function ClientGalleryPage({
                 <div
                   className={
                     tall
-                      ? "photo-edge relative aspect-[3/4]"
-                      : "photo-edge relative aspect-square"
+                      ? "photo-edge relative aspect-[3/4] shadow-sm ring-1 ring-black/[0.04]"
+                      : "photo-edge relative aspect-square shadow-sm ring-1 ring-black/[0.04]"
                   }
                 >
                   <PhotoImage
@@ -83,7 +84,7 @@ export default async function ClientGalleryPage({
                     sizes="(max-width:768px) 50vw, 25vw"
                     className="transition duration-500 group-hover:scale-[1.02]"
                   />
-                  <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center bg-white/95 text-neutral-900 opacity-0 shadow-sm transition group-hover:opacity-100">
+                  <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-md bg-card/95 text-foreground opacity-0 shadow-sm transition group-hover:opacity-100">
                     <Heart className="h-3.5 w-3.5" />
                   </span>
                 </div>
@@ -92,9 +93,7 @@ export default async function ClientGalleryPage({
           })}
         </div>
 
-        <p className="mt-12 text-center label-micro text-neutral-300">
-          {token}
-        </p>
+        <p className="mt-12 text-center label-quiet text-border">{token}</p>
       </main>
     </div>
   );

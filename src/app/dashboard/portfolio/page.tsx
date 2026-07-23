@@ -14,11 +14,9 @@ export default function PortfolioPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="label-micro">Public</p>
-        <h1 className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
-          Portfolio
-        </h1>
-        <p className="mt-2 max-w-md text-neutral-500">
+        <p className="label-quiet">Public</p>
+        <h1 className="mt-2 font-heading text-4xl tracking-tight">Portfolio</h1>
+        <p className="mt-2 max-w-md text-muted-foreground">
           Published finals. Demo frames below.
         </p>
       </div>
