@@ -11,6 +11,7 @@ import { listShareLinks } from "@/actions/share";
 import { GalleryStatusBadge } from "@/components/gallery-status-badge";
 import { PhotoImage } from "@/components/photo/photo-image";
 import { ContactSheet } from "@/components/projects/contact-sheet";
+import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
 import { MarkFinalButton } from "@/components/projects/mark-final-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
@@ -92,22 +93,6 @@ export default async function GalleryDetailPage({
       ? `/g/${activeLink.token}`
       : null;
 
-  const step =
-    photoCount === 0
-      ? 1
-      : !activeLink && !isDemo
-        ? 2
-        : selectedCount === 0
-          ? 3
-          : 4;
-
-  const steps = [
-    { n: 1, label: "Photos" },
-    { n: 2, label: "Share" },
-    { n: 3, label: "Select" },
-    { n: 4, label: "Final" },
-  ];
-
   return (
     <div className="space-y-6">
       <Button
@@ -162,34 +147,13 @@ export default async function GalleryDetailPage({
       </section>
 
       {!isDemo ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-stone-400">
-          {steps.map((s, i) => (
-            <span key={s.n} className="inline-flex items-center gap-1.5">
-              {i > 0 ? (
-                <span className="mr-1.5 hidden text-stone-300 sm:inline">·</span>
-              ) : null}
-              <span
-                className={cn(
-                  "inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]",
-                  step > s.n
-                    ? "bg-emerald-100 text-emerald-700"
-                    : step === s.n
-                      ? "bg-stone-900 text-white"
-                      : "bg-stone-100 text-stone-400"
-                )}
-              >
-                {step > s.n ? "✓" : s.n}
-              </span>
-              <span
-                className={
-                  step >= s.n ? "font-medium text-stone-700" : "text-stone-400"
-                }
-              >
-                {s.label}
-              </span>
-            </span>
-          ))}
-        </div>
+        <DeliveryStepper
+          photoCount={photoCount}
+          hasShareLink={Boolean(activeLink)}
+          selectedCount={selectedCount}
+          selectionLimit={gallery.selection_limit}
+          isFinal={gallery.status === "final"}
+        />
       ) : null}
 
       {/* Main + share sidebar — items-start so share never stretches empty columns */}
