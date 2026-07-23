@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** V4 — soft aperture in rounded square */
+/** V5 — precision aperture mark */
 export function Logo({
   className,
   markClassName,
@@ -11,22 +11,27 @@ export function Logo({
   showWord?: boolean;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span
-        className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground",
-          markClassName
-        )}
+    <span className={cn("inline-flex items-center gap-2", className)}>
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-hidden
+        className={cn("h-6 w-6 text-steel", markClassName)}
       >
-        <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
-          <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.4" />
-          <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.3" />
-        </svg>
-      </span>
+        <rect
+          x="2"
+          y="2"
+          width="20"
+          height="20"
+          rx="3"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+      </svg>
       {showWord ? (
-        <span className="font-heading text-xl font-medium tracking-tight">
-          Pofo
-        </span>
+        <span className="text-base font-semibold tracking-tight">Pofo</span>
       ) : null}
     </span>
   );

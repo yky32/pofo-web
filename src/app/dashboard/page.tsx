@@ -2,9 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GalleryCard } from "@/components/photo/gallery-card";
-import { PhotoImage } from "@/components/photo/photo-image";
 import { mockGalleries } from "@/lib/mock-data";
-import { studioPhotos } from "@/lib/photos";
 
 export default function DashboardPage() {
   const galleries = mockGalleries;
@@ -15,53 +13,34 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-10">
-      <section className="relative overflow-hidden rounded-3xl">
-        <div className="relative min-h-[200px]">
-          <PhotoImage
-            src={studioPhotos.outdoor}
-            alt=""
-            sizes="100vw"
-            className="object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/55 to-transparent" />
-          <div className="relative flex min-h-[200px] flex-col justify-end p-6 sm:p-8">
-            <p className="text-xs font-medium tracking-wide text-white/70">
-              Your atelier
-            </p>
-            <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="font-heading text-3xl font-medium text-white sm:text-4xl">
-                  Soft light today.
-                </h1>
-                <p className="mt-1 text-sm text-white/70">
-                  {galleries.length} galleries · {totalPhotos} photos ·{" "}
-                  {proofing} proofing
-                </p>
-              </div>
-              <Button
-                className="w-fit rounded-full bg-white text-primary hover:bg-white/90"
-                asChild
-              >
-                <Link href="/dashboard/galleries/new">
-                  <Plus className="mr-1 h-4 w-4" />
-                  New gallery
-                </Link>
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="label-lab text-steel">Studio</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
+            Overview
+          </h1>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">
+            {galleries.length} jobs · {totalPhotos} frames · {proofing} proofing
+          </p>
         </div>
-      </section>
+        <Button className="w-fit bg-steel hover:bg-steel/90" asChild>
+          <Link href="/dashboard/galleries/new">
+            <Plus className="mr-1 h-4 w-4" />
+            New gallery
+          </Link>
+        </Button>
+      </div>
 
-      <section className="grid grid-cols-3 gap-3 sm:gap-4">
+      <section className="grid grid-cols-3 gap-3">
         {[
           { label: "Galleries", value: galleries.length },
           { label: "Proofing", value: proofing },
-          { label: "Photos", value: totalPhotos },
+          { label: "Frames", value: totalPhotos },
         ].map((stat) => (
-          <div key={stat.label} className="panel px-4 py-5 sm:px-6">
-            <p className="label-soft">{stat.label}</p>
-            <p className="mt-1 font-heading text-3xl font-medium sm:text-4xl">
+          <div key={stat.label} className="panel px-4 py-4">
+            <p className="label-lab">{stat.label}</p>
+            <p className="mt-1 text-3xl font-semibold tracking-tight">
               {stat.value}
             </p>
           </div>
@@ -69,18 +48,13 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <div className="mb-5 flex items-end justify-between">
-          <div>
-            <h2 className="font-heading text-2xl font-medium">Recent</h2>
-            <p className="text-sm text-muted-foreground">
-              Latest client deliveries
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" className="rounded-full" asChild>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Recent jobs</h2>
+          <Button variant="ghost" size="sm" asChild>
             <Link href="/dashboard/galleries">View all</Link>
           </Button>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {galleries.slice(0, 3).map((gallery) => (
             <GalleryCard
               key={gallery.id}

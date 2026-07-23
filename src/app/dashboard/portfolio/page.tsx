@@ -12,18 +12,18 @@ const samples = [
 
 export default function PortfolioPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <p className="label-soft">Public</p>
-        <h1 className="mt-1 font-heading text-3xl font-medium tracking-tight sm:text-4xl">
+        <p className="label-lab text-steel">Public</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">
           Portfolio
         </h1>
-        <p className="mt-1 max-w-md text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Published finals. Demo frames below.
         </p>
       </div>
 
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {samples.map((item) => (
           <PhotoFrame
             key={item.title}

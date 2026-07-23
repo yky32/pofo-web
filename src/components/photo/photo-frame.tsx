@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { PhotoImage } from "@/components/photo/photo-image";
 
-/** V4 — soft rounded photo with gentle lift */
+/** V5 — clean lab frame with meta caption */
 export function PhotoFrame({
   src,
   alt,
@@ -21,23 +21,19 @@ export function PhotoFrame({
 }) {
   return (
     <figure className={cn("group", className)}>
-      <div
-        className={cn(
-          "photo-edge shadow-[0_16px_40px_-20px_rgba(80,50,40,0.35)] ring-1 ring-black/5",
-          aspect
-        )}
-      >
+      <div className={cn("photo-edge ring-1 ring-border", aspect)}>
         <PhotoImage
           src={src}
           alt={alt}
           priority={priority}
           sizes={sizes}
-          className="transition duration-700 ease-out group-hover:scale-[1.03]"
+          className="transition duration-500 ease-out group-hover:scale-[1.02]"
         />
       </div>
       {caption ? (
-        <figcaption className="mt-3 px-1 font-heading text-sm text-muted-foreground">
-          {caption}
+        <figcaption className="mt-2 flex items-center justify-between px-0.5">
+          <span className="label-lab">{caption}</span>
+          <span className="h-1.5 w-1.5 rounded-full bg-steel" />
         </figcaption>
       ) : null}
     </figure>

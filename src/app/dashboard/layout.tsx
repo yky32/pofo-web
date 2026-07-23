@@ -14,38 +14,33 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen max-w-[1400px]">
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/70 bg-card/40 p-5 backdrop-blur-sm md:flex">
-          <Link href="/" className="mb-10 px-1 text-foreground">
+        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-border bg-card p-4 md:flex">
+          <Link href="/" className="mb-8 px-2">
             <Logo />
           </Link>
           <DashboardNav />
-          <div className="mt-auto space-y-3 px-1">
+          <div className="mt-auto space-y-2 px-1">
             {demoMode && (
-              <p className="rounded-2xl bg-rose/10 px-3 py-2.5 text-[11px] leading-relaxed text-[oklch(0.4_0.08_25)]">
-                Demo studio — mock galleries until Supabase is connected.
+              <p className="rounded-md border border-steel/20 bg-steel/5 px-3 py-2 font-mono text-[10px] leading-relaxed text-steel">
+                DEMO · mock data
               </p>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full rounded-full"
-              asChild
-            >
-              <Link href="/">Marketing site</Link>
+            <Button variant="outline" size="sm" className="w-full" asChild>
+              <Link href="/">Site</Link>
             </Button>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center justify-between border-b border-border/70 px-4 md:hidden">
+          <header className="flex h-12 items-center justify-between border-b border-border px-4 md:hidden">
             <Link href="/">
               <Logo />
             </Link>
-            <Button size="sm" variant="outline" className="rounded-full" asChild>
+            <Button size="sm" variant="outline" asChild>
               <Link href="/dashboard/galleries">Galleries</Link>
             </Button>
           </header>
-          <main className="flex-1 p-4 sm:p-6 lg:p-10">{children}</main>
+          <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
         </div>
       </div>
     </div>

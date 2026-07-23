@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Fraunces, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const heading = Fraunces({
+const heading = Geist({
   variable: "--font-heading",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "600", "700"],
 });
 
-const sans = Plus_Jakarta_Sans({
+const sans = Geist({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

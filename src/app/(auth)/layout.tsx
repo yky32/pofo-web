@@ -10,7 +10,7 @@ export default function AuthLayout({
 }) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden lg:block">
+      <div className="relative hidden overflow-hidden bg-muted lg:block">
         <PhotoImage
           src={studioPhotos.ceremony}
           alt=""
@@ -18,19 +18,20 @@ export default function AuthLayout({
           sizes="50vw"
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/70 to-transparent" />
         <div className="absolute bottom-0 left-0 p-10 text-white">
-          <p className="font-heading text-3xl font-medium leading-snug">
-            Your photos.
+          <p className="label-lab text-white/70">Pofo lab</p>
+          <p className="mt-2 text-2xl font-semibold leading-snug">
+            Deliver with
             <br />
-            Softly delivered.
+            contact-sheet clarity.
           </p>
         </div>
       </div>
 
-      <div className="flex min-h-screen flex-col">
-        <div className="flex h-16 items-center px-6">
-          <Link href="/" className="text-foreground">
+      <div className="flex min-h-screen flex-col bg-background">
+        <div className="flex h-14 items-center border-b border-border px-6">
+          <Link href="/">
             <Logo />
           </Link>
         </div>

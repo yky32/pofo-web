@@ -11,16 +11,9 @@ export default function MarketingLayout({
     <div className="min-h-screen">
       <SiteHeader />
       {children}
-      <footer className="border-t border-border/80 bg-card/50">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <Link href="/" className="text-foreground">
-              <Logo />
-            </Link>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
-              Soft delivery for hard-working photographers.
-            </p>
-          </div>
+      <footer className="border-t border-border bg-card">
+        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-12 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <Logo />
           <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
             <Link href="/dashboard" className="hover:text-foreground">
               Dashboard
@@ -32,9 +25,7 @@ export default function MarketingLayout({
               Start free
             </Link>
           </div>
-          <p className="text-xs text-muted-foreground">
-            © {new Date().getFullYear()} Pofo · Design v4
-          </p>
+          <p className="label-lab">© {new Date().getFullYear()} Pofo · v5</p>
         </div>
       </footer>
     </div>
