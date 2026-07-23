@@ -30,11 +30,15 @@ export function SignupForm() {
         Create your studio
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        Start delivering projects in minutes.
+        Continue with Google or Apple — fastest way to start.
       </p>
 
-      <div className="mt-8 space-y-4">
-        <SocialAuthButtons next="/dashboard" />
+      <div className="mt-8 space-y-6">
+        <SocialAuthButtons
+          next="/dashboard"
+          layout="primary"
+          caption="Continue with Google or Apple"
+        />
 
         <form action={action} noValidate className="space-y-4">
           <div className="space-y-2">
@@ -48,7 +52,7 @@ export function SignupForm() {
               className="rounded-xl"
             />
             <FieldMessage tone="muted">
-              Optional — you can change this later (or after Google / Apple).
+              Optional — set later in Settings (especially after social sign-up).
             </FieldMessage>
           </div>
 

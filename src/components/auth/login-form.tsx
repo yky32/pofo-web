@@ -31,14 +31,15 @@ export function LoginForm() {
         Welcome back
       </p>
       <h1 className="mt-2 font-heading text-3xl font-medium text-stone-900">
-        Sign in to your studio
+        Sign in
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        Manage projects and client deliveries.
+        Continue with Google or Apple, or use email.
       </p>
 
-      <div className="mt-8 space-y-4">
-        <SocialAuthButtons next={next} />
+      <div className="mt-8 space-y-6">
+        {/* Triftly-style: social first */}
+        <SocialAuthButtons next={next} layout="primary" />
 
         <form action={action} noValidate className="space-y-4">
           <input type="hidden" name="next" value={next} />

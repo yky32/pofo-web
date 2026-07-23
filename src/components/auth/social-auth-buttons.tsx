@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { signInWithApple, signInWithGoogle } from "@/actions/auth";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -30,18 +29,87 @@ function GoogleIcon({ className }: { className?: string }) {
 
 function AppleIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
       <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
     </svg>
   );
 }
 
+/** Triftly-style circular social button */
+function SocialCircleButton({
+  label,
+  disabled,
+  pending,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  pending?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex h-[52px] w-[52px] items-center justify-center rounded-full border border-stone-200 bg-white text-stone-900 shadow-[0_1px_2px_rgba(28,25,23,0.04)] transition",
+        "hover:border-stone-300 hover:bg-stone-50 hover:shadow-[0_4px_12px_-6px_rgba(28,25,23,0.15)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-400/40",
+        "disabled:pointer-events-none disabled:opacity-50",
+        pending && "opacity-70",
+      )}
+    >
+      {pending ? (
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-stone-300 border-t-stone-700"
+          aria-hidden
+        />
+      ) : (
+        children
+      )}
+    </button>
+  );
+}
+
+function OrDivider({ label = "or" }: { label?: string }) {
+  return (
+    <div className="relative py-1">
+      <div className="absolute inset-0 flex items-center" aria-hidden>
+        <div className="w-full border-t border-stone-200" />
+      </div>
+      <div className="relative flex justify-center">
+        <span className="bg-white px-3 text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Triftly-like social sign-in: caption + centered circular Google / Apple.
+ * Place above email form with divider, or use `variant="stack"` alone.
+ */
 export function SocialAuthButtons({
   next = "/dashboard",
   className,
+  /** social-first (Triftly default) vs divider-only below email */
+  layout = "primary",
+  caption = "Continue with Google or Apple",
 }: {
   next?: string;
   className?: string;
+  layout?: "primary" | "secondary";
+  caption?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +121,14 @@ export function SocialAuthButtons({
     startTransition(async () => {
       const fd = new FormData();
       fd.set("next", next);
+      // Match current host (important when APP_URL is 3000 vs 3002)
+      if (typeof window !== "undefined") {
+        fd.set("origin", window.location.origin);
+      }
       const result =
         provider === "google"
           ? await signInWithGoogle(fd)
           : await signInWithApple(fd);
-      // redirect() throws; if we get a return value it's an error object
       if (result && "error" in result && result.error) {
         setError(result.error);
         setWhich(null);
@@ -65,45 +136,51 @@ export function SocialAuthButtons({
     });
   }
 
+  const circles = (
+    <div className="flex items-center justify-center gap-5">
+      <SocialCircleButton
+        label="Continue with Google"
+        disabled={pending}
+        pending={pending && which === "google"}
+        onClick={() => run("google")}
+      >
+        <GoogleIcon className="h-6 w-6" />
+      </SocialCircleButton>
+      <SocialCircleButton
+        label="Continue with Apple"
+        disabled={pending}
+        pending={pending && which === "apple"}
+        onClick={() => run("apple")}
+      >
+        <AppleIcon className="h-6 w-6" />
+      </SocialCircleButton>
+    </div>
+  );
+
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="relative py-1">
-        <div className="absolute inset-0 flex items-center" aria-hidden>
-          <div className="w-full border-t border-stone-200" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase tracking-[0.15em]">
-          <span className="bg-white px-3 text-stone-400">Or continue with</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          onClick={() => run("google")}
-          className="h-10 rounded-full border-stone-300 bg-white font-normal text-stone-800 hover:bg-stone-50"
-        >
-          <GoogleIcon className="mr-2 h-4 w-4" />
-          {pending && which === "google" ? "…" : "Google"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={pending}
-          onClick={() => run("apple")}
-          className="h-10 rounded-full border-stone-300 bg-white font-normal text-stone-800 hover:bg-stone-50"
-        >
-          <AppleIcon className="mr-2 h-4 w-4" />
-          {pending && which === "apple" ? "…" : "Apple"}
-        </Button>
-      </div>
-
-      {error ? (
-        <p className="text-center text-xs text-red-600/90" role="alert">
-          {error}
-        </p>
-      ) : null}
+    <div className={cn("space-y-4", className)}>
+      {layout === "primary" ? (
+        <>
+          <p className="text-center text-sm text-stone-500">{caption}</p>
+          {circles}
+          {error ? (
+            <p className="text-center text-xs text-red-600/90" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <OrDivider />
+        </>
+      ) : (
+        <>
+          <OrDivider />
+          {circles}
+          {error ? (
+            <p className="text-center text-xs text-red-600/90" role="alert">
+              {error}
+            </p>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

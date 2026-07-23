@@ -131,13 +131,26 @@ export async function signOut() {
   redirect("/");
 }
 
+function resolveAppOrigin(originFromClient?: string | null) {
+  const o = (originFromClient ?? "").trim();
+  if (o.startsWith("http://") || o.startsWith("https://")) {
+    try {
+      return new URL(o).origin;
+    } catch {
+      /* fall through */
+    }
+  }
+  return getAppUrl().replace(/\/$/, "");
+}
+
 /**
- * Start Google / Apple OAuth (same pattern as Triftly → Supabase OAuth provider).
+ * Start Google / Apple OAuth (Triftly pattern: provider → redirectTo → callback session).
  * Redirects the browser to the IdP; return lands on /auth/callback.
  */
 export async function signInWithOAuth(
   provider: OAuthProvider,
-  nextPath = "/dashboard"
+  nextPath = "/dashboard",
+  originFromClient?: string | null
 ) {
   if (!isSupabaseConfigured()) {
     return {
@@ -147,17 +160,17 @@ export async function signInWithOAuth(
   }
 
   const next = nextPath.startsWith("/") ? nextPath : "/dashboard";
-  const redirectTo = `${getAppUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
+  const origin = resolveAppOrigin(originFromClient);
+  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
       redirectTo,
+      // Skip offline prompt every time — smoother UX (Triftly-like)
       queryParams:
-        provider === "google"
-          ? { access_type: "offline", prompt: "consent" }
-          : undefined,
+        provider === "google" ? { prompt: "select_account" } : undefined,
     },
   });
 
@@ -173,10 +186,12 @@ export async function signInWithOAuth(
 
 export async function signInWithGoogle(formData: FormData) {
   const next = String(formData.get("next") ?? "/dashboard");
-  return signInWithOAuth("google", next);
+  const origin = String(formData.get("origin") ?? "");
+  return signInWithOAuth("google", next, origin);
 }
 
 export async function signInWithApple(formData: FormData) {
   const next = String(formData.get("next") ?? "/dashboard");
-  return signInWithOAuth("apple", next);
+  const origin = String(formData.get("origin") ?? "");
+  return signInWithOAuth("apple", next, origin);
 }
