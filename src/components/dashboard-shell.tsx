@@ -2,10 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard-nav";
+import {
+  DashboardUserMenu,
+  type DashboardUser,
+} from "@/components/dashboard-user-menu";
 import { Logo } from "@/components/brand/logo";
-import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,11 +17,11 @@ const STORAGE_KEY = "pofo-sidebar-collapsed";
 export function DashboardShell({
   children,
   demoMode,
-  showSignOut,
+  user,
 }: {
   children: React.ReactNode;
   demoMode: boolean;
-  showSignOut: boolean;
+  user: DashboardUser | null;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
@@ -44,28 +47,6 @@ export function DashboardShell({
       return next;
     });
   }
-
-  const toggleButton = (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      aria-expanded={!collapsed}
-      title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      className={cn(
-        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
-        "hover:bg-stone-900/5 hover:text-stone-800",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-        collapsed ? "mx-auto" : ""
-      )}
-    >
-      {collapsed ? (
-        <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
-      ) : (
-        <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
-      )}
-    </button>
-  );
 
   return (
     <div className="min-h-screen">
@@ -106,45 +87,36 @@ export function DashboardShell({
                 <code className="text-[10px]">supabase/SETUP.md</code>).
               </p>
             ) : null}
-            {showSignOut ? (
-              collapsed ? (
-                <SignOutButton compact />
-              ) : (
-                <SignOutButton />
-              )
-            ) : null}
-            {collapsed ? (
-              <Button
-                variant="outline"
-                size="icon"
-                className="rounded-full border-stone-200 bg-white/50"
-                asChild
-                title="Marketing site"
-              >
-                <Link href="/">
-                  <ExternalLink className="h-4 w-4" />
-                  <span className="sr-only">Marketing site</span>
-                </Link>
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full rounded-full border-stone-200 bg-white/50"
-                asChild
-              >
-                <Link href="/">Marketing site</Link>
-              </Button>
-            )}
 
-            {/* Sidebar expand / collapse — bottom of rail */}
+            {/* Avatar → liquid glass account menu */}
+            <DashboardUserMenu user={user} collapsed={collapsed} />
+
+            {/* Sidebar expand / collapse */}
             <div
               className={cn(
                 "border-t border-stone-900/5 pt-3",
                 collapsed ? "flex justify-center" : "flex justify-start"
               )}
             >
-              {toggleButton}
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-expanded={!collapsed}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
+                  "hover:bg-stone-900/5 hover:text-stone-800",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+                  collapsed && "mx-auto"
+                )}
+              >
+                {collapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
+                )}
+              </button>
             </div>
           </div>
         </aside>
@@ -154,9 +126,12 @@ export function DashboardShell({
             <Link href="/">
               <Logo />
             </Link>
-            <Button size="sm" variant="outline" className="rounded-full" asChild>
-              <Link href="/dashboard/galleries">Projects</Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              <DashboardUserMenu user={user} collapsed />
+              <Button size="sm" variant="outline" className="rounded-full" asChild>
+                <Link href="/dashboard/galleries">Projects</Link>
+              </Button>
+            </div>
           </header>
           <main className="flex-1 p-4 sm:p-6 lg:p-10">{children}</main>
         </div>
