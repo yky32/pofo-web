@@ -13,7 +13,6 @@ export interface Profile {
   studio_name: string | null;
   /** Public handle → {slug}.pofo.app */
   slug: string | null;
-  custom_domain: string | null;
   avatar_url: string | null;
   /**
    * Linked auth providers (google, apple, email, …).
@@ -50,9 +49,7 @@ export interface Container {
   id: string;
   project_id: string;
   name: string;
-  concept: string | null;
   sort_order: number;
-  selection_limit: number | null;
   is_client_visible_default: boolean;
   created_at: string;
   updated_at: string;
@@ -71,14 +68,12 @@ export interface Shot {
    * Uploaded files should leave this null and use signed `display_url`.
    */
   preview_url: string | null;
-  thumbnail_key: string | null;
   filename: string | null;
   mime_type: string | null;
   size_bytes: number | null;
   width: number | null;
   height: number | null;
   sort_order: number;
-  captured_at: string | null;
   created_at: string;
   /** Short-lived signed URL attached at read time (not stored in DB) */
   display_url?: string | null;
@@ -92,11 +87,7 @@ export interface ShareLink {
   /** scrypt hash only; never send plain password or hash to the client UI */
   password_hash: string | null;
   expires_at: string | null;
-  allow_download: boolean;
-  allow_raw_download: boolean;
-  raw_expires_at: string | null;
   is_active: boolean;
-  selection_limit_override: number | null;
   created_at: string;
 }
 
@@ -105,7 +96,6 @@ export interface ShotSelection {
   project_id: string;
   share_link_id: string;
   shot_id: string;
-  client_label: string | null;
   created_at: string;
 }
 

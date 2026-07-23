@@ -53,9 +53,7 @@ create table if not exists public.containers (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects (id) on delete cascade,
   name text not null,
-  concept text,
   sort_order int not null default 0,
-  selection_limit int,
   is_client_visible_default boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -84,14 +82,12 @@ create table if not exists public.shots (
   kind public.shot_kind not null default 'preview',
   storage_key text,
   preview_url text,
-  thumbnail_key text,
   filename text,
   mime_type text,
   size_bytes bigint,
   width int,
   height int,
   sort_order int not null default 0,
-  captured_at timestamptz,
   created_at timestamptz not null default now()
 );
 
@@ -109,11 +105,7 @@ create table if not exists public.share_links (
   token text not null unique,
   password_hash text,
   expires_at timestamptz,
-  allow_download boolean not null default true,
-  allow_raw_download boolean not null default false,
-  raw_expires_at timestamptz,
   is_active boolean not null default true,
-  selection_limit_override int,
   created_at timestamptz not null default now()
 );
 
@@ -130,7 +122,6 @@ create table if not exists public.shot_selections (
   project_id uuid not null references public.projects (id) on delete cascade,
   share_link_id uuid not null references public.share_links (id) on delete cascade,
   shot_id uuid not null references public.shots (id) on delete cascade,
-  client_label text,
   created_at timestamptz not null default now(),
   unique (share_link_id, shot_id)
 );
@@ -321,7 +312,7 @@ begin
     return jsonb_build_object('error', 'not_found');
   end if;
 
-  v_limit := coalesce(v_link.selection_limit_override, v_project.selection_limit);
+  v_limit := v_project.selection_limit;
 
   select coalesce(jsonb_agg(
     jsonb_build_object(
@@ -396,7 +387,7 @@ begin
   end if;
 
   select * into v_project from public.projects where id = v_link.project_id;
-  v_limit := coalesce(v_link.selection_limit_override, v_project.selection_limit);
+  v_limit := v_project.selection_limit;
 
   -- Shot must belong to this project
   if not exists (

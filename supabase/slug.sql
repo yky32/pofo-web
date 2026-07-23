@@ -4,16 +4,9 @@
 alter table public.profiles
   add column if not exists slug text;
 
-alter table public.profiles
-  add column if not exists custom_domain text;
-
 create unique index if not exists profiles_slug_uidx
   on public.profiles (slug)
   where slug is not null;
-
-create unique index if not exists profiles_custom_domain_uidx
-  on public.profiles (custom_domain)
-  where custom_domain is not null;
 
 alter table public.profiles
   drop constraint if exists profiles_slug_format;
@@ -232,7 +225,7 @@ begin
     end if;
   end if;
 
-  v_limit := coalesce(v_link.selection_limit_override, v_project.selection_limit);
+  v_limit := v_project.selection_limit;
 
   select coalesce(jsonb_agg(
     jsonb_build_object(

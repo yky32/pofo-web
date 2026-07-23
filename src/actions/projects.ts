@@ -137,9 +137,7 @@ export async function createProject(
   await supabase.from("containers").insert({
     project_id: project.id,
     name: "Main Gallery",
-    concept: "Exhibition",
     sort_order: 0,
-    selection_limit: Math.min(200, Math.max(1, selectionLimit)),
   });
 
   revalidatePath("/dashboard");

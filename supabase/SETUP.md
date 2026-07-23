@@ -55,6 +55,7 @@ bun dev
 4. Paste `supabase/profiles-providers.sql` → **Run** (`profiles.providers[]` cache)
 5. Paste `supabase/share-gate.sql` → **Run** (password-link public meta)
 6. Optional: paste `supabase/slug.sql` if you use studio subdomains
+7. Optional (existing DBs): paste `supabase/cleanup-unused-columns.sql` to drop dead columns
 
 This creates:
 

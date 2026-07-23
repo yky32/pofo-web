@@ -176,7 +176,6 @@ export async function registerUploadedShots(input: {
       .insert({
         project_id: input.projectId,
         name: "Main Gallery",
-        concept: "Exhibition",
         sort_order: 0,
       })
       .select("id")
@@ -272,7 +271,6 @@ export async function seedDemoShots(
       .insert({
         project_id: projectId,
         name: "Main Gallery",
-        concept: "Exhibition",
         sort_order: 0,
       })
       .select("id")

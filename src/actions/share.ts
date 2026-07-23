@@ -126,7 +126,6 @@ export async function createShareLink(
       token,
       password_hash,
       is_active: true,
-      allow_download: true,
       expires_at,
     })
     .select("token")
@@ -459,8 +458,7 @@ async function loadGalleryWithAdmin(
     .eq("id", project.owner_id)
     .maybeSingle();
 
-  const limit =
-    link.selection_limit_override ?? project.selection_limit ?? 40;
+  const limit = project.selection_limit ?? 40;
 
   const { data: containers } = await admin
     .from("containers")
