@@ -2,9 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { emailFieldError } from "@/lib/email";
+import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
 import { preferredSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
-import { isSupabaseConfigured } from "@/lib/env";
+
+export type OAuthProvider = "google" | "apple";
 
 export type AuthFields = {
   email?: string;
@@ -127,4 +129,54 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+/**
+ * Start Google / Apple OAuth (same pattern as Triftly → Supabase OAuth provider).
+ * Redirects the browser to the IdP; return lands on /auth/callback.
+ */
+export async function signInWithOAuth(
+  provider: OAuthProvider,
+  nextPath = "/dashboard"
+) {
+  if (!isSupabaseConfigured()) {
+    return {
+      error:
+        "Supabase is not configured. Add keys to .env.local — see supabase/SETUP.md",
+    };
+  }
+
+  const next = nextPath.startsWith("/") ? nextPath : "/dashboard";
+  const redirectTo = `${getAppUrl()}/auth/callback?next=${encodeURIComponent(next)}`;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      queryParams:
+        provider === "google"
+          ? { access_type: "offline", prompt: "consent" }
+          : undefined,
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+  if (!data.url) {
+    return { error: "Could not start social sign-in." };
+  }
+
+  redirect(data.url);
+}
+
+export async function signInWithGoogle(formData: FormData) {
+  const next = String(formData.get("next") ?? "/dashboard");
+  return signInWithOAuth("google", next);
+}
+
+export async function signInWithApple(formData: FormData) {
+  const next = String(formData.get("next") ?? "/dashboard");
+  return signInWithOAuth("apple", next);
 }

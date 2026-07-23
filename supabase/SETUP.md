@@ -141,3 +141,54 @@ NEXT_PUBLIC_ROOT_DOMAIN=pofo.app
 ```
 
 Until DNS is live, studio pages use `/s/{slug}` and local `{slug}.localhost:3002`.
+
+## 7. Social login (Google / Apple) — Triftly-style OAuth
+
+Pofo uses the same Supabase OAuth pattern as Triftly (provider → redirect → session).
+
+### App routes
+
+| Path | Role |
+|------|------|
+| `/login`, `/signup` | Google + Apple buttons |
+| `/auth/callback` | PKCE `exchangeCodeForSession` then redirect to dashboard |
+
+### Supabase Dashboard
+
+1. **Authentication → Providers → Google** → enable, paste Web Client ID + Secret  
+2. **Authentication → Providers → Apple** → enable (Services ID + secret) if you want Apple  
+3. **Authentication → URL configuration → Redirect URLs** add:
+
+```
+http://localhost:3002/auth/callback
+http://localhost:3000/auth/callback
+https://pofo-web.vercel.app/auth/callback
+https://YOUR_DOMAIN/auth/callback
+```
+
+4. Site URL: `http://localhost:3002` (dev) or production app URL  
+
+### Google Cloud Console
+
+1. Create OAuth **Web** client  
+2. Authorized redirect URI = the URI shown in Supabase Google provider settings  
+   (looks like `https://vjtdasuuxkxfiibziymb.supabase.co/auth/v1/callback`)  
+3. Optional: add your production origins  
+
+### SQL
+
+After slug migration, run:
+
+```bash
+# or SQL Editor: paste supabase/oauth-profile.sql
+```
+
+Improves `handle_new_user` for OAuth `full_name` / `picture` → profile + slug.
+
+### Env
+
+```bash
+NEXT_PUBLIC_APP_URL=http://localhost:3002   # must match redirect host
+```
+
+Production: set the same on Vercel (`https://pofo-web.vercel.app`).

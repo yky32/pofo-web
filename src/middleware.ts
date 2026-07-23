@@ -74,6 +74,8 @@ export async function middleware(request: NextRequest) {
 
   const isDashboard = path.startsWith("/dashboard");
   const isAuth = path.startsWith("/login") || path.startsWith("/signup");
+  // OAuth return path must run without forcing login/signup redirects
+  const isOAuthCallback = path.startsWith("/auth/callback");
 
   if (isDashboard && !user) {
     const redirect = request.nextUrl.clone();
@@ -82,7 +84,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirect);
   }
 
-  if (isAuth && user) {
+  if (isAuth && user && !isOAuthCallback) {
     const redirect = request.nextUrl.clone();
     redirect.pathname = "/dashboard";
     return NextResponse.redirect(redirect);

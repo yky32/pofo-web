@@ -10,6 +10,7 @@ import {
   FormBanner,
   fieldInputClass,
 } from "@/components/auth/field-message";
+import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +20,7 @@ const initial: AuthState = {};
 export function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
+  const oauthError = searchParams.get("error");
   const [state, action, pending] = useActionState(signIn, initial);
 
   const passwordError = state.fields?.password;
@@ -35,40 +37,45 @@ export function LoginForm() {
         Manage projects and client deliveries.
       </p>
 
-      <form action={action} noValidate className="mt-8 space-y-4">
-        <input type="hidden" name="next" value={next} />
+      <div className="mt-8 space-y-4">
+        <SocialAuthButtons next={next} />
 
-        <EmailField serverError={state.fields?.email} />
+        <form action={action} noValidate className="space-y-4">
+          <input type="hidden" name="next" value={next} />
 
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-stone-700">
-            Password
-          </Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            aria-invalid={!!passwordError}
-            aria-describedby={passwordError ? "password-error" : undefined}
-            className={fieldInputClass(!!passwordError)}
-          />
-          {passwordError ? (
-            <FieldMessage id="password-error">{passwordError}</FieldMessage>
-          ) : null}
-        </div>
+          <EmailField serverError={state.fields?.email} />
 
-        {state.error ? <FormBanner>{state.error}</FormBanner> : null}
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-stone-700">
+              Password
+            </Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              aria-invalid={!!passwordError}
+              aria-describedby={passwordError ? "password-error" : undefined}
+              className={fieldInputClass(!!passwordError)}
+            />
+            {passwordError ? (
+              <FieldMessage id="password-error">{passwordError}</FieldMessage>
+            ) : null}
+          </div>
 
-        <Button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-        >
-          {pending ? "Signing in…" : "Continue"}
-        </Button>
-      </form>
+          {oauthError ? <FormBanner>{oauthError}</FormBanner> : null}
+          {state.error ? <FormBanner>{state.error}</FormBanner> : null}
+
+          <Button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+          >
+            {pending ? "Signing in…" : "Continue with email"}
+          </Button>
+        </form>
+      </div>
 
       <p className="mt-8 text-center text-sm text-stone-500">
         No account?{" "}

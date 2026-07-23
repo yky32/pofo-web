@@ -9,6 +9,7 @@ import {
   FormBanner,
   fieldInputClass,
 } from "@/components/auth/field-message";
+import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,62 +33,66 @@ export function SignupForm() {
         Start delivering projects in minutes.
       </p>
 
-      <form action={action} noValidate className="mt-8 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="studio" className="text-stone-700">
-            Studio name
-          </Label>
-          <Input
-            id="studio"
-            name="studio"
-            placeholder="Light & Frame Studio"
-            className="rounded-xl"
-          />
-          <FieldMessage tone="muted">
-            Optional — you can change this later.
-          </FieldMessage>
-        </div>
+      <div className="mt-8 space-y-4">
+        <SocialAuthButtons next="/dashboard" />
 
-        <EmailField serverError={state.fields?.email} />
-
-        <div className="space-y-2">
-          <Label htmlFor="password" className="text-stone-700">
-            Password
-          </Label>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="••••••••"
-            aria-invalid={!!passwordError}
-            aria-describedby={
-              passwordError ? "password-error" : "password-hint"
-            }
-            className={fieldInputClass(!!passwordError)}
-          />
-          {passwordError ? (
-            <FieldMessage id="password-error">{passwordError}</FieldMessage>
-          ) : (
-            <FieldMessage id="password-hint" tone="muted">
-              At least 6 characters.
+        <form action={action} noValidate className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="studio" className="text-stone-700">
+              Studio name
+            </Label>
+            <Input
+              id="studio"
+              name="studio"
+              placeholder="Light & Frame Studio"
+              className="rounded-xl"
+            />
+            <FieldMessage tone="muted">
+              Optional — you can change this later (or after Google / Apple).
             </FieldMessage>
-          )}
-        </div>
+          </div>
 
-        {state.error ? <FormBanner>{state.error}</FormBanner> : null}
-        {state.success ? (
-          <FormBanner tone="success">{state.success}</FormBanner>
-        ) : null}
+          <EmailField serverError={state.fields?.email} />
 
-        <Button
-          type="submit"
-          disabled={pending}
-          className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-        >
-          {pending ? "Creating…" : "Create account"}
-        </Button>
-      </form>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-stone-700">
+              Password
+            </Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              aria-invalid={!!passwordError}
+              aria-describedby={
+                passwordError ? "password-error" : "password-hint"
+              }
+              className={fieldInputClass(!!passwordError)}
+            />
+            {passwordError ? (
+              <FieldMessage id="password-error">{passwordError}</FieldMessage>
+            ) : (
+              <FieldMessage id="password-hint" tone="muted">
+                At least 6 characters.
+              </FieldMessage>
+            )}
+          </div>
+
+          {state.error ? <FormBanner>{state.error}</FormBanner> : null}
+          {state.success ? (
+            <FormBanner tone="success">{state.success}</FormBanner>
+          ) : null}
+
+          <Button
+            type="submit"
+            disabled={pending}
+            className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+          >
+            {pending ? "Creating…" : "Create account with email"}
+          </Button>
+        </form>
+      </div>
 
       <p className="mt-8 text-center text-sm text-stone-500">
         Already have an account?{" "}
