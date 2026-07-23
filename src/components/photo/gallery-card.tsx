@@ -17,6 +17,12 @@ export function GalleryCard({
   const cover =
     galleryCovers[gallery.id] ?? studioPhotos.studio;
 
+  const proofSuffix =
+    gallery.status === "proofing" &&
+    gallery.selection_limit != null
+      ? `${gallery.selection_count ?? 0}/${gallery.selection_limit}`
+      : null;
+
   return (
     <Link
       href={href}
@@ -34,9 +40,12 @@ export function GalleryCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950/55 via-transparent to-black/10" />
 
-        {/* Status — top right, color-coded */}
+        {/* Status (+ proof count when proofing) — top right */}
         <div className="absolute right-2.5 top-2.5 z-10">
-          <GalleryStatusBadge status={gallery.status} />
+          <GalleryStatusBadge
+            status={gallery.status}
+            suffix={proofSuffix}
+          />
         </div>
 
         <div className="absolute bottom-3 left-3 right-3">
@@ -48,18 +57,11 @@ export function GalleryCard({
           </p>
         </div>
       </div>
-      {gallery.status === "proofing" ? (
-        <div className="flex items-center justify-between px-3 py-2.5 text-xs text-stone-500">
-          <span className="font-medium text-amber-800/80">Proofing</span>
-          <span className="font-medium text-stone-800">
-            {gallery.selection_count}/{gallery.selection_limit}
-          </span>
-        </div>
-      ) : (
+      {gallery.description ? (
         <div className="px-3 py-2.5 text-xs text-stone-500">
           {gallery.description}
         </div>
-      )}
+      ) : null}
     </Link>
   );
 }

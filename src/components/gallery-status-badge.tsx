@@ -34,9 +34,12 @@ const statusConfig: Record<
 export function GalleryStatusBadge({
   status,
   className,
+  /** e.g. "4/40" for proofing progress — shown after the label */
+  suffix,
 }: {
   status: GalleryStatus;
   className?: string;
+  suffix?: string | null;
 }) {
   const config = statusConfig[status] ?? statusConfig.draft;
   return (
@@ -49,6 +52,11 @@ export function GalleryStatusBadge({
       )}
     >
       {config.label}
+      {suffix ? (
+        <span className="ml-1.5 font-semibold tabular-nums opacity-90">
+          {suffix}
+        </span>
+      ) : null}
     </Badge>
   );
 }
