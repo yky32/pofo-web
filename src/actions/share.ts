@@ -7,7 +7,6 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
 import {
-  generateSharePassword,
   hashSharePassword,
   hasShareUnlock,
   setShareUnlockCookie,
@@ -195,12 +194,15 @@ export async function revokeShareLink(
 }
 
 /**
- * Compensation: regenerate password when photographer + client both forgot.
- * Same token/URL; new scrypt hash. Plain password returned once (like Supabase DB password reset).
+ * Compensation: set a new password on an existing locked link (same URL).
+ * Photographer types the password (same UX as create with toggle on).
+ * Plain password returned once for copy reveal.
  */
 export async function regenerateSharePassword(input: {
   projectId: string;
   linkId: string;
+  /** Required — same as create-link password field */
+  password: string;
 }): Promise<ShareActionState> {
   if (!isSupabaseConfigured()) {
     return { error: "Supabase is not configured." };
@@ -208,7 +210,11 @@ export async function regenerateSharePassword(input: {
 
   const projectId = input.projectId?.trim();
   const linkId = input.linkId?.trim();
+  const plain = String(input.password ?? "").trim();
   if (!projectId || !linkId) return { error: "Missing link." };
+  if (plain.length < 4) {
+    return { error: "Password must be at least 4 characters." };
+  }
 
   const supabase = await createClient();
   const {
@@ -226,7 +232,7 @@ export async function regenerateSharePassword(input: {
 
   const { data: link, error: fetchErr } = await supabase
     .from("share_links")
-    .select("id, token, is_active")
+    .select("id, token, is_active, password_hash")
     .eq("id", linkId)
     .eq("project_id", projectId)
     .maybeSingle();
@@ -235,8 +241,10 @@ export async function regenerateSharePassword(input: {
   if (!link.is_active) {
     return { error: "This link is revoked. Create a new link instead." };
   }
+  if (!link.password_hash) {
+    return { error: "This link is not password protected." };
+  }
 
-  const plain = generateSharePassword(20);
   const password_hash = hashSharePassword(plain);
 
   const { error } = await supabase
@@ -249,7 +257,7 @@ export async function regenerateSharePassword(input: {
 
   revalidatePath(`/dashboard/galleries/${projectId}`);
   return {
-    success: "Password regenerated. Copy it now — it won’t be shown again.",
+    success: "Password updated. Copy it now — it won’t be shown again.",
     token: link.token as string,
     plain_password: plain,
   };

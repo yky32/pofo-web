@@ -68,7 +68,10 @@ export function ShareLinkPanel({
     mode: "created" | "regenerated";
   } | null>(null);
   const [showPassword, setShowPassword] = useState(true);
-  const [regenLinkId, setRegenLinkId] = useState<string | null>(null);
+  /** Which locked link is being reset (shows set-password field) */
+  const [resetLinkId, setResetLinkId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetPending, setResetPending] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
   const lastHandledToken = useRef<string | null>(null);
 
@@ -160,33 +163,43 @@ export function ShareLinkPanel({
     setShowPassword(false);
   }
 
-  async function onRegenerate(linkId: string) {
-    if (
-      !window.confirm(
-        "Generate a new password for this link?\n\nThe old password will stop working. The gallery URL stays the same."
-      )
-    ) {
+  function openResetPassword(linkId: string) {
+    setSecretReveal(null);
+    setRegenError(null);
+    setResetPassword("");
+    setResetLinkId((cur) => (cur === linkId ? null : linkId));
+  }
+
+  async function onSubmitResetPassword(linkId: string) {
+    const plain = resetPassword.trim();
+    if (plain.length < 4) {
+      setRegenError("Password must be at least 4 characters.");
       return;
     }
     setRegenError(null);
-    setRegenLinkId(linkId);
+    setResetPending(true);
     try {
-      const res = await regenerateSharePassword({ projectId, linkId });
+      const res = await regenerateSharePassword({
+        projectId,
+        linkId,
+        password: plain,
+      });
       if (res.error || !res.token || !res.plain_password) {
-        setRegenError(res.error ?? "Could not regenerate password.");
+        setRegenError(res.error ?? "Could not update password.");
         return;
       }
       lastHandledToken.current = `r:${res.token}:${Date.now()}`;
+      setResetLinkId(null);
+      setResetPassword("");
       setSecretReveal({
         token: res.token,
         password: res.plain_password,
         mode: "regenerated",
       });
       setShowPassword(true);
-      // Instant copy like Supabase secret UX
       await copyText("secret-pw", res.plain_password);
     } finally {
-      setRegenLinkId(null);
+      setResetPending(false);
     }
   }
 
@@ -509,76 +522,122 @@ export function ShareLinkPanel({
                   ) : null}
 
                   {active.length > 0 ? (
-                    <ul className="max-h-40 space-y-1 overflow-y-auto overscroll-contain">
+                    <ul className="max-h-52 space-y-1.5 overflow-y-auto overscroll-contain">
                       {active.map((link) => {
                         const exp = link.expires_at
                           ? new Date(link.expires_at).toLocaleDateString()
                           : "No expiry";
+                        const resetting = resetLinkId === link.id;
                         return (
                           <li
                             key={link.id}
-                            className="flex items-center gap-1.5 rounded-lg bg-stone-50/90 px-2 py-1.5 ring-1 ring-stone-100"
+                            className="rounded-lg bg-stone-50/90 ring-1 ring-stone-100"
                           >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate font-mono text-[11px] text-stone-600">
-                                …/{link.token.slice(0, 14)}
-                              </p>
-                              <p className="text-[10px] text-stone-400">
-                                {exp}
-                                {link.password_protected ? " · locked" : ""}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-200/60 hover:text-stone-800"
-                              onClick={() => copyToken(link.token)}
-                              title="Copy link"
-                            >
-                              {copied === link.token ? (
-                                <Check className="h-3.5 w-3.5" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                            {/* Regenerate only for password-protected (locked) links */}
-                            {link.password_protected ? (
+                            <div className="flex items-center gap-1.5 px-2 py-1.5">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-mono text-[11px] text-stone-600">
+                                  …/{link.token.slice(0, 14)}
+                                </p>
+                                <p className="text-[10px] text-stone-400">
+                                  {exp}
+                                  {link.password_protected ? " · locked" : ""}
+                                </p>
+                              </div>
                               <button
                                 type="button"
-                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50"
-                                disabled={
-                                  regenLinkId === link.id || revokePending
-                                }
-                                onClick={() => void onRegenerate(link.id)}
-                                title="Regenerate password"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-200/60 hover:text-stone-800"
+                                onClick={() => copyToken(link.token)}
+                                title="Copy link"
                               >
-                                <RefreshCw
+                                {copied === link.token ? (
+                                  <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              {link.password_protected ? (
+                                <button
+                                  type="button"
                                   className={cn(
-                                    "h-3.5 w-3.5",
-                                    regenLinkId === link.id && "animate-spin"
+                                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50",
+                                    resetting && "bg-amber-50 text-amber-800"
                                   )}
+                                  disabled={resetPending || revokePending}
+                                  onClick={() => openResetPassword(link.id)}
+                                  title="Set new password"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                              ) : null}
+                              <form action={revokeAction} className="shrink-0">
+                                <input
+                                  type="hidden"
+                                  name="link_id"
+                                  value={link.id}
                                 />
-                              </button>
+                                <input
+                                  type="hidden"
+                                  name="project_id"
+                                  value={projectId}
+                                />
+                                <button
+                                  type="submit"
+                                  disabled={revokePending}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-rose-50 hover:text-rose-700"
+                                  title="Revoke link"
+                                >
+                                  <XCircle className="h-3.5 w-3.5" />
+                                </button>
+                              </form>
+                            </div>
+
+                            {/* Same set-password UI as create (toggle on) */}
+                            {resetting ? (
+                              <div className="border-t border-stone-100 px-2.5 py-2.5">
+                                <p className="mb-1.5 text-[10px] font-medium text-stone-500">
+                                  Set new password
+                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={resetPassword}
+                                    onChange={(e) =>
+                                      setResetPassword(e.target.value)
+                                    }
+                                    placeholder="Password for client"
+                                    autoComplete="off"
+                                    spellCheck={false}
+                                    autoFocus
+                                    disabled={resetPending}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        void onSubmitResetPassword(link.id);
+                                      }
+                                    }}
+                                    className="h-9 min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 font-mono text-xs text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400 focus:border-stone-400"
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={
+                                      resetPending ||
+                                      resetPassword.trim().length < 4
+                                    }
+                                    className="h-9 shrink-0 rounded-full bg-stone-900 px-3 text-stone-50 hover:bg-stone-800"
+                                    onClick={() =>
+                                      void onSubmitResetPassword(link.id)
+                                    }
+                                  >
+                                    {resetPending ? "…" : "Set"}
+                                  </Button>
+                                </div>
+                                <p className="mt-1.5 text-[10px] leading-snug text-stone-400">
+                                  URL stays the same. Old password stops
+                                  working. Shown once to copy.
+                                </p>
+                              </div>
                             ) : null}
-                            <form action={revokeAction} className="shrink-0">
-                              <input
-                                type="hidden"
-                                name="link_id"
-                                value={link.id}
-                              />
-                              <input
-                                type="hidden"
-                                name="project_id"
-                                value={projectId}
-                              />
-                              <button
-                                type="submit"
-                                disabled={revokePending}
-                                className="flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-rose-50 hover:text-rose-700"
-                                title="Revoke link"
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                              </button>
-                            </form>
                           </li>
                         );
                       })}
