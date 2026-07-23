@@ -1,11 +1,17 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { GalleryCard } from "@/components/photo/gallery-card";
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { getDashboardProjects } from "@/lib/projects";
+import { isSupabaseConfigured } from "@/lib/env";
 
-export default async function GalleriesPage() {
+export default async function GalleriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string }>;
+}) {
+  const sp = await searchParams;
   const { projects, demoMode } = await getDashboardProjects();
+  const configured = isSupabaseConfigured();
+  const openNew = sp.new === "1" || sp.new === "true";
 
   return (
     <div className="space-y-8">
@@ -23,15 +29,10 @@ export default async function GalleriesPage() {
               : "Private client jobs, ready to deliver."}
           </p>
         </div>
-        <Button
-          className="w-fit rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-          asChild
-        >
-          <Link href="/dashboard/galleries/new">
-            <Plus className="mr-1 h-4 w-4" />
-            New project
-          </Link>
-        </Button>
+        <CreateProjectDialog
+          configured={configured}
+          defaultOpen={openNew}
+        />
       </div>
 
       {projects.length === 0 ? (
@@ -40,12 +41,12 @@ export default async function GalleriesPage() {
           <p className="mt-2 text-sm text-stone-500">
             Create a project for a wedding or session.
           </p>
-          <Button
-            className="mt-6 rounded-full bg-stone-900 text-stone-50"
-            asChild
-          >
-            <Link href="/dashboard/galleries/new">New project</Link>
-          </Button>
+          <div className="flex justify-center">
+            <CreateProjectDialog
+              configured={configured}
+              triggerVariant="empty"
+            />
+          </div>
         </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

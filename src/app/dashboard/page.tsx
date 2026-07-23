@@ -1,13 +1,15 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GalleryCard } from "@/components/photo/gallery-card";
 import { PhotoImage } from "@/components/photo/photo-image";
+import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { getDashboardProjects } from "@/lib/projects";
+import { isSupabaseConfigured } from "@/lib/env";
 import { studioPhotos } from "@/lib/photos";
 
 export default async function DashboardPage() {
   const { projects, demoMode } = await getDashboardProjects();
+  const configured = isSupabaseConfigured();
   const proofing = projects.filter((g) => g.status === "proofing").length;
   const totalPhotos = projects.reduce(
     (sum, g) => sum + (g.photo_count ?? 0),
@@ -43,15 +45,10 @@ export default async function DashboardPage() {
                       : ""}
                 </p>
               </div>
-              <Button
-                className="w-fit rounded-full bg-white text-stone-900 hover:bg-stone-100"
-                asChild
-              >
-                <Link href="/dashboard/galleries/new">
-                  <Plus className="mr-1 h-4 w-4" />
-                  New project
-                </Link>
-              </Button>
+              <CreateProjectDialog
+                configured={configured}
+                triggerVariant="hero"
+              />
             </div>
           </div>
         </div>
@@ -103,12 +100,12 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm text-stone-500">
               Create your first job to start delivering.
             </p>
-            <Button
-              className="mt-6 rounded-full bg-stone-900 text-stone-50"
-              asChild
-            >
-              <Link href="/dashboard/galleries/new">New project</Link>
-            </Button>
+            <div className="flex justify-center">
+              <CreateProjectDialog
+                configured={configured}
+                triggerVariant="empty"
+              />
+            </div>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">

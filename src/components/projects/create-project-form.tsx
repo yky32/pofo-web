@@ -4,24 +4,40 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
+import { DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const initial: ProjectActionState = {};
 
-export function CreateProjectForm() {
+export function CreateProjectForm({
+  compact = false,
+  showCancel = true,
+}: {
+  /** Inside a dialog — no outer paper shell */
+  compact?: boolean;
+  showCancel?: boolean;
+}) {
   const [state, action, pending] = useActionState(createProject, initial);
 
   return (
-    <form action={action} className="paper space-y-5 rounded-[5px] p-6">
+    <form
+      action={action}
+      className={
+        compact
+          ? "space-y-5"
+          : "paper space-y-5 rounded-[5px] p-6"
+      }
+    >
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>
         <Input
           id="title"
           name="title"
           required
+          autoFocus={compact}
           placeholder="Alicia & James — Wedding"
-          className="rounded-xl"
+          className="rounded-xl bg-white/80"
         />
       </div>
       <div className="space-y-2">
@@ -30,7 +46,7 @@ export function CreateProjectForm() {
           id="client"
           name="client"
           placeholder="Alicia Chen"
-          className="rounded-xl"
+          className="rounded-xl bg-white/80"
         />
       </div>
       <div className="space-y-2">
@@ -42,7 +58,7 @@ export function CreateProjectForm() {
           defaultValue={40}
           min={1}
           max={200}
-          className="rounded-xl"
+          className="rounded-xl bg-white/80"
         />
       </div>
 
@@ -60,9 +76,30 @@ export function CreateProjectForm() {
         >
           {pending ? "Creating…" : "Create project"}
         </Button>
-        <Button variant="outline" className="rounded-full" asChild>
-          <Link href="/dashboard/galleries">Cancel</Link>
-        </Button>
+        {showCancel ? (
+          compact ? (
+            <DialogClose
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full border-stone-300 bg-white/70"
+                />
+              }
+            >
+              Cancel
+            </DialogClose>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              asChild
+            >
+              <Link href="/dashboard/galleries">Cancel</Link>
+            </Button>
+          )
+        ) : null}
       </div>
     </form>
   );

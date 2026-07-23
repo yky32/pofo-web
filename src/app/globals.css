@@ -177,6 +177,30 @@
   box-shadow: 0 1px 0 oklch(1 0 0 / 0.75) inset;
 }
 
+/*
+  Modal overlay — liquid glass (soccer-terminal / sample-terminal avatar menu feel)
+  Soft frosted veil over the app, not flat black.
+*/
+.dialog-glass-overlay {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, oklch(1 0.01 85 / 0.35), transparent 70%),
+    oklch(0.28 0.012 50 / 0.28);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+/* Centered dialog panel — frosted card */
+.dialog-glass-panel {
+  background: oklch(1 0 0 / 0.78);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid oklch(1 0 0 / 0.75);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.95) inset,
+    0 24px 64px -20px oklch(0.2 0.02 50 / 0.35),
+    0 8px 24px -12px oklch(0.25 0.02 50 / 0.2);
+}
+
 /* —— Home hero: quiet “breathing” motion (Studio Paper) —— */
 @keyframes hero-breathe {
   0%,
