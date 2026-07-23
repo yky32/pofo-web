@@ -24,9 +24,17 @@ export async function createClient() {
             cookieStore.set(name, value, options)
           );
         } catch {
-          // Called from a Server Component — middleware will refresh sessions.
+          // Server Component — middleware refreshes sessions.
         }
       },
     },
   });
+}
+
+export async function getUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
 }

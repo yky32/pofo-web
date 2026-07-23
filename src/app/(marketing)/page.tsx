@@ -51,7 +51,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-16">
           <div className="flex flex-col justify-center lg:col-span-5">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              For wedding photographers
+              Client delivery for photographers
             </p>
             <h1 className="mt-4 font-heading text-5xl font-medium leading-[1.05] tracking-tight text-stone-900 sm:text-6xl lg:text-[3.5rem]">
               Deliver photos

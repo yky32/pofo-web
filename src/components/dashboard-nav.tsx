@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/galleries", label: "Galleries", icon: FolderOpen },
+  { href: "/dashboard/galleries", label: "Projects", icon: FolderOpen },
   { href: "/dashboard/portfolio", label: "Portfolio", icon: Images },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

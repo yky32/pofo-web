@@ -1,7 +1,12 @@
 export function isSupabaseConfigured() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    url &&
+      key &&
+      !url.includes("your-project") &&
+      key !== "your-anon-key" &&
+      url.startsWith("http")
   );
 }
 
@@ -10,7 +15,8 @@ export function isR2Configured() {
     process.env.R2_ACCOUNT_ID &&
       process.env.R2_ACCESS_KEY_ID &&
       process.env.R2_SECRET_ACCESS_KEY &&
-      process.env.R2_BUCKET_NAME
+      process.env.R2_BUCKET_NAME &&
+      process.env.R2_ACCOUNT_ID !== "your-account-id"
   );
 }
 

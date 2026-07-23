@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
+import { SignOutButton } from "@/components/auth/sign-out-button";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export default function DashboardLayout({
@@ -22,9 +23,11 @@ export default function DashboardLayout({
           <div className="mt-auto space-y-3 px-1">
             {demoMode && (
               <p className="paper rounded-[5px] px-3 py-2.5 text-[11px] leading-relaxed text-stone-600">
-                Demo studio — mock galleries until Supabase is connected.
+                Demo mode — add Supabase keys (see{" "}
+                <code className="text-[10px]">supabase/SETUP.md</code>).
               </p>
             )}
+            {isSupabaseConfigured() ? <SignOutButton /> : null}
             <Button
               variant="outline"
               size="sm"
@@ -42,7 +45,7 @@ export default function DashboardLayout({
               <Logo />
             </Link>
             <Button size="sm" variant="outline" className="rounded-full" asChild>
-              <Link href="/dashboard/galleries">Galleries</Link>
+              <Link href="/dashboard/galleries">Projects</Link>
             </Button>
           </header>
           <main className="flex-1 p-4 sm:p-6 lg:p-10">{children}</main>

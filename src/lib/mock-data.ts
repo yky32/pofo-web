@@ -1,13 +1,12 @@
-import type { Gallery } from "@/types/database";
+import type { Project } from "@/types/database";
 
-export const mockGalleries: Gallery[] = [
+export const mockGalleries: Project[] = [
   {
     id: "gal_1",
     owner_id: "user_demo",
     title: "Alicia & James — Wedding",
     client_name: "Alicia Chen",
     description: "Full-day wedding coverage, Grand Hyatt",
-    cover_photo_id: null,
     status: "proofing",
     selection_limit: 40,
     created_at: "2026-07-10T10:00:00Z",
@@ -21,7 +20,6 @@ export const mockGalleries: Gallery[] = [
     title: "Sarah Pre-wedding",
     client_name: "Sarah Wong",
     description: "Golden hour session at Discovery Bay",
-    cover_photo_id: null,
     status: "shared",
     selection_limit: 25,
     created_at: "2026-07-14T09:00:00Z",
@@ -35,7 +33,6 @@ export const mockGalleries: Gallery[] = [
     title: "Lin Family Portrait",
     client_name: "David Lin",
     description: "Studio + outdoor combo session",
-    cover_photo_id: null,
     status: "draft",
     selection_limit: 20,
     created_at: "2026-07-20T08:00:00Z",
@@ -49,7 +46,6 @@ export const mockGalleries: Gallery[] = [
     title: "Mei & Kai — Final Delivery",
     client_name: "Mei Tan",
     description: "Retouched finals ready for download",
-    cover_photo_id: null,
     status: "final",
     selection_limit: 30,
     created_at: "2026-06-01T10:00:00Z",

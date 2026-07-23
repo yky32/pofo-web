@@ -1,10 +1,11 @@
--- Pofo MVP schema
--- Run in Supabase SQL editor after creating a project.
+-- Pofo Phase 1 schema
+-- Run in Supabase SQL Editor (Dashboard → SQL → New query)
 
--- Extensions
 create extension if not exists "pgcrypto";
 
--- Profiles (extends auth.users)
+-- ---------------------------------------------------------------------------
+-- Profiles (1:1 with auth.users)
+-- ---------------------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   display_name text,
@@ -14,98 +15,61 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
--- Galleries
-create type public.gallery_status as enum ('draft', 'shared', 'proofing', 'final', 'archived');
+-- ---------------------------------------------------------------------------
+-- Projects (one job / wedding / event)
+-- ---------------------------------------------------------------------------
+do $$ begin
+  create type public.project_status as enum (
+    'draft', 'shared', 'proofing', 'final', 'archived'
+  );
+exception when duplicate_object then null;
+end $$;
 
-create table if not exists public.galleries (
+create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.profiles (id) on delete cascade,
   title text not null,
   client_name text,
   description text,
-  cover_photo_id uuid,
-  status public.gallery_status not null default 'draft',
+  status public.project_status not null default 'draft',
   selection_limit int not null default 40,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
--- Photos
-create type public.photo_kind as enum ('jpeg', 'raw', 'final');
+create index if not exists projects_owner_updated_idx
+  on public.projects (owner_id, updated_at desc);
 
-create table if not exists public.photos (
+-- ---------------------------------------------------------------------------
+-- Containers (phase 1: auto-created "Main Gallery" per project)
+-- ---------------------------------------------------------------------------
+create table if not exists public.containers (
   id uuid primary key default gen_random_uuid(),
-  gallery_id uuid not null references public.galleries (id) on delete cascade,
-  owner_id uuid not null references public.profiles (id) on delete cascade,
-  kind public.photo_kind not null default 'jpeg',
-  storage_key text not null,
-  thumbnail_key text,
-  filename text not null,
-  mime_type text,
-  size_bytes bigint,
-  width int,
-  height int,
+  project_id uuid not null references public.projects (id) on delete cascade,
+  name text not null,
+  concept text,
   sort_order int not null default 0,
-  version_label text not null default 'draft', -- draft | final
-  created_at timestamptz not null default now()
-);
-
-alter table public.galleries
-  add constraint galleries_cover_photo_fk
-  foreign key (cover_photo_id) references public.photos (id)
-  on delete set null;
-
--- Share links
-create table if not exists public.share_links (
-  id uuid primary key default gen_random_uuid(),
-  gallery_id uuid not null references public.galleries (id) on delete cascade,
-  token text not null unique,
-  password_hash text,
-  expires_at timestamptz,
-  allow_raw_download boolean not null default false,
-  raw_expires_at timestamptz,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now()
-);
-
--- Client selections (proofing)
-create table if not exists public.photo_selections (
-  id uuid primary key default gen_random_uuid(),
-  gallery_id uuid not null references public.galleries (id) on delete cascade,
-  photo_id uuid not null references public.photos (id) on delete cascade,
-  share_link_id uuid references public.share_links (id) on delete set null,
-  client_label text,
+  selection_limit int,
+  is_client_visible_default boolean not null default true,
   created_at timestamptz not null default now(),
-  unique (gallery_id, photo_id)
+  updated_at timestamptz not null default now()
 );
 
--- Portfolio (public showcase of approved finals)
-create table if not exists public.portfolio_items (
-  id uuid primary key default gen_random_uuid(),
-  owner_id uuid not null references public.profiles (id) on delete cascade,
-  photo_id uuid not null references public.photos (id) on delete cascade,
-  gallery_id uuid references public.galleries (id) on delete set null,
-  title text,
-  is_published boolean not null default true,
-  sort_order int not null default 0,
-  created_at timestamptz not null default now()
-);
+create index if not exists containers_project_idx
+  on public.containers (project_id, sort_order);
 
--- Indexes
-create index if not exists galleries_owner_idx on public.galleries (owner_id);
-create index if not exists photos_gallery_idx on public.photos (gallery_id);
-create index if not exists share_links_token_idx on public.share_links (token);
-create index if not exists photo_selections_gallery_idx on public.photo_selections (gallery_id);
-
+-- ---------------------------------------------------------------------------
 -- RLS
+-- ---------------------------------------------------------------------------
 alter table public.profiles enable row level security;
-alter table public.galleries enable row level security;
-alter table public.photos enable row level security;
-alter table public.share_links enable row level security;
-alter table public.photo_selections enable row level security;
-alter table public.portfolio_items enable row level security;
+alter table public.projects enable row level security;
+alter table public.containers enable row level security;
 
--- Profiles: users manage own profile
+-- Profiles
+drop policy if exists "profiles_select_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
+
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
 create policy "profiles_update_own" on public.profiles
@@ -113,53 +77,47 @@ create policy "profiles_update_own" on public.profiles
 create policy "profiles_insert_own" on public.profiles
   for insert with check (auth.uid() = id);
 
--- Galleries: owners full access
-create policy "galleries_owner_all" on public.galleries
-  for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+-- Projects
+drop policy if exists "projects_owner_all" on public.projects;
+create policy "projects_owner_all" on public.projects
+  for all using (auth.uid() = owner_id)
+  with check (auth.uid() = owner_id);
 
--- Photos: owners full access
-create policy "photos_owner_all" on public.photos
-  for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
-
--- Share links: owners full access
-create policy "share_links_owner_all" on public.share_links
+-- Containers (via project ownership)
+drop policy if exists "containers_owner_all" on public.containers;
+create policy "containers_owner_all" on public.containers
   for all using (
     exists (
-      select 1 from public.galleries g
-      where g.id = gallery_id and g.owner_id = auth.uid()
+      select 1 from public.projects p
+      where p.id = project_id and p.owner_id = auth.uid()
     )
   )
   with check (
     exists (
-      select 1 from public.galleries g
-      where g.id = gallery_id and g.owner_id = auth.uid()
+      select 1 from public.projects p
+      where p.id = project_id and p.owner_id = auth.uid()
     )
   );
 
--- Selections: owners can read; inserts via service role / edge for clients
-create policy "selections_owner_select" on public.photo_selections
-  for select using (
-    exists (
-      select 1 from public.galleries g
-      where g.id = gallery_id and g.owner_id = auth.uid()
-    )
-  );
-
--- Portfolio: owners manage; public read published
-create policy "portfolio_owner_all" on public.portfolio_items
-  for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
-create policy "portfolio_public_read" on public.portfolio_items
-  for select using (is_published = true);
-
+-- ---------------------------------------------------------------------------
 -- Auto-create profile on signup
+-- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)));
+  insert into public.profiles (id, display_name, studio_name)
+  values (
+    new.id,
+    coalesce(
+      new.raw_user_meta_data->>'display_name',
+      split_part(new.email, '@', 1)
+    ),
+    new.raw_user_meta_data->>'studio_name'
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
@@ -168,3 +126,26 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
+-- updated_at helper
+-- ---------------------------------------------------------------------------
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists projects_set_updated_at on public.projects;
+create trigger projects_set_updated_at
+  before update on public.projects
+  for each row execute procedure public.set_updated_at();
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at
+  before update on public.profiles
+  for each row execute procedure public.set_updated_at();
