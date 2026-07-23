@@ -22,11 +22,11 @@ export function PhotoFrame({
   return (
     <figure
       className={cn(
-        "group overflow-hidden rounded-sm bg-white p-2 shadow-[0_12px_40px_-12px_rgba(28,25,23,0.28)] ring-1 ring-stone-900/5",
+        "group overflow-hidden rounded-sm bg-white/70 p-2 shadow-[0_12px_36px_-14px_rgba(28,25,23,0.14)] ring-1 ring-white/80 backdrop-blur-sm",
         className
       )}
     >
-      <div className={cn("relative overflow-hidden bg-stone-100", aspect)}>
+      <div className={cn("relative overflow-hidden bg-stone-50", aspect)}>
         <PhotoImage
           src={src}
           alt={alt}

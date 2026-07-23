@@ -47,15 +47,15 @@ export default async function ClientGalleryPage({
       </header>
 
       {/* Sticky selection bar */}
-      <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50_/_0.9)] backdrop-blur-md">
+      <div className="sticky top-0 z-30 border-b border-white/10 bg-white/10 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
-          <p className="text-sm text-stone-400">
+          <p className="text-sm text-stone-300">
             Select up to{" "}
-            <span className="text-stone-200">40</span> photos
+            <span className="text-white">40</span> photos
           </p>
           <Button
             size="sm"
-            className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
+            className="rounded-full bg-white/95 text-stone-900 hover:bg-white"
           >
             <Heart className="mr-1.5 h-3.5 w-3.5" />
             0 / 40

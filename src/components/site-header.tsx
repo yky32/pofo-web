@@ -4,7 +4,7 @@ import { Logo } from "@/components/brand/logo";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-900/5 bg-[oklch(0.975_0.008_75_/_0.85)] backdrop-blur-md">
+    <header className="glass-light sticky top-0 z-40 border-b border-stone-900/5">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link href="/" className="text-foreground">
           <Logo />

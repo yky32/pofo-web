@@ -138,7 +138,7 @@ export default async function GalleryDetailPage({
       </div>
 
       <Tabs defaultValue="photos">
-        <TabsList className="rounded-full bg-stone-200/60 p-1">
+        <TabsList className="rounded-full bg-white/60 p-1 ring-1 ring-white/80 backdrop-blur-sm">
           <TabsTrigger value="photos" className="rounded-full">
             Contact sheet
           </TabsTrigger>
@@ -154,7 +154,7 @@ export default async function GalleryDetailPage({
             {sheet.map((src, i) => (
               <div
                 key={`${src}-${i}`}
-                className="group relative aspect-square overflow-hidden bg-stone-200"
+                className="group relative aspect-square overflow-hidden bg-stone-50 ring-1 ring-white/70"
               >
                 <PhotoImage
                   src={src}

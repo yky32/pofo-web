@@ -118,7 +118,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="pointer-events-none absolute -bottom-4 -left-2 hidden rotate-[-3deg] sm:block lg:-left-6">
-              <div className="rounded-sm bg-white px-3 py-2 text-xs text-stone-500 shadow-lg ring-1 ring-stone-900/5">
+              <div className="paper rounded-sm px-3 py-2 text-xs text-stone-500">
                 <span className="font-heading text-base text-stone-800">
                   286
                 </span>{" "}
@@ -129,8 +129,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Film strip band */}
-      <section className="border-y border-stone-900/5 bg-stone-900/95 py-8">
+      {/* Film strip band — light glass strip */}
+      <section className="border-y border-stone-900/5 bg-white/50 py-8 backdrop-blur-sm">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <FilmStrip
             photos={[
@@ -140,7 +140,7 @@ export default function HomePage() {
               studioPhotos.outdoor,
             ]}
           />
-          <p className="mt-4 text-center text-xs tracking-[0.2em] text-stone-500 uppercase">
+          <p className="mt-4 text-center text-xs tracking-[0.2em] text-stone-400 uppercase">
             Your work, presented with care
           </p>
         </div>
@@ -226,9 +226,9 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-14 grid gap-px overflow-hidden rounded-sm bg-stone-200/80 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-sm bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
-              <div key={step.n} className="bg-[oklch(0.975_0.008_75)] p-7">
+              <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
                 <span className="font-mono text-xs tracking-widest text-stone-400">
                   {step.n}
                 </span>
