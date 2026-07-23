@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   Link2,
+  Lock,
   RefreshCw,
   XCircle,
 } from "lucide-react";
@@ -617,20 +618,29 @@ export function ShareLinkPanel({
                                     }}
                                     className="h-9 min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 font-mono text-xs text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400 focus:border-stone-400"
                                   />
-                                  <Button
+                                  <button
                                     type="button"
-                                    size="sm"
                                     disabled={
                                       resetPending ||
                                       resetPassword.trim().length < 4
                                     }
-                                    className="h-9 shrink-0 rounded-full bg-stone-900 px-3 text-stone-50 hover:bg-stone-800"
+                                    aria-label="Set new password"
+                                    title="Set new password"
+                                    className={cn(
+                                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
+                                      "bg-stone-900 text-white hover:bg-stone-800",
+                                      "disabled:pointer-events-none disabled:opacity-40"
+                                    )}
                                     onClick={() =>
                                       void onSubmitResetPassword(link.id)
                                     }
                                   >
-                                    {resetPending ? "…" : "Set"}
-                                  </Button>
+                                    {resetPending ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Lock className="h-3.5 w-3.5" strokeWidth={2} />
+                                    )}
+                                  </button>
                                 </div>
                                 <p className="mt-1.5 text-[10px] leading-snug text-stone-400">
                                   URL stays the same. Old password stops
