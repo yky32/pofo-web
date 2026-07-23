@@ -138,10 +138,7 @@ export default async function GalleryDetailPage({
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/25 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
             <div className="flex flex-wrap items-center gap-2.5">
-              <GalleryStatusBadge
-                status={gallery.status}
-                className="bg-white/90 text-stone-800"
-              />
+              <GalleryStatusBadge status={gallery.status} />
               <span className="text-xs text-white/65">
                 {photoCount} photo{photoCount === 1 ? "" : "s"}
                 {isDemo ? " · demo" : ""}
