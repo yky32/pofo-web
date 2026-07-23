@@ -77,6 +77,14 @@ export interface Shot {
   created_at: string;
   /** Short-lived signed URL attached at read time (not stored in DB) */
   display_url?: string | null;
+  /** Signed thumbnail URL when thumbnail_key is set (not stored in DB) */
+  thumb_url?: string | null;
+  /** Studio-only note */
+  studio_note?: string | null;
+  /** Studio flag: none | print | retouch | hero | reject */
+  studio_flag?: string | null;
+  /** Optional web thumbnail object key */
+  thumbnail_key?: string | null;
 }
 
 export interface ShareLink {
@@ -89,7 +97,13 @@ export interface ShareLink {
   expires_at: string | null;
   is_active: boolean;
   created_at: string;
+  view_count?: number;
+  last_viewed_at?: string | null;
+  last_email_to?: string | null;
+  last_email_at?: string | null;
 }
+
+export type StudioFlag = "none" | "print" | "retouch" | "hero" | "reject";
 
 export interface ShotSelection {
   id: string;

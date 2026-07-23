@@ -1,10 +1,21 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
-import { Check, Trash2, X } from "lucide-react";
+import { Check, StickyNote, Trash2, X } from "lucide-react";
 import { deleteProjectShots } from "@/actions/shots";
 import { MosaicGrid } from "@/components/photo/mosaic-grid";
+import {
+  ShotStudioMetaPanel,
+  flagBadgeClass,
+  flagShortLabel,
+} from "@/components/projects/shot-studio-meta";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
@@ -13,26 +24,37 @@ export type ContactSheetItem = {
   id: string;
   src: string;
   alt: string;
+  studio_note?: string | null;
+  studio_flag?: string | null;
 };
 
 export function ContactSheet({
   projectId,
-  items,
+  items: initialItems,
 }: {
   projectId: string;
   items: ContactSheetItem[];
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const [items, setItems] = useState(initialItems);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [metaShotId, setMetaShotId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setItems(initialItems);
+  }, [initialItems]);
 
   const allIds = useMemo(() => items.map((i) => i.id), [items]);
   const count = selected.size;
   const allSelected = items.length > 0 && count === items.length;
+  const metaShot = metaShotId
+    ? items.find((i) => i.id === metaShotId) ?? null
+    : null;
 
   const exitSelect = useCallback(() => {
     setSelectMode(false);
@@ -62,7 +84,8 @@ export function ContactSheet({
     const n = count;
     const ok = await confirm({
       title: n === 1 ? "Delete this photo?" : `Delete ${n} photos?`,
-      description: "This cannot be undone. Photos are removed from the gallery and storage.",
+      description:
+        "This cannot be undone. Photos are removed from the gallery and storage.",
       confirmLabel: n === 1 ? "Delete photo" : `Delete ${n}`,
       cancelLabel: "Cancel",
       tone: "danger",
@@ -99,7 +122,11 @@ export function ContactSheet({
             <span className="ml-1.5 font-medium text-stone-800">
               · {count} selected
             </span>
-          ) : null}
+          ) : (
+            <span className="ml-1.5 text-stone-400">
+              · tap a photo for notes
+            </span>
+          )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           {selectMode ? (
@@ -146,6 +173,7 @@ export function ContactSheet({
                 setSelectMode(true);
                 setMessage(null);
                 setError(null);
+                setMetaShotId(null);
               }}
             >
               Select
@@ -166,24 +194,29 @@ export function ContactSheet({
       <MosaicGrid
         items={items}
         density="studio"
-        onItemClick={
-          selectMode
-            ? (item) => {
-                if (!pending) toggle(item.id);
-              }
-            : undefined
-        }
+        onItemClick={(item) => {
+          if (pending) return;
+          if (selectMode) {
+            toggle(item.id);
+            return;
+          }
+          setMetaShotId(item.id);
+        }}
         itemClassName={({ item }) => {
           const isOn = selected.has(item.id);
           return cn(
-            selectMode && "cursor-pointer ring-offset-2",
+            "cursor-pointer",
+            selectMode && "ring-offset-2",
             selectMode && isOn && "ring-2 ring-stone-900",
-            selectMode && !isOn && "hover:ring-2 hover:ring-stone-300",
-            !selectMode && "cursor-default"
+            selectMode && !isOn && "hover:ring-2 hover:ring-stone-300"
           );
         }}
         renderTile={({ item, image }) => {
           const isOn = selected.has(item.id);
+          const full = items.find((i) => i.id === item.id);
+          const flag = full?.studio_flag;
+          const hasNote = Boolean(full?.studio_note?.trim());
+          const label = flagShortLabel(flag);
           return (
             <>
               <div
@@ -205,11 +238,50 @@ export function ContactSheet({
                 >
                   <Check className="h-3 w-3" strokeWidth={3} />
                 </span>
-              ) : null}
+              ) : (
+                <div className="absolute left-1.5 top-1.5 z-10 flex max-w-[calc(100%-0.75rem)] flex-wrap gap-1">
+                  {label ? (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow",
+                        flagBadgeClass(flag)
+                      )}
+                    >
+                      {label}
+                    </span>
+                  ) : null}
+                  {hasNote ? (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/45 text-white shadow backdrop-blur-sm">
+                      <StickyNote className="h-2.5 w-2.5" />
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </>
           );
         }}
       />
+
+      {metaShot ? (
+        <ShotStudioMetaPanel
+          projectId={projectId}
+          shotId={metaShot.id}
+          filename={metaShot.alt}
+          initialNote={metaShot.studio_note}
+          initialFlag={metaShot.studio_flag}
+          onClose={() => setMetaShotId(null)}
+          onSaved={({ note, flag }) => {
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === metaShot.id
+                  ? { ...i, studio_note: note, studio_flag: flag }
+                  : i
+              )
+            );
+            router.refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

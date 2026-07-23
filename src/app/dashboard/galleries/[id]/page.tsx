@@ -66,21 +66,35 @@ export default async function GalleryDetailPage({
       ? galleryCovers[gallery.id] || studioPhotos.studio
       : null);
 
-  const sheetItems = isDemo
+  type SheetItem = {
+    id: string;
+    src: string;
+    alt: string;
+    studio_note?: string | null;
+    studio_flag?: string | null;
+  };
+
+  const sheetItems: SheetItem[] = isDemo
     ? contactSheet.slice(0, 15).map((src, i) => ({
         id: `d-${i}`,
         src,
         alt: `Frame ${i + 1}`,
       }))
-    : shots
+    : (shots
         .map((s) => {
-          const src = shotDisplayUrl(s);
+          // Prefer web thumbnail when available (faster contact sheet)
+          const thumb = s.thumb_url || null;
+          const src = thumb || shotDisplayUrl(s);
           if (!src) return null;
-          return { id: s.id, src, alt: s.filename ?? "Photo" };
+          return {
+            id: s.id,
+            src,
+            alt: s.filename ?? "Photo",
+            studio_note: s.studio_note ?? null,
+            studio_flag: s.studio_flag ?? null,
+          } satisfies SheetItem;
         })
-        .filter((x): x is { id: string; src: string; alt: string } =>
-          Boolean(x)
-        );
+        .filter(Boolean) as SheetItem[]);
 
   const selectedCount = isDemo
     ? (gallery.selection_count ?? 0)

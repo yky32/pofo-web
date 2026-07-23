@@ -146,35 +146,52 @@ export async function signReadUrls(
 
 /**
  * Attach `display_url` for UI: external samples unchanged, storage keys signed.
+ * When `thumbnail_key` is present, `thumb_url` is also signed for grid previews.
  */
 export async function withDisplayUrls<
-  T extends { storage_key?: string | null; preview_url?: string | null },
+  T extends {
+    storage_key?: string | null;
+    preview_url?: string | null;
+    thumbnail_key?: string | null;
+  },
 >(
   supabase: SupabaseClient,
   shots: T[],
   expiresIn = READ_URL_TTL_SEC
-): Promise<(T & { display_url: string | null })[]> {
+): Promise<(T & { display_url: string | null; thumb_url?: string | null })[]> {
   const keys: string[] = [];
   for (const s of shots) {
     const ext = externalDisplayUrl(s);
-    if (ext) continue;
-    const key = resolveObjectKey(s);
-    if (key) keys.push(key);
+    if (!ext) {
+      const key = resolveObjectKey(s);
+      if (key) keys.push(key);
+    }
+    const thumb = s.thumbnail_key?.trim();
+    if (thumb && !isExternalHttpUrl(thumb)) keys.push(thumb);
   }
 
   const signed = await signReadUrls(supabase, keys, expiresIn);
 
   return shots.map((s) => {
+    let display_url: string | null = null;
     const ext = externalDisplayUrl(s);
-    if (ext) return { ...s, display_url: ext };
-    const key = resolveObjectKey(s);
-    if (key && signed.has(key)) {
-      return { ...s, display_url: signed.get(key)! };
+    if (ext) {
+      display_url = ext;
+    } else {
+      const key = resolveObjectKey(s);
+      if (key && signed.has(key)) {
+        display_url = signed.get(key)!;
+      } else if (s.preview_url && isExternalHttpUrl(s.preview_url)) {
+        display_url = s.preview_url;
+      }
     }
-    // Legacy public preview as last resort
-    if (s.preview_url && isExternalHttpUrl(s.preview_url)) {
-      return { ...s, display_url: s.preview_url };
-    }
-    return { ...s, display_url: null };
+
+    const thumbKey = s.thumbnail_key?.trim();
+    const thumb_url =
+      thumbKey && !isExternalHttpUrl(thumbKey) && signed.has(thumbKey)
+        ? signed.get(thumbKey)!
+        : null;
+
+    return { ...s, display_url, thumb_url };
   });
 }

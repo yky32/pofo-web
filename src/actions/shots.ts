@@ -12,7 +12,10 @@ export type ShotActionState = {
   success?: string;
 };
 
-export type ShotWithDisplay = Shot & { display_url: string | null };
+export type ShotWithDisplay = Shot & {
+  display_url: string | null;
+  thumb_url?: string | null;
+};
 
 export async function listProjectShots(
   projectId: string
@@ -135,6 +138,8 @@ export async function registerUploadedShots(input: {
     filename: string;
     mimeType: string;
     sizeBytes: number;
+    /** Optional web-friendly derivative object key */
+    thumbnailKey?: string | null;
   }[];
   /** Continue sort_order from client when uploading multi-chunk batches */
   sortOrderStart?: number;
@@ -199,6 +204,7 @@ export async function registerUploadedShots(input: {
     // Prefer storage_key only; never persist permanent public URLs for private buckets.
     // Empty/placeholder previewUrl → null (signed display_url at read time).
     const preview = f.previewUrl?.trim() || null;
+    const thumb = f.thumbnailKey?.trim() || null;
     return {
       project_id: input.projectId,
       container_id: container!.id,
@@ -210,6 +216,7 @@ export async function registerUploadedShots(input: {
       mime_type: f.mimeType,
       size_bytes: f.sizeBytes,
       sort_order: baseOrder! + i,
+      ...(thumb ? { thumbnail_key: thumb } : {}),
     };
   });
 
@@ -367,6 +374,78 @@ export async function markProjectFinal(
 ): Promise<ShotActionState> {
   const projectId = String(formData.get("project_id") ?? "").trim();
   return updateProjectStatus({ projectId, status: "final" });
+}
+
+const STUDIO_FLAGS = ["none", "print", "retouch", "hero", "reject"] as const;
+export type StudioFlagValue = (typeof STUDIO_FLAGS)[number];
+
+function isStudioFlag(v: string): v is StudioFlagValue {
+  return (STUDIO_FLAGS as readonly string[]).includes(v);
+}
+
+/**
+ * Photographer note + flag on a shot (studio-only; not shown to client).
+ */
+export async function updateShotStudioMeta(input: {
+  projectId: string;
+  shotId: string;
+  studioNote?: string | null;
+  studioFlag?: string | null;
+}): Promise<ShotActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const projectId = input.projectId?.trim();
+  const shotId = input.shotId?.trim();
+  if (!projectId || !shotId) return { error: "Missing photo." };
+
+  const patch: {
+    studio_note?: string | null;
+    studio_flag?: string | null;
+  } = {};
+
+  if (input.studioNote !== undefined) {
+    const note = input.studioNote?.trim() || null;
+    if (note && note.length > 2000) {
+      return { error: "Note is too long (max 2000 characters)." };
+    }
+    patch.studio_note = note;
+  }
+
+  if (input.studioFlag !== undefined) {
+    const flag = (input.studioFlag?.trim() || "none").toLowerCase();
+    if (!isStudioFlag(flag)) return { error: "Invalid flag." };
+    patch.studio_flag = flag === "none" ? null : flag;
+  }
+
+  if (!Object.keys(patch).length) return { error: "Nothing to update." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { error } = await supabase
+    .from("shots")
+    .update(patch)
+    .eq("id", shotId)
+    .eq("project_id", projectId)
+    .eq("owner_id", user.id);
+
+  if (error) {
+    if (error.message.includes("studio_note") || error.message.includes("studio_flag")) {
+      return {
+        error:
+          "Database needs studio columns. Run supabase/features-p1-p2.sql in the SQL Editor.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/dashboard/galleries/${projectId}`);
+  return { success: "Saved." };
 }
 
 const DELETE_CHUNK = 100;

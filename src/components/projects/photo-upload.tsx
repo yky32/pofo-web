@@ -10,6 +10,10 @@ import {
   type UploadSlot,
 } from "@/actions/uploads";
 import { Button } from "@/components/ui/button";
+import {
+  makeClientThumbnail,
+  thumbnailObjectKey,
+} from "@/lib/client-thumb";
 import { createClient } from "@/lib/supabase/client";
 import { chunkArray, runPool, withRetry } from "@/lib/upload-pool";
 import { cn } from "@/lib/utils";
@@ -182,6 +186,7 @@ export function PhotoUpload({
         filename: string;
         mimeType: string;
         sizeBytes: number;
+        thumbnailKey?: string | null;
       };
 
       const tasks = queue.map((item) => async (): Promise<Meta> => {
@@ -198,6 +203,34 @@ export function PhotoUpload({
           }
         }, 3);
 
+        // Best-effort web thumbnail (does not fail the upload)
+        let thumbnailKey: string | null = null;
+        try {
+          const thumbBlob = await makeClientThumbnail(item.file);
+          if (thumbBlob) {
+            const thumbPath = thumbnailObjectKey(slot.storagePath);
+            const thumbFile = new File(
+              [thumbBlob],
+              `thumb-${item.file.name.replace(/\.[^.]+$/, "")}.jpg`,
+              { type: "image/jpeg" }
+            );
+            const thumbSlot: UploadSlot = {
+              ...slot,
+              storagePath: thumbPath,
+              contentType: "image/jpeg",
+              uploadUrl: null, // R2 needs a separate prepare — use Supabase path for thumbs when possible
+            };
+            if (activeBackend === "r2") {
+              // Skip R2 thumb without presign; full res is enough
+            } else {
+              await putToSupabase(thumbSlot, thumbFile);
+              thumbnailKey = thumbPath;
+            }
+          }
+        } catch {
+          /* ignore thumb failures */
+        }
+
         patchItem(item.id, { status: "done" });
         return {
           storagePath: slot.storagePath,
@@ -205,6 +238,7 @@ export function PhotoUpload({
           filename: item.file.name,
           mimeType: item.file.type || "image/jpeg",
           sizeBytes: item.file.size,
+          thumbnailKey,
         };
       });
 

@@ -54,8 +54,10 @@ bun dev
 3. Paste `supabase/storage.sql` → **Run** (private `shots` bucket)
 4. Paste `supabase/profiles-providers.sql` → **Run** (`profiles.providers[]` cache)
 5. Paste `supabase/share-gate.sql` → **Run** (password-link public meta)
-6. Optional: paste `supabase/slug.sql` if you use studio subdomains
-7. Optional (existing DBs): paste `supabase/cleanup-unused-columns.sql` to drop dead columns
+6. Paste `supabase/features-p1-p2.sql` → **Run** (studio notes/flags, share analytics, thumbnails)
+7. Optional: paste `supabase/slug.sql` if you use studio subdomains
+8. Optional (existing DBs): paste `supabase/cleanup-unused-columns.sql` to drop dead columns
+   — **re-run `features-p1-p2.sql` after cleanup** if cleanup dropped `thumbnail_key`
 
 This creates:
 

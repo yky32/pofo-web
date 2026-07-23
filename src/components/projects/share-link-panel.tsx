@@ -11,11 +11,13 @@ import {
   EyeOff,
   Link2,
   Lock,
+  Mail,
   RefreshCw,
   XCircle,
 } from "lucide-react";
 import {
   createShareLink,
+  emailClientShare,
   regenerateSharePassword,
   revokeShareLink,
   type ShareActionState,
@@ -74,6 +76,12 @@ export function ShareLinkPanel({
   const [resetPassword, setResetPassword] = useState("");
   const [resetPending, setResetPending] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
+  /** Email compose for a specific link */
+  const [emailLinkId, setEmailLinkId] = useState<string | null>(null);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailPending, setEmailPending] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [emailErr, setEmailErr] = useState<string | null>(null);
   const lastHandledToken = useRef<string | null>(null);
 
   const active = links.filter((l) => l.is_active);
@@ -201,6 +209,45 @@ export function ShareLinkPanel({
       await copyText("secret-pw", res.plain_password);
     } finally {
       setResetPending(false);
+    }
+  }
+
+  function openEmail(linkId: string) {
+    setEmailErr(null);
+    setEmailMsg(null);
+    setEmailLinkId((cur) => (cur === linkId ? null : linkId));
+  }
+
+  async function onSendEmail(linkId: string) {
+    setEmailErr(null);
+    setEmailMsg(null);
+    setEmailPending(true);
+    try {
+      const res = await emailClientShare({
+        projectId,
+        linkId,
+        to: emailTo,
+        // Include password only while one-time reveal is open for this link
+        password:
+          secretReveal?.password &&
+          active.find((l) => l.id === linkId)?.token === secretReveal.token
+            ? secretReveal.password
+            : undefined,
+      });
+      if (res.error) {
+        setEmailErr(res.error);
+        return;
+      }
+      if (res.mailto) {
+        window.location.href = res.mailto;
+        setEmailMsg("Opened your mail app.");
+      } else {
+        setEmailMsg("Email sent.");
+      }
+      setEmailLinkId(null);
+      setEmailTo("");
+    } finally {
+      setEmailPending(false);
     }
   }
 
@@ -356,6 +403,27 @@ export function ShareLinkPanel({
                           </div>
                         </div>
                       ) : null}
+
+                      {(() => {
+                        const revealLink = active.find(
+                          (l) => l.token === secretReveal.token
+                        );
+                        if (!revealLink) return null;
+                        return (
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/10 py-2 text-[11px] font-medium text-stone-200 ring-1 ring-white/10 hover:bg-white/15"
+                            onClick={() => {
+                              setEmailLinkId(revealLink.id);
+                              setEmailErr(null);
+                              setEmailMsg(null);
+                            }}
+                          >
+                            <Mail className="h-3.5 w-3.5" />
+                            Email this link to client
+                          </button>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <form action={createAction} className="space-y-2.5">
@@ -517,6 +585,12 @@ export function ShareLinkPanel({
                   {regenError ? (
                     <p className="text-xs text-rose-600/90">{regenError}</p>
                   ) : null}
+                  {emailErr ? (
+                    <p className="text-xs text-rose-600/90">{emailErr}</p>
+                  ) : null}
+                  {emailMsg ? (
+                    <p className="text-xs text-emerald-700">{emailMsg}</p>
+                  ) : null}
 
                   {!secretReveal && latestToken ? (
                     <div className="flex gap-1.5">
@@ -559,6 +633,14 @@ export function ShareLinkPanel({
                           ? new Date(link.expires_at).toLocaleDateString()
                           : "No expiry";
                         const resetting = resetLinkId === link.id;
+                        const emailing = emailLinkId === link.id;
+                        const views = link.view_count ?? 0;
+                        const lastView = link.last_viewed_at
+                          ? new Date(link.last_viewed_at).toLocaleDateString()
+                          : null;
+                        const lastEmail = link.last_email_to
+                          ? `emailed ${link.last_email_to}`
+                          : null;
                         return (
                           <li
                             key={link.id}
@@ -572,7 +654,16 @@ export function ShareLinkPanel({
                                 <p className="text-[10px] text-stone-400">
                                   {exp}
                                   {link.password_protected ? " · locked" : ""}
+                                  {views > 0
+                                    ? ` · ${views} view${views === 1 ? "" : "s"}`
+                                    : ""}
+                                  {lastView ? ` · last ${lastView}` : ""}
                                 </p>
+                                {lastEmail ? (
+                                  <p className="truncate text-[10px] text-stone-400">
+                                    {lastEmail}
+                                  </p>
+                                ) : null}
                               </div>
                               <button
                                 type="button"
@@ -585,6 +676,18 @@ export function ShareLinkPanel({
                                 ) : (
                                   <Copy className="h-3.5 w-3.5" />
                                 )}
+                              </button>
+                              <button
+                                type="button"
+                                className={cn(
+                                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-sky-50 hover:text-sky-800 disabled:opacity-50",
+                                  emailing && "bg-sky-50 text-sky-800"
+                                )}
+                                disabled={emailPending || revokePending}
+                                onClick={() => openEmail(link.id)}
+                                title="Email client"
+                              >
+                                <Mail className="h-3.5 w-3.5" />
                               </button>
                               {link.password_protected ? (
                                 <button
@@ -621,6 +724,58 @@ export function ShareLinkPanel({
                                 </button>
                               </form>
                             </div>
+
+                            {emailing ? (
+                              <div className="border-t border-stone-100 px-2.5 py-2.5">
+                                <p className="mb-1.5 text-[10px] font-medium text-stone-500">
+                                  Email client
+                                </p>
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="email"
+                                    value={emailTo}
+                                    onChange={(e) => setEmailTo(e.target.value)}
+                                    placeholder="client@email.com"
+                                    autoComplete="email"
+                                    autoFocus
+                                    disabled={emailPending}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        void onSendEmail(link.id);
+                                      }
+                                    }}
+                                    className="h-9 min-w-0 flex-1 rounded-lg border border-stone-200 bg-white px-3 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      emailPending || !emailTo.includes("@")
+                                    }
+                                    aria-label="Send email"
+                                    title="Send email"
+                                    className={cn(
+                                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition",
+                                      "bg-stone-900 text-white hover:bg-stone-800",
+                                      "disabled:pointer-events-none disabled:opacity-40"
+                                    )}
+                                    onClick={() => void onSendEmail(link.id)}
+                                  >
+                                    {emailPending ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Mail className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                                <p className="mt-1.5 text-[10px] leading-snug text-stone-400">
+                                  {secretReveal?.password &&
+                                  secretReveal.token === link.token
+                                    ? "Includes password from the reveal above."
+                                    : "Sends the gallery link (password only if still on screen)."}
+                                </p>
+                              </div>
+                            ) : null}
 
                             {/* Same set-password UI as create (toggle on) */}
                             {resetting ? (

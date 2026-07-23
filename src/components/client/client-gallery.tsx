@@ -25,6 +25,11 @@ export function ClientGallery({
   const shotSrc = (s: (typeof initial.shots)[number]) =>
     s.display_url ?? s.preview_url ?? null;
 
+  const studioLabel =
+    initial.studio?.studio_name ||
+    initial.studio?.display_name ||
+    "Pofo";
+
   const cover =
     initial.shots.map(shotSrc).find(Boolean) ?? null;
 
@@ -59,13 +64,15 @@ export function ClientGallery({
       <header className="relative">
         <div className="relative h-[42vh] min-h-[280px] max-h-[420px]">
           {cover ? (
-            <PhotoImage
-              src={cover}
-              alt="Gallery cover"
-              priority
-              sizes="100vw"
-              className="object-cover object-center"
-            />
+            <div className="absolute inset-0 client-preview-watermark">
+              <PhotoImage
+                src={cover}
+                alt="Gallery cover"
+                priority
+                sizes="100vw"
+                className="object-cover object-center"
+              />
+            </div>
           ) : (
             <div className="absolute inset-0 bg-stone-900" />
           )}
@@ -74,7 +81,7 @@ export function ClientGallery({
             <Logo className="text-white" markClassName="text-white" />
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 backdrop-blur">
               <Lock className="h-3 w-3" />
-              Private
+              Private preview
             </span>
           </div>
           <div className="absolute inset-x-0 bottom-0 px-4 pb-8 sm:px-8">
@@ -148,7 +155,9 @@ export function ClientGallery({
               const isOn = selected.has(item.id);
               return (
                 <>
-                  <div className="absolute inset-0">{image}</div>
+                  <div className="client-preview-watermark absolute inset-0">
+                    {image}
+                  </div>
                   <div
                     className={cn(
                       "absolute inset-0 transition",
@@ -176,7 +185,7 @@ export function ClientGallery({
         )}
 
         <p className="mt-10 text-center text-xs text-stone-600">
-          Delivered with Pofo
+          Preview for proofing · delivered by {studioLabel} · Pofo
         </p>
       </main>
     </div>

@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseConfigured } from "@/lib/env";
+import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
+import {
+  clientShareEmailContent,
+  isResendConfigured,
+  sendEmail,
+} from "@/lib/mail";
 import { withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
 import {
@@ -556,6 +561,7 @@ export async function getClientGalleryByToken(
     if (expectedSlug && payload.studio?.slug && payload.studio.slug !== expectedSlug) {
       return { error: "wrong_studio" };
     }
+    void recordShareView(token);
     return payload;
   }
 
@@ -575,6 +581,7 @@ export async function getClientGalleryByToken(
       p_token: token,
     });
     if (e2 || !data2) return { error: "failed" };
+    void recordShareView(token);
     return attachDisplayUrls(data2 as ClientGalleryPayload);
   }
 
@@ -586,6 +593,7 @@ export async function getClientGalleryByToken(
     return { error: payload.error };
   }
 
+  void recordShareView(token);
   return attachDisplayUrls(payload);
 }
 
@@ -649,4 +657,153 @@ export async function toggleClientSelection(
     selected_count?: number;
     selection_limit?: number;
   };
+}
+
+/**
+ * Increment share_link view_count (best-effort). Call once per successful open.
+ */
+export async function recordShareView(token: string): Promise<void> {
+  if (!isSupabaseConfigured() || !token || token.length < 8) return;
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("record_share_view", {
+      p_token: token,
+    });
+    if (error) {
+      // Older DBs without the RPC — ignore
+      if (
+        !error.message.includes("function") &&
+        error.code !== "PGRST202"
+      ) {
+        console.error("recordShareView", error.message);
+      }
+    }
+  } catch (e) {
+    console.error("recordShareView", e);
+  }
+}
+
+/**
+ * Email the client a gallery link.
+ * Uses Resend when configured; otherwise returns a mailto: URL for the browser.
+ */
+export async function emailClientShare(input: {
+  projectId: string;
+  linkId: string;
+  to: string;
+  /** Optional one-time password to include (only if photographer still has it) */
+  password?: string | null;
+}): Promise<{
+  ok?: boolean;
+  error?: string;
+  /** When Resend is not set — open this in the browser */
+  mailto?: string;
+  sent_via?: "resend" | "mailto";
+}> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const projectId = input.projectId?.trim();
+  const linkId = input.linkId?.trim();
+  const to = input.to?.trim().toLowerCase();
+  if (!projectId || !linkId) return { error: "Missing link." };
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return { error: "Enter a valid email address." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id, title, client_name, owner_id")
+    .eq("id", projectId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+
+  const { data: link } = await supabase
+    .from("share_links")
+    .select("id, token, is_active, expires_at, password_hash")
+    .eq("id", linkId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (!link || !link.is_active) return { error: "Link not found or revoked." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("studio_name, display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const studioName =
+    profile?.studio_name || profile?.display_name || "Your photographer";
+  const galleryUrl = `${getAppUrl()}/g/${link.token}`;
+  const expiresLabel = link.expires_at
+    ? new Date(link.expires_at as string).toLocaleDateString()
+    : null;
+
+  // Only include password if photographer explicitly passes it (one-time reveal flow)
+  const password =
+    input.password?.trim() && link.password_hash
+      ? input.password.trim()
+      : null;
+
+  const content = clientShareEmailContent({
+    studioName,
+    projectTitle: project.title as string,
+    galleryUrl,
+    password,
+    expiresLabel,
+  });
+
+  if (isResendConfigured()) {
+    const sent = await sendEmail({
+      to,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
+    });
+    if (!sent.ok) {
+      return {
+        error:
+          sent.error === "email_not_configured"
+            ? "Email is not configured."
+            : "Could not send email. Try again or use your mail app.",
+      };
+    }
+
+    await supabase
+      .from("share_links")
+      .update({
+        last_email_to: to,
+        last_email_at: new Date().toISOString(),
+      })
+      .eq("id", linkId)
+      .eq("project_id", projectId);
+
+    revalidatePath(`/dashboard/galleries/${projectId}`);
+    return { ok: true, sent_via: "resend" };
+  }
+
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(content.subject)}&body=${encodeURIComponent(content.text)}`;
+
+  // Still track intent when falling back to mailto
+  await supabase
+    .from("share_links")
+    .update({
+      last_email_to: to,
+      last_email_at: new Date().toISOString(),
+    })
+    .eq("id", linkId)
+    .eq("project_id", projectId);
+
+  revalidatePath(`/dashboard/galleries/${projectId}`);
+  return { ok: true, sent_via: "mailto", mailto };
 }
