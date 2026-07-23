@@ -407,14 +407,31 @@ export function ShareLinkPanel({
                         </Button>
                       </div>
 
-                      {/* Password toggle — on = one field, off = open link */}
-                      <div className="rounded-xl bg-stone-50/90 ring-1 ring-stone-100">
+                      {/* Password toggle — on = amber lock tint + field */}
+                      <div
+                        className={cn(
+                          "rounded-xl ring-1 transition-colors duration-200",
+                          passwordOn
+                            ? "bg-amber-50/90 ring-amber-200/80"
+                            : "bg-stone-50/90 ring-stone-100"
+                        )}
+                      >
                         <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                           <div className="min-w-0">
-                            <p className="text-xs font-medium text-stone-800">
+                            <p
+                              className={cn(
+                                "text-xs font-medium transition-colors",
+                                passwordOn ? "text-amber-950" : "text-stone-800"
+                              )}
+                            >
                               Password protect
                             </p>
-                            <p className="text-[10px] text-stone-400">
+                            <p
+                              className={cn(
+                                "text-[10px] transition-colors",
+                                passwordOn ? "text-amber-800/70" : "text-stone-400"
+                              )}
+                            >
                               {passwordOn
                                 ? "Client must enter password"
                                 : "Anyone with the link can open"}
@@ -432,22 +449,31 @@ export function ShareLinkPanel({
                               });
                             }}
                             className={cn(
-                              "relative h-6 w-11 shrink-0 rounded-full transition-colors",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-                              passwordOn ? "bg-stone-900" : "bg-stone-200",
+                              "relative h-6 w-11 shrink-0 rounded-full transition-all duration-200",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                              passwordOn
+                                ? "bg-amber-500 shadow-[0_0_0_3px_rgba(245,158,11,0.25)] focus-visible:ring-amber-400"
+                                : "bg-stone-200 focus-visible:ring-stone-300",
                               (!hasPhotos || createPending) && "opacity-50"
                             )}
                           >
                             <span
                               className={cn(
-                                "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                                "absolute top-0.5 left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform duration-200",
                                 passwordOn && "translate-x-5"
                               )}
-                            />
+                            >
+                              {passwordOn ? (
+                                <Lock
+                                  className="h-2.5 w-2.5 text-amber-600"
+                                  strokeWidth={2.5}
+                                />
+                              ) : null}
+                            </span>
                           </button>
                         </div>
                         {passwordOn ? (
-                          <div className="border-t border-stone-100 px-3 py-2.5">
+                          <div className="border-t border-amber-200/60 px-3 py-2.5">
                             <input
                               type="text"
                               name="password"
@@ -457,9 +483,13 @@ export function ShareLinkPanel({
                               autoComplete="off"
                               spellCheck={false}
                               disabled={!hasPhotos || createPending}
-                              className="h-9 w-full rounded-lg border border-stone-200 bg-white px-3 font-mono text-xs text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400 focus:border-stone-400"
+                              className={cn(
+                                "h-9 w-full rounded-lg border bg-white px-3 font-mono text-xs text-stone-800 outline-none",
+                                "placeholder:font-sans placeholder:text-stone-400",
+                                "border-amber-200/80 focus:border-amber-400 focus:ring-2 focus:ring-amber-200/50"
+                              )}
                             />
-                            <p className="mt-1.5 text-[10px] leading-snug text-stone-400">
+                            <p className="mt-1.5 text-[10px] leading-snug text-amber-800/55">
                               Shown once after create so you can copy it.
                             </p>
                           </div>
