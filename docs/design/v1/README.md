@@ -11,7 +11,7 @@ This is the first product UI system for Pofo. Keep it as a reference while explo
 
 - Warm **studio paper** + soft ink
 - Photo-first, sparse chrome, premium client feel
-- Editorial serif headings + clean sans UI
+- Photo-first studio paper UI with modern geometric type (V3 fonts)
 
 ## Tokens
 
@@ -25,9 +25,11 @@ This is the first product UI system for Pofo. Keep it as a reference while explo
 
 ## Typography
 
-- **Headings:** Cormorant Garamond (`--font-heading`)
-- **UI:** DM Sans (`--font-sans`)
+- **Headings:** Space Grotesk (`--font-heading`) — from V3 White Cube
+- **UI:** Manrope (`--font-sans`) — from V3 White Cube
 - **Brand mark:** Aperture SVG + “Pofo” wordmark
+
+> Original V1 used Cormorant Garamond + DM Sans; fonts updated to V3 stack while keeping Studio Paper visuals.
 
 ## Patterns
 

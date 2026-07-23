@@ -136,7 +136,8 @@
   h2,
   h3,
   .font-heading {
-    font-family: var(--font-heading), ui-serif, Georgia, serif;
+    font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.03em;
   }
 }
 
