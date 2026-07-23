@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, Copy, Link2, XCircle } from "lucide-react";
+import { Check, Copy, ExternalLink, Link2, XCircle } from "lucide-react";
 import {
   createShareLink,
   revokeShareLink,
@@ -14,20 +15,30 @@ import { cn } from "@/lib/utils";
 
 const initial: ShareActionState = {};
 
+/**
+ * Client-link control: icon trigger (avatar-menu style).
+ * Panel only mounts when open — full width stays free for the photo grid.
+ */
 export function ShareLinkPanel({
   projectId,
   links,
   appUrl,
   hasPhotos,
-  compact = false,
 }: {
   projectId: string;
   links: ShareLink[];
   appUrl: string;
   hasPhotos: boolean;
-  /** Tighter layout for sidebar / toolbar */
+  /** @deprecated unused — always menu */
   compact?: boolean;
 }) {
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
   const [createState, createAction, createPending] = useActionState(
     createShareLink,
     initial
@@ -38,7 +49,11 @@ export function ShareLinkPanel({
   );
   const [copied, setCopied] = useState<string | null>(null);
   const [expiresDays, setExpiresDays] = useState("30");
-  const [showAll, setShowAll] = useState(false);
+
+  const active = links.filter((l) => l.is_active);
+  const latestToken = createState.token ?? active[0]?.token;
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!copied) return;
@@ -46,10 +61,44 @@ export function ShareLinkPanel({
     return () => window.clearTimeout(t);
   }, [copied]);
 
-  const active = links.filter((l) => l.is_active);
-  const latestToken = createState.token ?? active[0]?.token;
-  const visible = showAll ? active : active.slice(0, 2);
-  const hiddenCount = Math.max(0, active.length - visible.length);
+  useEffect(() => {
+    if (!open) return;
+
+    function place() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setPos({
+        top: r.bottom + 8,
+        right: Math.max(8, window.innerWidth - r.right),
+      });
+    }
+
+    place();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [open]);
 
   async function copyToken(token: string) {
     const url = `${appUrl}/g/${token}`;
@@ -62,163 +111,215 @@ export function ShareLinkPanel({
   }
 
   return (
-    <div
-      className={cn(
-        "rounded-[8px] border border-stone-200/80 bg-white/70 p-3.5",
-        compact ? "space-y-3" : "space-y-3"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-[0.12em] text-stone-400">
-          Client link
-        </p>
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        aria-label="Client share links"
+        title="Client links"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-white text-stone-700 shadow-sm transition",
+          "hover:bg-stone-50 hover:text-stone-950",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+          open && "ring-2 ring-stone-300"
+        )}
+      >
+        <Link2 className="h-4 w-4" strokeWidth={1.75} />
         {active.length > 0 ? (
-          <span className="text-[11px] text-emerald-700">
-            {active.length} active
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-600 px-1 text-[10px] font-medium text-white">
+            {active.length > 9 ? "9+" : active.length}
           </span>
         ) : null}
-      </div>
+      </button>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex items-center gap-1.5 text-[11px] text-stone-500">
-          <span className="sr-only">Expires</span>
-          <select
-            value={expiresDays}
-            onChange={(e) => setExpiresDays(e.target.value)}
-            className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
-            disabled={!hasPhotos || createPending}
-          >
-            <option value="7">7 days</option>
-            <option value="30">30 days</option>
-            <option value="90">90 days</option>
-            <option value="0">Never</option>
-          </select>
-        </label>
-        <form action={createAction}>
-          <input type="hidden" name="project_id" value={projectId} />
-          <input type="hidden" name="expires_days" value={expiresDays} />
-          <Button
-            type="submit"
-            variant="outline"
-            size="sm"
-            disabled={!hasPhotos || createPending}
-            className="rounded-full border-stone-300"
-            title={
-              hasPhotos
-                ? "Create a private client link"
-                : "Add photos before sharing"
-            }
-          >
-            <Link2 className="mr-1.5 h-3.5 w-3.5" />
-            {createPending ? "Creating…" : "New link"}
-          </Button>
-        </form>
-        {latestToken ? (
-          <>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="rounded-full"
-              onClick={() => copyToken(latestToken)}
-            >
-              {copied === latestToken ? (
-                <Check className="mr-1.5 h-3.5 w-3.5" />
-              ) : (
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {copied === latestToken ? "Copied" : "Copy"}
-            </Button>
-            <Button size="sm" className="rounded-full" asChild>
-              <Link href={`/g/${latestToken}`} target="_blank">
-                Open
-              </Link>
-            </Button>
-          </>
-        ) : null}
-      </div>
-
-      {!hasPhotos ? (
-        <p className="text-xs text-stone-500">
-          Add photos first, then create a client link.
-        </p>
-      ) : null}
-
-      {createState.error ? (
-        <p className="text-xs text-rose-600/90">{createState.error}</p>
-      ) : null}
-      {createState.success && createState.token ? (
-        <p className="truncate text-xs text-emerald-700">
-          Link ready — use Copy above.
-        </p>
-      ) : null}
-      {revokeState.error ? (
-        <p className="text-xs text-rose-600/90">{revokeState.error}</p>
-      ) : null}
-
-      {active.length > 0 ? (
-        <ul className="max-h-40 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5">
-          {visible.map((link) => {
-            const url = `${appUrl}/g/${link.token}`;
-            const exp = link.expires_at
-              ? new Date(link.expires_at).toLocaleDateString()
-              : "No expiry";
-            return (
-              <li
-                key={link.id}
-                className="flex items-center gap-2 rounded-[6px] bg-stone-50/90 px-2.5 py-1.5 ring-1 ring-stone-100"
+      {mounted && open && pos
+        ? createPortal(
+            <>
+              <div
+                className="dialog-glass-overlay fixed inset-0 z-[200]"
+                aria-hidden
+                onClick={() => setOpen(false)}
+              />
+              <div
+                ref={panelRef}
+                id={menuId}
+                role="menu"
+                aria-label="Client share links"
+                style={{ top: pos.top, right: pos.right }}
+                className={cn(
+                  "dialog-glass-panel fixed z-[201] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl",
+                  "animate-in fade-in-0 zoom-in-95 duration-150"
+                )}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-[11px] text-stone-600">
-                    …/{link.token.slice(0, 12)}
+                <div className="border-b border-stone-900/5 px-3 py-2.5">
+                  <p className="text-xs font-medium text-stone-900">
+                    Client links
                   </p>
-                  <p className="text-[10px] text-stone-400">{exp}</p>
+                  <p className="text-[11px] text-stone-500">
+                    Private gallery access for your client
+                  </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 shrink-0 rounded-full p-0"
-                  onClick={() => copyToken(link.token)}
-                  title={url}
-                >
-                  {copied === link.token ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-                <form action={revokeAction} className="shrink-0">
-                  <input type="hidden" name="link_id" value={link.id} />
-                  <input type="hidden" name="project_id" value={projectId} />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="ghost"
-                    disabled={revokePending}
-                    className="h-7 w-7 rounded-full p-0 text-stone-400 hover:text-rose-700"
-                    title="Revoke link"
-                  >
-                    <XCircle className="h-3.5 w-3.5" />
-                  </Button>
-                </form>
-              </li>
-            );
-          })}
-        </ul>
-      ) : hasPhotos ? (
-        <p className="text-xs text-stone-400">No active links yet.</p>
-      ) : null}
 
-      {hiddenCount > 0 || (showAll && active.length > 2) ? (
-        <button
-          type="button"
-          className="text-[11px] font-medium text-stone-500 underline-offset-2 hover:text-stone-800 hover:underline"
-          onClick={() => setShowAll((v) => !v)}
-        >
-          {showAll ? "Show fewer" : `Show ${hiddenCount} more`}
-        </button>
-      ) : null}
-    </div>
+                <div className="space-y-3 p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={expiresDays}
+                      onChange={(e) => setExpiresDays(e.target.value)}
+                      className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
+                      disabled={!hasPhotos || createPending}
+                      aria-label="Link expiry"
+                    >
+                      <option value="7">7 days</option>
+                      <option value="30">30 days</option>
+                      <option value="90">90 days</option>
+                      <option value="0">Never</option>
+                    </select>
+                    <form action={createAction}>
+                      <input type="hidden" name="project_id" value={projectId} />
+                      <input
+                        type="hidden"
+                        name="expires_days"
+                        value={expiresDays}
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        disabled={!hasPhotos || createPending}
+                        className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+                        title={
+                          hasPhotos
+                            ? "Create a private client link"
+                            : "Add photos before sharing"
+                        }
+                      >
+                        <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                        {createPending ? "Creating…" : "New link"}
+                      </Button>
+                    </form>
+                  </div>
+
+                  {!hasPhotos ? (
+                    <p className="text-xs text-stone-500">
+                      Add photos first, then create a client link.
+                    </p>
+                  ) : null}
+
+                  {createState.error ? (
+                    <p className="text-xs text-rose-600/90">
+                      {createState.error}
+                    </p>
+                  ) : null}
+                  {createState.success && createState.token ? (
+                    <p className="text-xs text-emerald-700">Link ready.</p>
+                  ) : null}
+                  {revokeState.error ? (
+                    <p className="text-xs text-rose-600/90">
+                      {revokeState.error}
+                    </p>
+                  ) : null}
+
+                  {latestToken ? (
+                    <div className="flex gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="flex-1 rounded-full"
+                        onClick={() => copyToken(latestToken)}
+                      >
+                        {copied === latestToken ? (
+                          <Check className="mr-1.5 h-3.5 w-3.5" />
+                        ) : (
+                          <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        {copied === latestToken ? "Copied" : "Copy latest"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        asChild
+                      >
+                        <Link
+                          href={`/g/${latestToken}`}
+                          target="_blank"
+                          onClick={() => setOpen(false)}
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+                          Open
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {active.length > 0 ? (
+                    <ul className="max-h-48 space-y-1 overflow-y-auto overscroll-contain">
+                      {active.map((link) => {
+                        const exp = link.expires_at
+                          ? new Date(link.expires_at).toLocaleDateString()
+                          : "No expiry";
+                        return (
+                          <li
+                            key={link.id}
+                            className="flex items-center gap-1.5 rounded-lg bg-stone-50/90 px-2 py-1.5 ring-1 ring-stone-100"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-mono text-[11px] text-stone-600">
+                                …/{link.token.slice(0, 14)}
+                              </p>
+                              <p className="text-[10px] text-stone-400">{exp}</p>
+                            </div>
+                            <button
+                              type="button"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-stone-200/60 hover:text-stone-800"
+                              onClick={() => copyToken(link.token)}
+                              title="Copy link"
+                            >
+                              {copied === link.token ? (
+                                <Check className="h-3.5 w-3.5" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <form action={revokeAction} className="shrink-0">
+                              <input
+                                type="hidden"
+                                name="link_id"
+                                value={link.id}
+                              />
+                              <input
+                                type="hidden"
+                                name="project_id"
+                                value={projectId}
+                              />
+                              <button
+                                type="submit"
+                                disabled={revokePending}
+                                className="flex h-7 w-7 items-center justify-center rounded-full text-stone-400 hover:bg-rose-50 hover:text-rose-700"
+                                title="Revoke link"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                              </button>
+                            </form>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : hasPhotos ? (
+                    <p className="text-xs text-stone-400">
+                      No active links yet.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
