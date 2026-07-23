@@ -45,7 +45,7 @@ function shapeFromHash(h: number, index: number): MosaicShape {
 
 export function mosaicCellFor(id: string, index: number): MosaicCell {
   const h = hashId(id);
-  let shape = shapeFromHash(h, index);
+  const shape = shapeFromHash(h, index);
 
   // Soft anti-clump: if previous pattern would stack heroes, demote
   // (caller can pass lastShape via optional refinement — keep pure here)

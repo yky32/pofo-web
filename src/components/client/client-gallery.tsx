@@ -141,7 +141,7 @@ export function ClientGallery({
             onItemClick={(item) => {
               if (!pending) onToggle(item.id);
             }}
-            itemClassName={({ item }) =>
+            itemClassName={() =>
               cn(pending && "pointer-events-none opacity-80")
             }
             renderTile={({ item, image }) => {
