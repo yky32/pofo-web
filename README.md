@@ -49,6 +49,20 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Without Supabase env vars the app runs in **demo mode** with mock galleries so you can explore the UI.
 
+### CI (GitHub Actions)
+
+Triftly-style workflows:
+
+- **PR** — lint, typecheck, build on every pull request
+- **Prod** — push `main` or manual run: verify + Vercel deploy; optional Supabase schema / auth URLs
+
+```bash
+bun run verify   # repo P0 checks
+bun run ci       # lint + typecheck + build
+```
+
+See [docs/CI.md](docs/CI.md) for secrets (`VERCEL_*`, `SUPABASE_*`).
+
 ### Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com)

@@ -1,0 +1,121 @@
+# Prod tasks — web deploy, Supabase schema/auth, verify (triftly-app prod.yml).
+name: Prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Job to run
+        type: choice
+        options:
+          - web
+          - supabase
+          - auth-urls
+          - verify
+          - all
+        default: web
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".gitignore"
+      - "LICENSE"
+      - "docs/**"
+
+concurrency:
+  group: prod
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: |
+      github.event_name == 'push' ||
+      inputs.task == 'verify' || inputs.task == 'web' || inputs.task == 'all'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Repo P0 checks
+        run: chmod +x scripts/verify-ci.sh && ./scripts/verify-ci.sh
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build
+        run: bun run build
+        env:
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL || 'https://pofo-web.vercel.app' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL || 'https://example.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MCwiZXhwIjowfQ.placeholder' }}
+
+  deploy-web:
+    if: |
+      always() &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
+      (github.event_name == 'push' || inputs.task == 'web' || inputs.task == 'all')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: verify
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      POFO_PROD_URL: ${{ secrets.POFO_PROD_URL || 'https://pofo-web.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy web to Vercel
+        if: env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
+        run: chmod +x scripts/deploy-vercel.sh && ./scripts/deploy-vercel.sh
+
+      - name: Vercel secrets missing
+        if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
+        run: |
+          echo "::warning::Set VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID — see docs/CI.md"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            exit 1
+          fi
+
+  auth-urls:
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.task == 'auth-urls' || inputs.task == 'supabase' || inputs.task == 'all')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      POFO_SITE_URL: ${{ secrets.POFO_PROD_URL || 'https://pofo-web.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure Auth redirect URLs
+        run: chmod +x scripts/supabase-auth-urls.sh && ./scripts/supabase-auth-urls.sh
+
+  supabase:
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.task == 'supabase' || inputs.task == 'all')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v2
+        with:
+          version: latest
+      - name: Apply Phase 1 schema
+        run: chmod +x scripts/supabase-apply-schema.sh && ./scripts/supabase-apply-schema.sh
