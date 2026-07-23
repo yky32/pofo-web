@@ -244,11 +244,11 @@ export function ShareLinkPanel({
                 aria-label="Client share links"
                 style={{ top: pos.top, right: pos.right }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] w-[min(21rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl",
+                  "dialog-glass-panel fixed z-[201] flex max-h-[min(85vh,36rem)] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
-                <div className="border-b border-stone-900/5 px-3 py-2.5">
+                <div className="shrink-0 border-b border-stone-900/5 px-3 py-2.5">
                   <p className="text-xs font-medium text-stone-900">
                     Client links
                   </p>
@@ -257,7 +257,7 @@ export function ShareLinkPanel({
                   </p>
                 </div>
 
-                <div className="space-y-3 p-3">
+                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3">
                   {/* Supabase-style one-time secret reveal */}
                   {secretReveal ? (
                     <div className="space-y-2.5 rounded-xl bg-stone-900 px-3 py-3 text-stone-50 shadow-inner">
@@ -522,7 +522,7 @@ export function ShareLinkPanel({
                   ) : null}
 
                   {active.length > 0 ? (
-                    <ul className="max-h-52 space-y-1.5 overflow-y-auto overscroll-contain">
+                    <ul className="space-y-1.5">
                       {active.map((link) => {
                         const exp = link.expires_at
                           ? new Date(link.expires_at).toLocaleDateString()
