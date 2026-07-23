@@ -88,8 +88,10 @@ export function DashboardShell({
               </p>
             ) : null}
 
-            {/* Avatar → liquid glass account menu */}
-            <DashboardUserMenu user={user} collapsed={collapsed} />
+            {/* Avatar only → liquid glass account menu */}
+            <div className="flex justify-center">
+              <DashboardUserMenu user={user} />
+            </div>
 
             {/* Sidebar expand / collapse */}
             <div
@@ -127,7 +129,7 @@ export function DashboardShell({
               <Logo />
             </Link>
             <div className="flex items-center gap-2">
-              <DashboardUserMenu user={user} collapsed />
+              <DashboardUserMenu user={user} />
               <Button size="sm" variant="outline" className="rounded-full" asChild>
                 <Link href="/dashboard/galleries">Projects</Link>
               </Button>

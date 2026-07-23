@@ -25,9 +25,9 @@ function initialsFrom(user: DashboardUser) {
 
 export function DashboardUserMenu({
   user,
-  collapsed = false,
 }: {
   user: DashboardUser | null;
+  /** @deprecated always icon-only */
   collapsed?: boolean;
 }) {
   const menuId = useId();
@@ -98,9 +98,9 @@ export function DashboardUserMenu({
         title={label}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "group flex items-center gap-2.5 rounded-full transition",
+          "mx-auto flex rounded-full transition",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-          collapsed ? "mx-auto" : "w-full px-0.5 py-0.5 hover:bg-stone-900/[0.03]"
+          "hover:opacity-90"
         )}
       >
         <Avatar
@@ -117,18 +117,6 @@ export function DashboardUserMenu({
             {initialsFrom(user ?? {})}
           </AvatarFallback>
         </Avatar>
-        {!collapsed ? (
-          <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate text-sm font-medium text-stone-800">
-              {user?.displayName?.trim() || "Studio"}
-            </span>
-            {user?.email ? (
-              <span className="block truncate text-xs text-stone-400">
-                {user.email}
-              </span>
-            ) : null}
-          </span>
-        ) : null}
       </button>
 
       {mounted && open && pos
