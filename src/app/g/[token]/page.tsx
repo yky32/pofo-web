@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { getClientGalleryByToken } from "@/actions/share";
 import { ClientGallery } from "@/components/client/client-gallery";
 import { ClientGalleryDemo } from "@/components/client/client-gallery-demo";
 import { Logo } from "@/components/brand/logo";
+import { studioSlugFromHeaders } from "@/lib/host";
 import { isSupabaseConfigured } from "@/lib/env";
 import { contactSheet } from "@/lib/photos";
 import type { ClientGalleryPayload } from "@/types/database";
@@ -18,6 +20,11 @@ function demoPayload(token: string): ClientGalleryPayload {
       description: "Wedding day · Tap hearts to select favorites",
       status: "proofing",
       selection_limit: 40,
+    },
+    studio: {
+      slug: "demo",
+      studio_name: "Demo Studio",
+      display_name: "Demo",
     },
     shots: contactSheet.map((url, i) => ({
       id: `demo-shot-${i}`,
@@ -37,12 +44,14 @@ export default async function ClientGalleryPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const h = await headers();
+  const expectedSlug = studioSlugFromHeaders(h);
 
   if (token.startsWith("demo-") || !isSupabaseConfigured()) {
     return <ClientGalleryDemo payload={demoPayload(token)} />;
   }
 
-  const result = await getClientGalleryByToken(token);
+  const result = await getClientGalleryByToken(token, expectedSlug);
 
   if ("error" in result) {
     return (
@@ -73,9 +82,13 @@ function ClientGalleryError({
       title: "Link expired",
       body: "Ask your photographer for a new private link.",
     },
+    wrong_studio: {
+      title: "Wrong studio",
+      body: "This gallery belongs to a different studio link. Open the URL your photographer sent.",
+    },
     schema_missing: {
       title: "Gallery not ready",
-      body: "Database schema needs to be applied (run supabase/schema.sql).",
+      body: "Database schema needs to be applied (run supabase/schema.sql + slug.sql).",
     },
     not_configured: {
       title: "Unavailable",

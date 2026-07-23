@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { emailFieldError } from "@/lib/email";
+import { preferredSlug } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 
@@ -47,6 +48,8 @@ export async function signUp(
     return { fields };
   }
 
+  const slug = preferredSlug(studioName || null, email);
+
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,
@@ -55,6 +58,7 @@ export async function signUp(
       data: {
         display_name: displayName,
         studio_name: studioName || null,
+        slug,
       },
     },
   });

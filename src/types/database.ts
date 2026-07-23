@@ -11,9 +11,19 @@ export interface Profile {
   id: string;
   display_name: string | null;
   studio_name: string | null;
+  /** Public handle → {slug}.pofo.app */
+  slug: string | null;
+  custom_domain: string | null;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface StudioPublic {
+  slug: string | null;
+  studio_name: string | null;
+  display_name: string | null;
+  avatar_url?: string | null;
 }
 
 export interface Project {
@@ -106,6 +116,7 @@ export interface ClientGalleryPayload {
     status: ProjectStatus;
     selection_limit: number;
   };
+  studio?: StudioPublic;
   shots: ClientGalleryShot[];
   selected_shot_ids: string[];
   error?: string;

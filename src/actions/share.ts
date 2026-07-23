@@ -151,7 +151,8 @@ export async function revokeShareLink(
 
 /** Public client gallery via SECURITY DEFINER RPC (works with anon key). */
 export async function getClientGalleryByToken(
-  token: string
+  token: string,
+  expectedSlug?: string | null
 ): Promise<ClientGalleryPayload | { error: string }> {
   if (!isSupabaseConfigured()) {
     return { error: "not_configured" };
@@ -160,6 +161,7 @@ export async function getClientGalleryByToken(
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_client_gallery", {
     p_token: token,
+    p_expected_slug: expectedSlug ?? null,
   });
 
   if (error) {

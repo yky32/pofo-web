@@ -1,8 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { getMyProfile } from "@/actions/profile";
+import { ProfileForm } from "@/components/settings/profile-form";
+import { getAppUrl, getRootDomain, isSupabaseConfigured } from "@/lib/env";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const profile = isSupabaseConfigured() ? await getMyProfile() : null;
+
   return (
     <div className="mx-auto max-w-lg space-y-8">
       <div>
@@ -13,31 +15,22 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p className="mt-1 text-stone-500">
-          Studio profile shown on galleries and portfolio.
+          Studio profile and public link ({`{slug}.pofo.app`} when domain is
+          live).
         </p>
       </div>
 
-      <div className="paper space-y-5 rounded-[5px] p-6">
-        <div className="space-y-2">
-          <Label htmlFor="studio">Studio name</Label>
-          <Input
-            id="studio"
-            defaultValue="Light & Frame Studio"
-            className="rounded-[5px] border-stone-300 bg-white"
-          />
+      {profile ? (
+        <ProfileForm
+          profile={profile}
+          appUrl={getAppUrl()}
+          rootDomain={getRootDomain()}
+        />
+      ) : (
+        <div className="paper rounded-[5px] p-6 text-sm text-stone-500">
+          Connect Supabase and sign in to edit your studio profile.
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="name">Display name</Label>
-          <Input
-            id="name"
-            defaultValue="Wayne"
-            className="rounded-[5px] border-stone-300 bg-white"
-          />
-        </div>
-        <Button className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">
-          Save changes
-        </Button>
-      </div>
+      )}
     </div>
   );
 }

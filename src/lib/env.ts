@@ -23,3 +23,8 @@ export function isR2Configured() {
 export function getAppUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
+
+/** Apex domain for studio subdomains, e.g. pofo.app (no protocol). */
+export function getRootDomain() {
+  return process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? null;
+}

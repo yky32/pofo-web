@@ -123,3 +123,21 @@ Set `NEXT_PUBLIC_APP_URL=https://pofo-web.vercel.app` (or your domain).
 | “relation projects does not exist” | Re-run schema in SQL Editor |
 | Stuck after signup | Disable email confirm for local, or check inbox |
 | RLS / permission denied | Policies require `owner_id = auth.uid()`; ensure you’re logged in |
+
+## 6. Studio slug (subdomains)
+
+Run `supabase/slug.sql` after the main schema (idempotent).
+
+This adds:
+
+- `profiles.slug` + `custom_domain`
+- signup trigger allocates a unique slug
+- RPCs: `get_studio_by_slug`, `get_client_gallery(token, expected_slug)`
+
+App env (optional):
+
+```bash
+NEXT_PUBLIC_ROOT_DOMAIN=pofo.app
+```
+
+Until DNS is live, studio pages use `/s/{slug}` and local `{slug}.localhost:3002`.
