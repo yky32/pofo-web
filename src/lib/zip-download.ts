@@ -1,5 +1,5 @@
 /**
- * Client-side ZIP of proofing photos (browser fetch of signed/display URLs).
+ * Client-side ZIP of gallery photos (browser fetch of signed/display URLs).
  */
 
 import JSZip from "jszip";
@@ -14,16 +14,24 @@ function safeName(name: string, fallback: string) {
   return base || fallback;
 }
 
-export async function downloadProofingZip(
+export async function downloadPhotosZip(
   projectTitle: string,
   files: ZipFileItem[],
-  onProgress?: (done: number, total: number) => void
+  options?: {
+    /** Folder + zip name suffix, e.g. "full" or "proofing" */
+    kind?: "full" | "proofing";
+    onProgress?: (done: number, total: number) => void;
+  }
 ): Promise<void> {
   if (!files.length) throw new Error("No photos to download.");
 
+  const kind = options?.kind ?? "proofing";
+  const onProgress = options?.onProgress;
+  const label = kind === "full" ? "full" : "proofing";
+
   const zip = new JSZip();
   const folder = zip.folder(
-    safeName(projectTitle, "proofing").replace(/\s+/g, "_") || "proofing"
+    `${safeName(projectTitle, "gallery").replace(/\s+/g, "_") || "gallery"}-${label}`
   );
   if (!folder) throw new Error("Could not create zip folder.");
 
@@ -37,7 +45,6 @@ export async function downloadProofingZip(
     if (!/\.(jpe?g|png|webp|heic|heif)$/i.test(name)) {
       name = `${name}.jpg`;
     }
-    // Dedupe names
     let final = name;
     let n = 1;
     while (used.has(final.toLowerCase())) {
@@ -63,7 +70,18 @@ export async function downloadProofingZip(
   const out = await zip.generateAsync({ type: "blob" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(out);
-  a.download = `${safeName(projectTitle, "gallery")}-proofing.zip`;
+  a.download = `${safeName(projectTitle, "gallery")}-${label}.zip`;
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+/** @deprecated use downloadPhotosZip */
+export const downloadProofingZip = (
+  projectTitle: string,
+  files: ZipFileItem[],
+  onProgress?: (done: number, total: number) => void
+) =>
+  downloadPhotosZip(projectTitle, files, {
+    kind: "proofing",
+    onProgress,
+  });
