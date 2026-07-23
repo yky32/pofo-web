@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Heart, Lock } from "lucide-react";
 import { toggleClientSelection } from "@/actions/share";
 import { Logo } from "@/components/brand/logo";
+import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { PhotoImage } from "@/components/photo/photo-image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -122,54 +123,56 @@ export function ClientGallery({
             No photos in this gallery yet.
           </p>
         ) : (
-          <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 md:columns-4">
-            {initial.shots.map((shot, i) => {
-              const src = shotSrc(shot);
-              if (!src) return null;
-              const tall = i % 5 === 0 || i % 7 === 3;
-              const isOn = selected.has(shot.id);
+          <MosaicGrid
+            density="client"
+            items={initial.shots
+              .map((shot, i) => {
+                const src = shotSrc(shot);
+                if (!src) return null;
+                return {
+                  id: shot.id,
+                  src,
+                  alt: shot.filename ?? `Photo ${i + 1}`,
+                };
+              })
+              .filter((x): x is { id: string; src: string; alt: string } =>
+                Boolean(x)
+              )}
+            onItemClick={(item) => {
+              if (!pending) onToggle(item.id);
+            }}
+            itemClassName={({ item }) =>
+              cn(pending && "pointer-events-none opacity-80")
+            }
+            renderTile={({ item, image }) => {
+              const isOn = selected.has(item.id);
               return (
-                <button
-                  key={shot.id}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => onToggle(shot.id)}
-                  className="group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3"
-                >
+                <>
+                  <div className="absolute inset-0">{image}</div>
                   <div
-                    className={
-                      tall ? "relative aspect-[3/4]" : "relative aspect-square"
-                    }
+                    className={cn(
+                      "absolute inset-0 transition",
+                      isOn
+                        ? "bg-black/25"
+                        : "bg-black/0 group-hover:bg-black/15"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
+                      isOn
+                        ? "bg-white text-rose-600 opacity-100"
+                        : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
+                    )}
                   >
-                    <PhotoImage
-                      src={src}
-                      alt={shot.filename ?? `Photo ${i + 1}`}
-                      sizes="(max-width:768px) 50vw, 25vw"
-                      className="transition duration-500 group-hover:scale-[1.03]"
+                    <Heart
+                      className={cn("h-3.5 w-3.5", isOn && "fill-rose-600")}
                     />
-                    <div
-                      className={cn(
-                        "absolute inset-0 transition",
-                        isOn ? "bg-black/25" : "bg-black/0 group-hover:bg-black/15"
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
-                        isOn
-                          ? "bg-white text-rose-600 opacity-100"
-                          : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
-                      )}
-                    >
-                      <Heart
-                        className={cn("h-3.5 w-3.5", isOn && "fill-rose-600")}
-                      />
-                    </span>
-                  </div>
-                </button>
+                  </span>
+                </>
               );
-            })}
-          </div>
+            }}
+          />
         )}
 
         <p className="mt-10 text-center text-xs text-stone-600">

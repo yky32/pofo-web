@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Trash2, X } from "lucide-react";
 import { deleteProjectShots } from "@/actions/shots";
-import { PhotoImage } from "@/components/photo/photo-image";
+import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -162,39 +162,41 @@ export function ContactSheet({
         <p className="text-xs text-emerald-700">{message}</p>
       ) : null}
 
-      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6">
-        {items.map((item) => {
+      <MosaicGrid
+        items={items}
+        density="studio"
+        onItemClick={
+          selectMode
+            ? (item) => {
+                if (!pending) toggle(item.id);
+              }
+            : undefined
+        }
+        itemClassName={({ item }) => {
+          const isOn = selected.has(item.id);
+          return cn(
+            selectMode && "cursor-pointer ring-offset-2",
+            selectMode && isOn && "ring-2 ring-stone-900",
+            selectMode && !isOn && "hover:ring-2 hover:ring-stone-300",
+            !selectMode && "cursor-default"
+          );
+        }}
+        renderTile={({ item, image }) => {
           const isOn = selected.has(item.id);
           return (
-            <button
-              key={item.id}
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                if (selectMode) toggle(item.id);
-              }}
-              className={cn(
-                "group relative aspect-square overflow-hidden rounded-[6px] bg-stone-100 text-left",
-                selectMode && "cursor-pointer ring-offset-2",
-                selectMode && isOn && "ring-2 ring-stone-900",
-                selectMode && !isOn && "hover:ring-2 hover:ring-stone-300",
-                !selectMode && "cursor-default"
-              )}
-            >
-              <PhotoImage
-                src={item.src}
-                alt={item.alt}
-                sizes="16vw"
+            <>
+              <div
                 className={cn(
-                  "transition duration-500",
-                  !selectMode && "group-hover:scale-105",
+                  "absolute inset-0",
                   selectMode && isOn && "opacity-90"
                 )}
-              />
+              >
+                {image}
+              </div>
               {selectMode ? (
                 <span
                   className={cn(
-                    "absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition",
+                    "absolute left-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition",
                     isOn
                       ? "border-stone-900 bg-stone-900 text-white"
                       : "border-white/90 bg-black/25 text-transparent backdrop-blur-sm"
@@ -203,10 +205,10 @@ export function ContactSheet({
                   <Check className="h-3 w-3" strokeWidth={3} />
                 </span>
               ) : null}
-            </button>
+            </>
           );
-        })}
-      </div>
+        }}
+      />
     </div>
   );
 }

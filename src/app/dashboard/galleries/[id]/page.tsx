@@ -10,6 +10,7 @@ import { getProject } from "@/actions/projects";
 import { listShareLinks } from "@/actions/share";
 import { GalleryStatusBadge } from "@/components/gallery-status-badge";
 import { PhotoImage } from "@/components/photo/photo-image";
+import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { ContactSheet } from "@/components/projects/contact-sheet";
 import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
@@ -224,21 +225,7 @@ export default async function GalleryDetailPage({
           <TabsContent value="photos" className="mt-5">
             {sheetItems.length > 0 ? (
               isDemo ? (
-                <div className="grid w-full grid-cols-3 gap-1.5 sm:grid-cols-4 sm:gap-2 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7">
-                  {sheetItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="group relative aspect-square overflow-hidden rounded-[6px] bg-stone-100"
-                    >
-                      <PhotoImage
-                        src={item.src}
-                        alt={item.alt}
-                        sizes="14vw"
-                        className="transition duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                  ))}
-                </div>
+                <MosaicGrid items={sheetItems} density="studio" />
               ) : (
                 <ContactSheet projectId={gallery.id} items={sheetItems} />
               )
