@@ -2,16 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Loader2, Lock, Unlock } from "lucide-react";
 import { unlockShareLink } from "@/actions/share";
 import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
  * Clean password unlock for protected client links.
- * Highlights who shared the gallery (studio), then a simple form.
+ * Password field + unlock icon when ready (no bulky full-width CTA).
  */
 export function SharePasswordGate({
   token,
@@ -33,20 +31,23 @@ export function SharePasswordGate({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const ready = password.trim().length > 0;
+
   const fromLabel =
     studioName?.trim() ||
     displayName?.trim() ||
     "Your photographer";
 
-  const initial = fromLabel
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("") || "P";
+  const initial =
+    fromLabel
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? "")
+      .join("") || "P";
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function submit() {
+    if (!ready || pending) return;
     setError(null);
     startTransition(async () => {
       const res = await unlockShareLink(token, password);
@@ -58,9 +59,13 @@ export function SharePasswordGate({
     });
   }
 
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    submit();
+  }
+
   return (
     <div className="relative flex min-h-screen flex-col bg-[oklch(0.12_0.01_50)] text-stone-100">
-      {/* Soft ambient */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_20%,oklch(0.32_0.02_60/0.5),transparent_70%)]"
@@ -71,8 +76,7 @@ export function SharePasswordGate({
       </header>
 
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16 pt-8">
-        {/* From · studio */}
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="mb-10 flex flex-col items-center text-center">
           <div className="relative mb-4">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -106,20 +110,20 @@ export function SharePasswordGate({
           ) : null}
         </div>
 
-        {/* Card */}
-        <div
-          className={cn(
-            "w-full max-w-[22rem] rounded-2xl p-6 sm:p-7",
-            "bg-white/[0.07] ring-1 ring-white/10",
-            "backdrop-blur-xl"
-          )}
-        >
-          <p className="text-center text-sm text-stone-400">
-            Enter the password to open this gallery
+        <form onSubmit={onSubmit} className="w-full max-w-[20rem] space-y-3">
+          <p className="text-center text-sm text-stone-500">
+            Enter password to unlock
           </p>
 
-          <form onSubmit={onSubmit} className="mt-5 space-y-3">
-            <Input
+          {/* Input + unlock affordance */}
+          <div
+            className={cn(
+              "flex items-center gap-1 rounded-2xl bg-white/95 p-1.5 pl-4 shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]",
+              "ring-1 ring-white/20 transition",
+              ready && "ring-white/40"
+            )}
+          >
+            <input
               id="share-password"
               name="password"
               type="password"
@@ -127,36 +131,50 @@ export function SharePasswordGate({
               autoFocus
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="Password"
               aria-label="Gallery password"
-              className={cn(
-                "h-11 rounded-xl border-0 bg-white/95 text-center text-stone-900",
-                "placeholder:text-stone-400",
-                "focus-visible:ring-2 focus-visible:ring-white/40"
-              )}
               disabled={pending}
+              className={cn(
+                "min-w-0 flex-1 bg-transparent py-2.5 text-[15px] text-stone-900 outline-none",
+                "placeholder:text-stone-400 disabled:opacity-60"
+              )}
             />
 
-            {error ? (
-              <p className="rounded-xl bg-rose-500/15 px-3 py-2.5 text-center text-xs leading-relaxed text-rose-200 ring-1 ring-rose-400/20">
-                {error}
-              </p>
-            ) : null}
-
-            <Button
+            <button
               type="submit"
-              disabled={pending || !password.trim()}
-              className="h-11 w-full rounded-full bg-white text-stone-900 hover:bg-stone-100"
+              disabled={!ready || pending}
+              aria-label={pending ? "Unlocking" : "Unlock gallery"}
+              title={ready ? "Unlock" : "Enter password"}
+              className={cn(
+                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                ready
+                  ? "bg-stone-900 text-white opacity-100 hover:bg-stone-800"
+                  : "bg-transparent text-stone-300 opacity-0 pointer-events-none",
+                pending && "opacity-100 pointer-events-none"
+              )}
             >
-              {pending ? "Opening…" : "Open gallery"}
-            </Button>
-          </form>
-        </div>
+              {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+              ) : (
+                <Unlock className="h-4 w-4" strokeWidth={2} />
+              )}
+            </button>
+          </div>
 
-        <p className="mt-8 max-w-[18rem] text-center text-[11px] leading-relaxed text-stone-600">
-          The password was shared separately by your photographer.
-        </p>
+          {error ? (
+            <p className="px-1 text-center text-xs leading-relaxed text-rose-300/95">
+              {error}
+            </p>
+          ) : (
+            <p className="px-1 text-center text-[11px] text-stone-600">
+              Password was shared separately by your photographer
+            </p>
+          )}
+        </form>
       </main>
     </div>
   );
