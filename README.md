@@ -66,8 +66,16 @@ See [docs/CI.md](docs/CI.md) for secrets (`VERCEL_*`, `SUPABASE_*`).
 ### Supabase setup
 
 1. Create a project at [supabase.com](https://supabase.com)
-2. Run `supabase/schema.sql` in the SQL editor
+2. Run full `supabase/schema.sql` in the SQL editor (projects, shots, share links, proofing RPCs)
 3. Add keys to `.env.local`
+
+### Product flow (now)
+
+1. Sign up / log in  
+2. **New project** → Main Gallery container  
+3. **Add sample photos** (previews until R2 upload)  
+4. **Create share link** → client opens `/g/{token}`  
+5. Client **hearts** favorites (limit enforced)
 
 ### Cloudflare R2 setup
 
