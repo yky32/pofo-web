@@ -52,7 +52,8 @@ bun dev
 1. Supabase → **SQL Editor** → **New query**
 2. Paste the full contents of `supabase/schema.sql` → **Run**
 3. Paste `supabase/storage.sql` → **Run** (private `shots` bucket)
-4. Optional: paste `supabase/slug.sql` if you use studio subdomains
+4. Paste `supabase/profiles-providers.sql` → **Run** (`profiles.providers[]` cache)
+5. Optional: paste `supabase/slug.sql` if you use studio subdomains
 
 This creates:
 

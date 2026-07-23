@@ -12,9 +12,14 @@ create table if not exists public.profiles (
   display_name text,
   studio_name text,
   avatar_url text,
+  -- Denormalized cache of auth.identities.provider; see profiles-providers.sql
+  providers text[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles
+  add column if not exists providers text[] not null default '{}';
 
 -- ---------------------------------------------------------------------------
 -- Projects (one job / wedding / event)

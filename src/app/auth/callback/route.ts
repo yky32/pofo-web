@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   avatarFromMetadata,
   displayNameFromMetadata,
+  providerIdsFromUser,
 } from "@/lib/auth-identities";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -61,12 +62,20 @@ export async function GET(request: Request) {
       .maybeSingle();
 
     if (profile) {
-      const patch: { display_name?: string; avatar_url?: string } = {};
+      const patch: {
+        display_name?: string;
+        avatar_url?: string;
+        providers?: string[];
+      } = {
+        // Keep denormalized providers[] in sync after sign-in / link
+        providers: providerIdsFromUser(user),
+      };
       if (!profile.display_name && display) patch.display_name = display;
       if (!profile.avatar_url && avatar) patch.avatar_url = avatar;
-      if (Object.keys(patch).length > 0) {
-        await supabase.from("profiles").update(patch).eq("id", user.id);
-      }
+      await supabase.from("profiles").update(patch).eq("id", user.id);
+    } else {
+      // Trigger usually creates the row; still try providers via RPC if available
+      await supabase.rpc("sync_profile_providers", { p_user_id: user.id });
     }
   }
 

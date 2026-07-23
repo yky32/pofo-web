@@ -137,3 +137,13 @@ export function avatarFromMetadata(
   };
   return pick("avatar_url") || pick("picture");
 }
+
+/** Sorted unique provider ids from Auth user (for profiles.providers[] cache). */
+export function providerIdsFromUser(
+  user: AuthUserLike | null | undefined
+): string[] {
+  const ids = identitiesFromUser(user)
+    .map((i) => String(i.provider).toLowerCase())
+    .filter(Boolean);
+  return [...new Set(ids)].sort();
+}

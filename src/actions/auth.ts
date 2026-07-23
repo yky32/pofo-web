@@ -272,6 +272,9 @@ export async function unlinkOAuthProvider(formData: FormData) {
   const { error } = await supabase.auth.unlinkIdentity(identity);
   if (error) return { error: error.message };
 
+  // Refresh denormalized profiles.providers[] (also done by DB trigger if applied)
+  await supabase.rpc("sync_profile_providers", { p_user_id: user.id });
+
   revalidatePath("/dashboard/settings");
   return { success: `Unlinked ${identity.provider}.` };
 }

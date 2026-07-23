@@ -15,6 +15,11 @@ export interface Profile {
   slug: string | null;
   custom_domain: string | null;
   avatar_url: string | null;
+  /**
+   * Linked auth providers (google, apple, email, …).
+   * Denormalized from auth.identities — source of truth remains Auth.
+   */
+  providers?: string[] | null;
   created_at: string;
   updated_at: string;
 }

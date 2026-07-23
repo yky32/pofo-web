@@ -34,19 +34,37 @@ begin
   );
 
   -- One public profile per auth.users id.
-  -- Multiple providers (google/apple/email) share this row via auth.identities.
-  insert into public.profiles (id, display_name, studio_name, slug, avatar_url)
-  values (new.id, v_display, v_studio, v_slug, v_avatar)
+  -- providers[] is a denormalized cache; auth.identities remains source of truth.
+  insert into public.profiles (id, display_name, studio_name, slug, avatar_url, providers)
+  values (
+    new.id,
+    v_display,
+    v_studio,
+    v_slug,
+    v_avatar,
+    case
+      when new.raw_app_meta_data ? 'providers'
+        and jsonb_typeof(new.raw_app_meta_data->'providers') = 'array'
+      then (
+        select coalesce(array_agg(distinct x order by x), '{}')
+        from jsonb_array_elements_text(new.raw_app_meta_data->'providers') as t(x)
+      )
+      when nullif(trim(new.raw_app_meta_data->>'provider'), '') is not null
+      then array[trim(new.raw_app_meta_data->>'provider')]
+      when new.email is not null then array['email']
+      else '{}'::text[]
+    end
+  )
   on conflict (id) do update set
     -- Prefer existing app-edited name over IdP refresh (Triftly pattern)
     display_name = coalesce(public.profiles.display_name, excluded.display_name),
     studio_name = coalesce(public.profiles.studio_name, excluded.studio_name),
     slug = coalesce(public.profiles.slug, excluded.slug),
     avatar_url = coalesce(public.profiles.avatar_url, excluded.avatar_url);
+  -- providers[] refreshed by auth.identities trigger (profiles-providers.sql)
 
   return new;
 end;
 $$;
 
--- Note: OAuth provider rows live in auth.identities (managed by Supabase Auth).
--- Do not store provider flags on public.profiles — same email can have google + apple + email.
+-- Providers: see profiles-providers.sql (providers[] + sync from auth.identities).
