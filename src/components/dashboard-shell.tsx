@@ -88,18 +88,14 @@ export function DashboardShell({
               </p>
             ) : null}
 
-            {/* Avatar only → liquid glass account menu */}
-            <div className="flex justify-center">
-              <DashboardUserMenu user={user} />
-            </div>
-
-            {/* Sidebar expand / collapse */}
+            {/* Avatar + collapse toggle side by side */}
             <div
               className={cn(
-                "border-t border-stone-900/5 pt-3",
-                collapsed ? "flex justify-center" : "flex justify-start"
+                "flex items-center gap-2",
+                collapsed ? "flex-col gap-2" : "justify-between"
               )}
             >
+              <DashboardUserMenu user={user} />
               <button
                 type="button"
                 onClick={toggle}
@@ -109,8 +105,7 @@ export function DashboardShell({
                 className={cn(
                   "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
                   "hover:bg-stone-900/5 hover:text-stone-800",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-                  collapsed && "mx-auto"
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
                 )}
               >
                 {collapsed ? (

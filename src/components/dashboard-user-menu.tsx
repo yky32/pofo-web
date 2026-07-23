@@ -98,7 +98,7 @@ export function DashboardUserMenu({
         title={label}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "mx-auto flex rounded-full transition",
+          "flex shrink-0 rounded-full transition",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
           "hover:opacity-90"
         )}
