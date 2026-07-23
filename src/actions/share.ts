@@ -81,15 +81,14 @@ export async function createShareLink(
   const projectId = String(formData.get("project_id") ?? "").trim();
   if (!projectId) return { error: "Missing project." };
 
-  const password = String(formData.get("password") ?? "");
-  const passwordConfirm = String(formData.get("password_confirm") ?? "");
+  const passwordOn = String(formData.get("password_on") ?? "") === "1";
+  const password = passwordOn
+    ? String(formData.get("password") ?? "").trim()
+    : "";
 
-  if (password || passwordConfirm) {
+  if (passwordOn) {
     if (password.length < 4) {
       return { error: "Password must be at least 4 characters." };
-    }
-    if (password !== passwordConfirm) {
-      return { error: "Passwords do not match." };
     }
   }
 

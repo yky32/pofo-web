@@ -59,8 +59,8 @@ export function ShareLinkPanel({
   );
   const [copied, setCopied] = useState<string | null>(null);
   const [expiresDays, setExpiresDays] = useState("30");
+  const [passwordOn, setPasswordOn] = useState(false);
   const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
   /** One-time secret reveal after create or regenerate */
   const [secretReveal, setSecretReveal] = useState<{
     token: string;
@@ -89,7 +89,7 @@ export function ShareLinkPanel({
       mode: "created",
     });
     setPassword("");
-    setPasswordConfirm("");
+    setPasswordOn(false);
     setShowPassword(true);
     setRegenError(null);
     if (createState.plain_password) {
@@ -355,6 +355,11 @@ export function ShareLinkPanel({
                         name="expires_days"
                         value={expiresDays}
                       />
+                      <input
+                        type="hidden"
+                        name="password_on"
+                        value={passwordOn ? "1" : "0"}
+                      />
                       <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={expiresDays}
@@ -371,7 +376,11 @@ export function ShareLinkPanel({
                         <Button
                           type="submit"
                           size="sm"
-                          disabled={!hasPhotos || createPending}
+                          disabled={
+                            !hasPhotos ||
+                            createPending ||
+                            (passwordOn && password.trim().length < 4)
+                          }
                           className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
                           title={
                             hasPhotos
@@ -383,34 +392,64 @@ export function ShareLinkPanel({
                           {createPending ? "Creating…" : "New link"}
                         </Button>
                       </div>
-                      <div className="space-y-1.5 rounded-lg bg-stone-50/80 p-2 ring-1 ring-stone-100">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-stone-400">
-                          Optional password
-                        </p>
-                        <input
-                          type="password"
-                          name="password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="Password for client"
-                          autoComplete="new-password"
-                          disabled={!hasPhotos || createPending}
-                          className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
-                        />
-                        <input
-                          type="password"
-                          name="password_confirm"
-                          value={passwordConfirm}
-                          onChange={(e) => setPasswordConfirm(e.target.value)}
-                          placeholder="Confirm password"
-                          autoComplete="new-password"
-                          disabled={!hasPhotos || createPending}
-                          className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
-                        />
-                        <p className="text-[10px] leading-snug text-stone-400">
-                          Leave blank for open link. After create, password is
-                          shown once to copy.
-                        </p>
+
+                      {/* Password toggle — on = one field, off = open link */}
+                      <div className="rounded-xl bg-stone-50/90 ring-1 ring-stone-100">
+                        <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-stone-800">
+                              Password protect
+                            </p>
+                            <p className="text-[10px] text-stone-400">
+                              {passwordOn
+                                ? "Client must enter password"
+                                : "Anyone with the link can open"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={passwordOn}
+                            disabled={!hasPhotos || createPending}
+                            onClick={() => {
+                              setPasswordOn((v) => {
+                                if (v) setPassword("");
+                                return !v;
+                              });
+                            }}
+                            className={cn(
+                              "relative h-6 w-11 shrink-0 rounded-full transition-colors",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+                              passwordOn ? "bg-stone-900" : "bg-stone-200",
+                              (!hasPhotos || createPending) && "opacity-50"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                                passwordOn && "translate-x-5"
+                              )}
+                            />
+                          </button>
+                        </div>
+                        {passwordOn ? (
+                          <div className="border-t border-stone-100 px-3 py-2.5">
+                            <input
+                              type="text"
+                              name="password"
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              placeholder="Password for client"
+                              autoComplete="off"
+                              spellCheck={false}
+                              disabled={!hasPhotos || createPending}
+                              className="h-9 w-full rounded-lg border border-stone-200 bg-white px-3 font-mono text-xs text-stone-800 outline-none placeholder:font-sans placeholder:text-stone-400 focus:border-stone-400"
+                            />
+                            <p className="mt-1.5 text-[10px] leading-snug text-stone-400">
+                              Shown once after create so you can copy it.
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                     </form>
                   )}
