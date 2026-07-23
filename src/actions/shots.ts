@@ -339,3 +339,90 @@ export async function markProjectFinal(
   revalidatePath("/dashboard");
   return { success: "Project marked as final delivery." };
 }
+
+const DELETE_CHUNK = 100;
+
+/**
+ * Bulk-delete shots (DB rows + storage objects when keyed).
+ * Owner-only; max 200 ids per request.
+ */
+export async function deleteProjectShots(input: {
+  projectId: string;
+  shotIds: string[];
+}): Promise<ShotActionState & { deleted?: number }> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const ids = [...new Set(input.shotIds.filter(Boolean))];
+  if (!ids.length) return { error: "No photos selected." };
+  if (ids.length > 200) {
+    return { error: "Delete at most 200 photos at a time." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", input.projectId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+
+  const { data: rows, error: fetchErr } = await supabase
+    .from("shots")
+    .select("id, storage_key")
+    .eq("project_id", input.projectId)
+    .eq("owner_id", user.id)
+    .in("id", ids);
+
+  if (fetchErr) return { error: fetchErr.message };
+  if (!rows?.length) return { error: "No matching photos." };
+
+  // Best-effort storage cleanup (DB delete still proceeds if storage fails)
+  const keys = rows
+    .map((r) => r.storage_key as string | null)
+    .filter((k): k is string => Boolean(k && !k.startsWith("http")));
+
+  for (let i = 0; i < keys.length; i += DELETE_CHUNK) {
+    const slice = keys.slice(i, i + DELETE_CHUNK);
+    const { error: storErr } = await supabase.storage
+      .from("shots")
+      .remove(slice);
+    if (storErr) {
+      console.error("deleteProjectShots storage", storErr.message);
+    }
+  }
+
+  const deleteIds = rows.map((r) => r.id as string);
+  let deleted = 0;
+  for (let i = 0; i < deleteIds.length; i += DELETE_CHUNK) {
+    const slice = deleteIds.slice(i, i + DELETE_CHUNK);
+    const { error, count } = await supabase
+      .from("shots")
+      .delete({ count: "exact" })
+      .eq("project_id", input.projectId)
+      .eq("owner_id", user.id)
+      .in("id", slice);
+    if (error) {
+      return {
+        error: error.message,
+        deleted,
+      };
+    }
+    deleted += count ?? slice.length;
+  }
+
+  revalidatePath(`/dashboard/galleries/${input.projectId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/galleries");
+  return {
+    success: `Deleted ${deleted} photo${deleted === 1 ? "" : "s"}.`,
+    deleted,
+  };
+}
