@@ -31,14 +31,13 @@ export function LoginForm() {
         Welcome back
       </p>
       <h1 className="mt-2 font-heading text-3xl font-medium text-stone-900">
-        Sign in
+        Sign in to your studio
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        Continue with Google or Apple, or use email.
+        Manage projects and client deliveries.
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* Triftly-style: social first */}
         <SocialAuthButtons next={next} layout="primary" />
 
         <form action={action} noValidate className="space-y-4">
@@ -73,7 +72,7 @@ export function LoginForm() {
             disabled={pending}
             className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
           >
-            {pending ? "Signing in…" : "Continue with email"}
+            {pending ? "Signing in…" : "Continue"}
           </Button>
         </form>
       </div>

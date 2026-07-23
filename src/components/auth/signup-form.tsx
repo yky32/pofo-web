@@ -30,15 +30,11 @@ export function SignupForm() {
         Create your studio
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        Continue with Google or Apple — fastest way to start.
+        Start delivering projects in minutes.
       </p>
 
       <div className="mt-8 space-y-6">
-        <SocialAuthButtons
-          next="/dashboard"
-          layout="primary"
-          caption="Continue with Google or Apple"
-        />
+        <SocialAuthButtons next="/dashboard" layout="primary" />
 
         <form action={action} noValidate className="space-y-4">
           <div className="space-y-2">
@@ -51,9 +47,7 @@ export function SignupForm() {
               placeholder="Light & Frame Studio"
               className="rounded-xl"
             />
-            <FieldMessage tone="muted">
-              Optional — set later in Settings (especially after social sign-up).
-            </FieldMessage>
+            <FieldMessage tone="muted">Optional</FieldMessage>
           </div>
 
           <EmailField serverError={state.fields?.email} />
@@ -93,7 +87,7 @@ export function SignupForm() {
             disabled={pending}
             className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
           >
-            {pending ? "Creating…" : "Create account with email"}
+            {pending ? "Creating…" : "Create account"}
           </Button>
         </form>
       </div>

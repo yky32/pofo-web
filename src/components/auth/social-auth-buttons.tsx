@@ -96,20 +96,16 @@ function OrDivider({ label = "or" }: { label?: string }) {
 }
 
 /**
- * Triftly-like social sign-in: caption + centered circular Google / Apple.
- * Place above email form with divider, or use `variant="stack"` alone.
+ * Triftly-like social sign-in: centered circular Google / Apple + soft or-divider.
  */
 export function SocialAuthButtons({
   next = "/dashboard",
   className,
-  /** social-first (Triftly default) vs divider-only below email */
   layout = "primary",
-  caption = "Continue with Google or Apple",
 }: {
   next?: string;
   className?: string;
   layout?: "primary" | "secondary";
-  caption?: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +157,6 @@ export function SocialAuthButtons({
     <div className={cn("space-y-4", className)}>
       {layout === "primary" ? (
         <>
-          <p className="text-center text-sm text-stone-500">{caption}</p>
           {circles}
           {error ? (
             <p className="text-center text-xs text-red-600/90" role="alert">
