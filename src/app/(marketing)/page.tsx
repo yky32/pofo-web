@@ -27,7 +27,7 @@ const features = [
   {
     icon: Heart,
     title: "Client proofing",
-    description: "They pick favorites. You keep the chat clean.",
+    description: "They mark favorites. You keep the chat clean.",
   },
   {
     icon: Timer,
@@ -39,7 +39,7 @@ const features = [
 const steps = [
   { n: "01", title: "Upload", body: "Drop the set after your offline edit." },
   { n: "02", title: "Share", body: "Send a private gallery link." },
-  { n: "03", title: "Select", body: "Client marks favorites in minutes." },
+  { n: "03", title: "Proofing", body: "Client marks favorites in minutes." },
   { n: "04", title: "Deliver", body: "Upload finals. Optional portfolio." },
 ];
 

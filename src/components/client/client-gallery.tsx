@@ -32,7 +32,7 @@ export function ClientGallery({
     const parts = [initial.project.client_name, initial.project.description]
       .filter(Boolean)
       .join(" · ");
-    return parts || "Tap hearts to select favorites";
+    return parts || "Tap hearts to proof your favorites";
   }, [initial.project]);
 
   function onToggle(shotId: string) {
@@ -40,11 +40,13 @@ export function ClientGallery({
     startTransition(async () => {
       const res = await toggleClientSelection(initial.token, shotId);
       if (res.error === "limit_reached") {
-        setMessage(`You can select up to ${res.selection_limit ?? limit} photos.`);
+        setMessage(
+          `You can proof up to ${res.selection_limit ?? limit} photos.`
+        );
         return;
       }
       if (res.error) {
-        setMessage("Could not update selection. Try again.");
+        setMessage("Could not update proofing. Try again.");
         return;
       }
       setSelected(new Set(res.selected_shot_ids ?? []));
@@ -89,7 +91,7 @@ export function ClientGallery({
       <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
           <p className="text-sm text-stone-400">
-            Select up to <span className="text-stone-200">{limit}</span> photos
+            Proof up to <span className="text-stone-200">{limit}</span> photos
             {pending ? (
               <span className="ml-2 text-stone-500">· saving…</span>
             ) : null}

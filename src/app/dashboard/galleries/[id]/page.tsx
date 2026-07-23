@@ -198,7 +198,7 @@ export default async function GalleryDetailPage({
             <span className="mx-2 text-stone-300">·</span>
             <span className="font-medium text-stone-800">{selectedCount}</span>
             <span className="text-stone-400">/{gallery.selection_limit}</span>{" "}
-            picks
+            proofed
             {activeLink || isDemo ? (
               <>
                 <span className="mx-2 text-stone-300">·</span>
@@ -276,7 +276,7 @@ export default async function GalleryDetailPage({
             {isDemo ? (
               <div className="rounded-[8px] border border-stone-200/70 bg-white/40 p-8 text-center">
                 <p className="font-heading text-xl text-stone-900">
-                  {selectedCount} picks
+                  {selectedCount} proofed
                 </p>
                 <p className="mt-2 text-sm text-stone-500">
                   Demo data — use a live project for proofing.
@@ -286,7 +286,7 @@ export default async function GalleryDetailPage({
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-stone-500">
-                    {selectedShots.length} of {gallery.selection_limit} picks
+                    {selectedShots.length} of {gallery.selection_limit} proofed
                   </p>
                   <ExportSelectionButton
                     projectTitle={gallery.title}
@@ -304,7 +304,7 @@ export default async function GalleryDetailPage({
                       >
                         <PhotoImage
                           src={src}
-                          alt={shot.filename ?? "Proofing pick"}
+                          alt={shot.filename ?? "Proofed photo"}
                           sizes="20vw"
                         />
                         <span className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white text-rose-600 shadow">
@@ -318,13 +318,13 @@ export default async function GalleryDetailPage({
             ) : (
               <div className="rounded-[8px] border border-stone-200/70 bg-white/40 p-10 text-center">
                 <p className="font-heading text-xl text-stone-900">
-                  No picks yet
+                  No proofing yet
                 </p>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-stone-500">
                   {photoCount === 0
                     ? "Add photos, then share a link for proofing."
                     : clientHref
-                      ? "Send the link — client picks show up here."
+                      ? "Send the link — proofed photos show up here."
                       : "Create a client link to start proofing."}
                 </p>
                 {clientHref ? (

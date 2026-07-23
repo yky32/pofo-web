@@ -25,7 +25,7 @@ export function ClientGalleryDemo({
     return (
       [payload.project.client_name, payload.project.description]
         .filter(Boolean)
-        .join(" · ") || "Tap hearts to select favorites"
+        .join(" · ") || "Tap hearts to proof your favorites"
     );
   }, [payload.project]);
 
@@ -38,7 +38,7 @@ export function ClientGalleryDemo({
         return next;
       }
       if (next.size >= limit) {
-        setMessage(`You can select up to ${limit} photos.`);
+        setMessage(`You can proof up to ${limit} photos.`);
         return prev;
       }
       next.add(shotId);
@@ -86,7 +86,7 @@ export function ClientGalleryDemo({
       <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
           <p className="text-sm text-stone-400">
-            Select up to <span className="text-stone-200">{limit}</span> photos
+            Proof up to <span className="text-stone-200">{limit}</span> photos
           </p>
           <Button
             size="sm"
@@ -159,7 +159,7 @@ export function ClientGalleryDemo({
           })}
         </div>
         <p className="mt-10 text-center text-xs text-stone-600">
-          Demo gallery · selections stay on this device
+          Demo gallery · proofing stays on this device
         </p>
       </main>
     </div>

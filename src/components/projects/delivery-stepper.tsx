@@ -86,7 +86,7 @@ export function computeDeliveryProgress(input: {
   else if (currentId === "share") detail = "Send a client link";
   else if (currentId === "proofing")
     detail = hasPicks
-      ? `${selectedCount} / ${limit} picks`
+      ? `${selectedCount} / ${limit} proofed`
       : "Waiting for client";
   else if (currentId === "final") detail = "Ready to mark final";
 

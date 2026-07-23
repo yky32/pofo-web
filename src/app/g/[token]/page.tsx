@@ -17,7 +17,7 @@ function demoPayload(token: string): ClientGalleryPayload {
       id: "demo",
       title: token.startsWith("demo-") ? "Alicia & James" : "Sample gallery",
       client_name: "Demo client",
-      description: "Wedding day · Tap hearts to select favorites",
+      description: "Wedding day · Tap hearts to proof your favorites",
       status: "proofing",
       selection_limit: 40,
     },

@@ -67,7 +67,7 @@ export async function countProjectSelections(
 
 export type SelectedShot = ShotWithDisplay & { selected_at: string };
 
-/** Client favorites for photographer review. */
+/** Client proofing picks for photographer review. */
 export async function listSelectedShots(
   projectId: string
 ): Promise<SelectedShot[]> {

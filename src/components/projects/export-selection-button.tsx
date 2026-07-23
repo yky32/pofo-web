@@ -44,7 +44,7 @@ export function ExportSelectionButton({
       title={
         shots.length
           ? "Download proofing list"
-          : "No proofing picks yet"
+          : "No proofing yet"
       }
     >
       <Download className="mr-2 h-4 w-4" />
