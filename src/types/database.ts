@@ -101,6 +101,21 @@ export interface ShareLink {
   last_viewed_at?: string | null;
   last_email_to?: string | null;
   last_email_at?: string | null;
+  /** Client may download originals (JPEG/RAW) while window is open */
+  allow_original_download?: boolean;
+  original_expires_at?: string | null;
+}
+
+export interface PortfolioItem {
+  id: string;
+  owner_id: string;
+  shot_id: string;
+  project_id: string | null;
+  title: string | null;
+  caption: string | null;
+  is_published: boolean;
+  sort_order: number;
+  created_at: string;
 }
 
 export type StudioFlag = "none" | "print" | "retouch" | "hero" | "reject";
@@ -140,6 +155,10 @@ export interface ClientGalleryPayload {
   studio?: StudioPublic;
   shots: ClientGalleryShot[];
   selected_shot_ids: string[];
+  /** Photographer enabled original/RAW download for this link */
+  allow_original_download?: boolean;
+  /** ISO timestamp; null = no extra expiry beyond link */
+  original_expires_at?: string | null;
   error?: string;
 }
 

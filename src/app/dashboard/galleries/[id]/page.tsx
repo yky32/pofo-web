@@ -16,6 +16,7 @@ import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
+import { PublishToPortfolioButton } from "@/components/projects/publish-to-portfolio-button";
 import { SeedPhotosButton } from "@/components/projects/seed-photos-button";
 import { ShareLinkPanel } from "@/components/projects/share-link-panel";
 import { Button } from "@/components/ui/button";
@@ -287,11 +288,17 @@ export default async function GalleryDetailPage({
                   <p className="text-sm text-stone-500">
                     {selectedShots.length} of {gallery.selection_limit} proofed
                   </p>
-                  <ExportSelectionButton
-                    projectTitle={gallery.title}
-                    allShots={shots}
-                    proofedShots={selectedShots}
-                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <PublishToPortfolioButton
+                      projectId={gallery.id}
+                      shotIds={selectedShots.map((s) => s.id)}
+                    />
+                    <ExportSelectionButton
+                      projectTitle={gallery.title}
+                      allShots={shots}
+                      proofedShots={selectedShots}
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                   {selectedShots.map((shot) => {

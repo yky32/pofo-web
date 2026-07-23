@@ -124,17 +124,62 @@ export async function createShareLink(
   const token = createShareToken();
   const password_hash = password ? hashSharePassword(password) : null;
 
-  const { data: link, error } = await supabase
+  // P3: original / RAW download window for clients
+  const originalsOn =
+    String(formData.get("originals_on") ?? "") === "1";
+  const originalDaysRaw = String(
+    formData.get("original_days") ?? ""
+  ).trim();
+  let original_expires_at: string | null = null;
+  if (originalsOn) {
+    const days = Math.min(
+      90,
+      Math.max(1, Number(originalDaysRaw) || 14)
+    );
+    original_expires_at = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toISOString();
+  }
+
+  const insertRow: Record<string, unknown> = {
+    project_id: projectId,
+    token,
+    password_hash,
+    is_active: true,
+    expires_at,
+  };
+  // Only set if columns exist (features-p3.sql) — insert may fail otherwise with extras
+  if (originalsOn) {
+    insertRow.allow_original_download = true;
+    insertRow.original_expires_at = original_expires_at;
+  }
+
+  let { data: link, error } = await supabase
     .from("share_links")
-    .insert({
-      project_id: projectId,
-      token,
-      password_hash,
-      is_active: true,
-      expires_at,
-    })
+    .insert(insertRow)
     .select("token")
     .single();
+
+  // Fallback without original columns if schema not migrated
+  if (
+    error &&
+    (error.message.includes("allow_original_download") ||
+      error.message.includes("original_expires_at"))
+  ) {
+    const retry = await supabase
+      .from("share_links")
+      .insert({
+        project_id: projectId,
+        token,
+        password_hash,
+        is_active: true,
+        expires_at,
+      })
+      .select("token")
+      .single();
+    link = retry.data;
+    error = retry.error;
+  }
 
   if (error || !link) {
     return { error: error?.message ?? "Could not create share link." };
@@ -508,6 +553,14 @@ async function loadGalleryWithAdmin(
     .select("shot_id")
     .eq("share_link_id", link.id);
 
+  const allowOriginal = Boolean(
+    (link as { allow_original_download?: boolean }).allow_original_download
+  );
+  const originalExpires =
+    ((link as { original_expires_at?: string | null }).original_expires_at as
+      | string
+      | null) ?? null;
+
   return {
     token: link.token,
     share_link_id: link.id,
@@ -535,7 +588,39 @@ async function loadGalleryWithAdmin(
       height: s.height ?? null,
     })),
     selected_shot_ids: (sels ?? []).map((s) => s.shot_id as string),
+    allow_original_download: allowOriginal && originalWindowOpen(originalExpires),
+    original_expires_at: originalExpires,
   };
+}
+
+function originalWindowOpen(expiresAt: string | null | undefined) {
+  if (!expiresAt) return true;
+  return new Date(expiresAt) > new Date();
+}
+
+async function withOriginalDownloadFlags(
+  token: string,
+  payload: ClientGalleryPayload
+): Promise<ClientGalleryPayload> {
+  try {
+    const admin = createAdminClient();
+    const db = admin ?? (await createClient());
+    const { data: link } = await db
+      .from("share_links")
+      .select("allow_original_download, original_expires_at")
+      .eq("token", token)
+      .maybeSingle();
+
+    const allow = Boolean(link?.allow_original_download);
+    const exp = (link?.original_expires_at as string | null) ?? null;
+    return {
+      ...payload,
+      allow_original_download: allow && originalWindowOpen(exp),
+      original_expires_at: exp,
+    };
+  } catch {
+    return payload;
+  }
 }
 
 /** Public client gallery — password links require unlock cookie first. */
@@ -582,7 +667,8 @@ export async function getClientGalleryByToken(
     });
     if (e2 || !data2) return { error: "failed" };
     void recordShareView(token);
-    return attachDisplayUrls(data2 as ClientGalleryPayload);
+    const attached = await attachDisplayUrls(data2 as ClientGalleryPayload);
+    return withOriginalDownloadFlags(token, attached);
   }
 
   const payload = data as ClientGalleryPayload & { error?: string };
@@ -594,7 +680,8 @@ export async function getClientGalleryByToken(
   }
 
   void recordShareView(token);
-  return attachDisplayUrls(payload);
+  const attached = await attachDisplayUrls(payload);
+  return withOriginalDownloadFlags(token, attached);
 }
 
 async function attachDisplayUrls(

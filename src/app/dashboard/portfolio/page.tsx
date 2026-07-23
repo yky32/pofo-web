@@ -1,3 +1,7 @@
+import { listMyPortfolio } from "@/actions/portfolio";
+import { getMyProfile } from "@/actions/profile";
+import { PortfolioManager } from "@/components/portfolio/portfolio-manager";
+import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
 import { PhotoFrame } from "@/components/photo/photo-frame";
 import { studioPhotos } from "@/lib/photos";
 
@@ -10,7 +14,11 @@ const samples = [
   { src: studioPhotos.rings, title: "Details" },
 ];
 
-export default function PortfolioPage() {
+export default async function PortfolioPage() {
+  const configured = isSupabaseConfigured();
+  const profile = configured ? await getMyProfile() : null;
+  const items = configured ? await listMyPortfolio() : [];
+
   return (
     <div className="space-y-8">
       <div>
@@ -20,23 +28,32 @@ export default function PortfolioPage() {
         <h1 className="mt-1 font-heading text-3xl font-medium text-stone-900 sm:text-4xl">
           Portfolio
         </h1>
-        <p className="mt-1 max-w-md text-stone-500">
-          Publish approved finals from client galleries. Demo frames below.
+        <p className="mt-1 max-w-lg text-stone-500">
+          Publish approved finals from client proofing. They appear on your
+          public studio page for marketing and inquiries.
         </p>
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {samples.map((item) => (
-          <PhotoFrame
-            key={item.title}
-            src={item.src}
-            alt={item.title}
-            caption={item.title}
-            aspect="aspect-[4/5]"
-            sizes="(max-width:768px) 100vw, 33vw"
-          />
-        ))}
-      </div>
+      {configured ? (
+        <PortfolioManager
+          items={items}
+          studioSlug={profile?.slug ?? null}
+          appUrl={getAppUrl()}
+        />
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {samples.map((item) => (
+            <PhotoFrame
+              key={item.title}
+              src={item.src}
+              alt={item.title}
+              caption={item.title}
+              aspect="aspect-[4/5]"
+              sizes="(max-width:768px) 100vw, 33vw"
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

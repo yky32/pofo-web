@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Heart, Lock, Square, SquaresSubtract } from "lucide-react";
+import {
+  Check,
+  Download,
+  Heart,
+  Loader2,
+  Lock,
+  Square,
+  SquaresSubtract,
+} from "lucide-react";
 import {
   setClientSelections,
   toggleClientSelection,
@@ -10,6 +18,7 @@ import { Logo } from "@/components/brand/logo";
 import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { PhotoImage } from "@/components/photo/photo-image";
 import { Button } from "@/components/ui/button";
+import { downloadPhotosZip } from "@/lib/zip-download";
 import { cn } from "@/lib/utils";
 import type { ClientGalleryPayload } from "@/types/database";
 
@@ -26,6 +35,12 @@ export function ClientGallery({
   const [pending, startTransition] = useTransition();
   /** Multi-select mode: checkmarks always visible, bulk toolbar active */
   const [bulkMode, setBulkMode] = useState(false);
+  const [zipBusy, setZipBusy] = useState(false);
+
+  const canDownloadOriginals = Boolean(initial.allow_original_download);
+  const originalExpiresLabel = initial.original_expires_at
+    ? new Date(initial.original_expires_at).toLocaleDateString()
+    : null;
 
   const shotSrc = (s: (typeof initial.shots)[number]) =>
     s.display_url ?? s.preview_url ?? null;
@@ -148,6 +163,39 @@ export function ClientGallery({
     });
   }
 
+  async function downloadMyProof() {
+    if (!canDownloadOriginals || !selected.size) return;
+    setMessage(null);
+    setZipBusy(true);
+    try {
+      const files = initial.shots
+        .filter((s) => selected.has(s.id))
+        .map((s) => {
+          const url = shotSrc(s);
+          if (!url) return null;
+          return {
+            filename: s.filename ?? `${s.id}.jpg`,
+            url,
+          };
+        })
+        .filter((f): f is { filename: string; url: string } => Boolean(f));
+
+      if (!files.length) {
+        setMessage("No downloadable photos. Try again later.");
+        return;
+      }
+      await downloadPhotosZip(initial.project.title, files, {
+        kind: "proofing",
+      });
+    } catch (e) {
+      setMessage(
+        e instanceof Error ? e.message : "Download failed. Try again."
+      );
+    } finally {
+      setZipBusy(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[oklch(0.12_0.01_50)] text-stone-100">
       <header className="relative">
@@ -251,6 +299,28 @@ export function ClientGallery({
                 Bulk select
               </Button>
             )}
+            {canDownloadOriginals ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
+                disabled={zipBusy || count === 0 || pending}
+                onClick={() => void downloadMyProof()}
+                title={
+                  originalExpiresLabel
+                    ? `Download your proofed photos (until ${originalExpiresLabel})`
+                    : "Download your proofed photos"
+                }
+              >
+                {zipBusy ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Download
+              </Button>
+            ) : null}
             <Button
               size="sm"
               className="rounded-full bg-white text-stone-900 hover:bg-stone-200"

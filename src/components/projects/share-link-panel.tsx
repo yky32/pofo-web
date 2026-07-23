@@ -64,6 +64,8 @@ export function ShareLinkPanel({
   const [expiresDays, setExpiresDays] = useState("30");
   const [passwordOn, setPasswordOn] = useState(false);
   const [password, setPassword] = useState("");
+  const [originalsOn, setOriginalsOn] = useState(false);
+  const [originalDays, setOriginalDays] = useState("14");
   /** One-time secret reveal after create or regenerate */
   const [secretReveal, setSecretReveal] = useState<{
     token: string;
@@ -442,6 +444,16 @@ export function ShareLinkPanel({
                         name="password_on"
                         value={passwordOn ? "1" : "0"}
                       />
+                      <input
+                        type="hidden"
+                        name="originals_on"
+                        value={originalsOn ? "1" : "0"}
+                      />
+                      <input
+                        type="hidden"
+                        name="original_days"
+                        value={originalDays}
+                      />
                       <div className="flex flex-wrap items-center gap-2">
                         <select
                           value={expiresDays}
@@ -560,6 +572,84 @@ export function ShareLinkPanel({
                             <p className="mt-1.5 text-[10px] leading-snug text-amber-800/55">
                               Shown once after create so you can copy it.
                             </p>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Original download window (P3) */}
+                      <div
+                        className={cn(
+                          "rounded-xl ring-1 transition-colors duration-200",
+                          originalsOn
+                            ? "bg-emerald-50/90 ring-emerald-200/80"
+                            : "bg-stone-50/90 ring-stone-100"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+                          <div className="min-w-0">
+                            <p
+                              className={cn(
+                                "text-xs font-medium transition-colors",
+                                originalsOn
+                                  ? "text-emerald-950"
+                                  : "text-stone-800"
+                              )}
+                            >
+                              Original download
+                            </p>
+                            <p
+                              className={cn(
+                                "text-[10px] transition-colors",
+                                originalsOn
+                                  ? "text-emerald-800/70"
+                                  : "text-stone-400"
+                              )}
+                            >
+                              {originalsOn
+                                ? "Client can ZIP their proofed photos"
+                                : "Proofing only — no full downloads"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={originalsOn}
+                            disabled={!hasPhotos || createPending}
+                            onClick={() => setOriginalsOn((v) => !v)}
+                            className={cn(
+                              "relative h-6 w-11 shrink-0 rounded-full transition-all duration-200",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                              originalsOn
+                                ? "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.25)] focus-visible:ring-emerald-400"
+                                : "bg-stone-200 focus-visible:ring-stone-300",
+                              (!hasPhotos || createPending) && "opacity-50"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "absolute top-0.5 left-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-transform duration-200",
+                                originalsOn && "translate-x-5"
+                              )}
+                            />
+                          </button>
+                        </div>
+                        {originalsOn ? (
+                          <div className="border-t border-emerald-200/60 px-3 py-2.5">
+                            <label className="flex items-center justify-between gap-2 text-[11px] text-emerald-900/80">
+                              <span>Download window</span>
+                              <select
+                                value={originalDays}
+                                onChange={(e) =>
+                                  setOriginalDays(e.target.value)
+                                }
+                                className="h-8 rounded-full border border-emerald-200 bg-white px-2 text-xs text-stone-800 outline-none"
+                                disabled={createPending}
+                              >
+                                <option value="7">7 days</option>
+                                <option value="14">14 days</option>
+                                <option value="30">30 days</option>
+                              </select>
+                            </label>
                           </div>
                         ) : null}
                       </div>
