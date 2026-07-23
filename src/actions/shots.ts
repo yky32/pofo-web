@@ -118,7 +118,9 @@ export async function listSelectedShots(
     .filter((s): s is SelectedShot => Boolean(s));
 }
 
-/** Register shots after browser upload to Supabase Storage. */
+const REGISTER_CHUNK = 50;
+
+/** Register shots after browser upload (chunked inserts for large batches). */
 export async function registerUploadedShots(input: {
   projectId: string;
   files: {
@@ -128,11 +130,17 @@ export async function registerUploadedShots(input: {
     mimeType: string;
     sizeBytes: number;
   }[];
-}): Promise<ShotActionState> {
+  /** Continue sort_order from client when uploading multi-chunk batches */
+  sortOrderStart?: number;
+}): Promise<ShotActionState & { registered?: number; nextSortOrder?: number }> {
   if (!isSupabaseConfigured()) {
     return { error: "Supabase is not configured." };
   }
   if (!input.files.length) return { error: "No files to register." };
+  // Guard single request size (client should chunk ~50–100)
+  if (input.files.length > 150) {
+    return { error: "Too many files in one request — send up to 150 at a time." };
+  }
 
   const supabase = await createClient();
   const {
@@ -173,12 +181,15 @@ export async function registerUploadedShots(input: {
     container = created;
   }
 
-  const { count } = await supabase
-    .from("shots")
-    .select("id", { count: "exact", head: true })
-    .eq("project_id", input.projectId);
+  let baseOrder = input.sortOrderStart;
+  if (baseOrder == null) {
+    const { count } = await supabase
+      .from("shots")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", input.projectId);
+    baseOrder = count ?? 0;
+  }
 
-  const baseOrder = count ?? 0;
   const rows = input.files.map((f, i) => ({
     project_id: input.projectId,
     container_id: container!.id,
@@ -189,16 +200,24 @@ export async function registerUploadedShots(input: {
     filename: f.filename,
     mime_type: f.mimeType,
     size_bytes: f.sizeBytes,
-    sort_order: baseOrder + i,
+    sort_order: baseOrder! + i,
   }));
 
-  const { error } = await supabase.from("shots").insert(rows);
-  if (error) return { error: error.message };
+  // Chunk inserts for safety even within one action call
+  for (let i = 0; i < rows.length; i += REGISTER_CHUNK) {
+    const slice = rows.slice(i, i + REGISTER_CHUNK);
+    const { error } = await supabase.from("shots").insert(slice);
+    if (error) return { error: error.message, registered: i };
+  }
 
   revalidatePath(`/dashboard/galleries/${input.projectId}`);
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/galleries");
-  return { success: `Uploaded ${rows.length} photo${rows.length === 1 ? "" : "s"}.` };
+  return {
+    success: `Uploaded ${rows.length} photo${rows.length === 1 ? "" : "s"}.`,
+    registered: rows.length,
+    nextSortOrder: baseOrder! + rows.length,
+  };
 }
 
 /** Seed Unsplash contact-sheet previews so share/proofing works without R2. */

@@ -4,7 +4,7 @@ values (
   'shots',
   'shots',
   true,
-  20971520,
+  31457280, -- 30MB wedding JPEGs
   array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
 )
 on conflict (id) do update set
