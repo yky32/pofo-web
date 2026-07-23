@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** V3 — minimal square mark */
+/** V4 — soft aperture in rounded square */
 export function Logo({
   className,
   markClassName,
@@ -12,30 +12,19 @@ export function Logo({
 }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <svg
-        viewBox="0 0 28 28"
-        fill="none"
-        aria-hidden
-        className={cn("h-6 w-6", markClassName)}
+      <span
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground",
+          markClassName
+        )}
       >
-        <rect
-          x="1.5"
-          y="1.5"
-          width="25"
-          height="25"
-          stroke="currentColor"
-          strokeWidth="1.25"
-        />
-        <circle
-          cx="14"
-          cy="14"
-          r="5"
-          stroke="currentColor"
-          strokeWidth="1.25"
-        />
-      </svg>
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden className="h-4 w-4">
+          <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.4" />
+          <circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="1.3" />
+        </svg>
+      </span>
       {showWord ? (
-        <span className="font-heading text-lg font-medium tracking-tight">
+        <span className="font-heading text-xl font-medium tracking-tight">
           Pofo
         </span>
       ) : null}

@@ -33,13 +33,13 @@ export function DashboardNav() {
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors",
+              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors",
               active
-                ? "bg-neutral-900 text-white"
-                : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
           >
-            <Icon className="h-4 w-4 opacity-80" strokeWidth={1.5} />
+            <Icon className="h-4 w-4 opacity-80" strokeWidth={1.75} />
             {label}
           </Link>
         );

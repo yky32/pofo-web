@@ -8,23 +8,23 @@ const statusConfig: Record<
 > = {
   draft: {
     label: "Draft",
-    className: "bg-neutral-100 text-neutral-600",
+    className: "bg-stone-100 text-stone-600",
   },
   shared: {
     label: "Shared",
-    className: "bg-neutral-900 text-white",
+    className: "bg-sky-50 text-sky-800",
   },
   proofing: {
     label: "Proofing",
-    className: "bg-neutral-200 text-neutral-800",
+    className: "bg-rose-50 text-[oklch(0.45_0.1_25)]",
   },
   final: {
     label: "Final",
-    className: "border border-neutral-900 bg-white text-neutral-900",
+    className: "bg-emerald-50 text-emerald-800",
   },
   archived: {
     label: "Archived",
-    className: "bg-neutral-50 text-neutral-400",
+    className: "bg-stone-50 text-stone-400",
   },
 };
 
@@ -40,7 +40,7 @@ export function GalleryStatusBadge({
     <Badge
       variant="secondary"
       className={cn(
-        "rounded-none border-0 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em]",
+        "rounded-full border-0 px-2.5 py-0.5 text-[11px] font-medium",
         config.className,
         className
       )}

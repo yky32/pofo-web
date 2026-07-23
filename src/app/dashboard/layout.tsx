@@ -12,36 +12,36 @@ export default function DashboardLayout({
   const demoMode = !isSupabaseConfigured();
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen max-w-[1400px]">
-        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-neutral-200 p-5 md:flex">
-          <Link href="/" className="mb-10 px-1 text-neutral-900">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border/70 bg-card/40 p-5 backdrop-blur-sm md:flex">
+          <Link href="/" className="mb-10 px-1 text-foreground">
             <Logo />
           </Link>
           <DashboardNav />
           <div className="mt-auto space-y-3 px-1">
             {demoMode && (
-              <p className="border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-[11px] leading-relaxed text-neutral-500">
-                Demo mode — mock data until Supabase is connected.
+              <p className="rounded-2xl bg-rose/10 px-3 py-2.5 text-[11px] leading-relaxed text-[oklch(0.4_0.08_25)]">
+                Demo studio — mock galleries until Supabase is connected.
               </p>
             )}
             <Button
               variant="outline"
               size="sm"
-              className="w-full rounded-none border-neutral-300"
+              className="w-full rounded-full"
               asChild
             >
-              <Link href="/">Site</Link>
+              <Link href="/">Marketing site</Link>
             </Button>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-14 items-center justify-between border-b border-neutral-200 px-4 md:hidden">
+          <header className="flex h-14 items-center justify-between border-b border-border/70 px-4 md:hidden">
             <Link href="/">
               <Logo />
             </Link>
-            <Button size="sm" variant="outline" className="rounded-none" asChild>
+            <Button size="sm" variant="outline" className="rounded-full" asChild>
               <Link href="/dashboard/galleries">Galleries</Link>
             </Button>
           </header>

@@ -1,7 +1,8 @@
 # Design Version 3 — White Cube
 
-**Status:** Exploring (`design/v2-explore`)  
-**Contrast to:** [v1 Studio Paper](../v1/README.md) · [v2 Darkroom](../v2/README.md)
+**Status:** Frozen  
+**Branch:** `design/v3`  
+**Tag:** `design-v3`
 
 Contemporary museum wall — cool pure white, black type, maximum air, photos as art objects.
 
@@ -12,38 +13,22 @@ Contemporary museum wall — cool pure white, black type, maximum air, photos as
 - Huge whitespace, quiet chrome
 - Geometry without decoration
 
-## vs previous
-
-| | V1 Studio Paper | V2 Darkroom | **V3 White Cube** |
-|--|-----------------|-------------|-------------------|
-| Base | Warm cream | Near black | **Cool pure white** |
-| Accent | Stone | Safelight amber | **Black only** |
-| Type | Cormorant + DM Sans | Syne + Inter | **Space Grotesk + Manrope** |
-| Frames | Print mat | Edge + grain | **No mat — float** |
-| Radius | Soft pills | Sharp | **0 (square)** |
-| Feel | Warm studio | Cinema night | **Daylight museum** |
-
 ## Tokens
 
-- Background: near-white cool (`oklch` blue-gray hue)
+- Background: near-white cool
 - Text: near-black
 - Borders: light neutral hairlines
 - CTA: solid black rectangles
 - Radius: `0`
 
-## Patterns
+## Type
 
-- Museum wall hero (type first, photos as exhibition)
-- Clean 4-up image strip (no film sprockets)
-- Gallery cards: image + caption under (label style)
-- Client: bright white room + cover + masonry
-- Stats as type on a rule, not cards
+- Headings: Space Grotesk
+- UI: Manrope
 
-## Key files
+## Run
 
-```
-src/app/globals.css
-src/app/layout.tsx
-src/app/(marketing)/page.tsx
-src/components/photo/*
+```bash
+git checkout design/v3   # or design-v3
+bun dev
 ```

@@ -8,19 +8,18 @@ export default function GalleriesPage() {
   const galleries = mockGalleries;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="label-micro">Library</p>
-          <h1 className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
+          <p className="label-soft">Library</p>
+          <h1 className="mt-1 font-heading text-3xl font-medium tracking-tight sm:text-4xl">
             Galleries
           </h1>
-          <p className="mt-2 text-neutral-500">Private sets for clients.</p>
+          <p className="mt-1 text-muted-foreground">
+            Private client sets, ready to share.
+          </p>
         </div>
-        <Button
-          className="w-fit rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
-          asChild
-        >
+        <Button className="w-fit rounded-full bg-rose hover:bg-rose/90" asChild>
           <Link href="/dashboard/galleries/new">
             <Plus className="mr-1 h-4 w-4" />
             New gallery
@@ -28,7 +27,7 @@ export default function GalleriesPage() {
         </Button>
       </div>
 
-      <div className="grid gap-10 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {galleries.map((gallery) => (
           <GalleryCard
             key={gallery.id}
