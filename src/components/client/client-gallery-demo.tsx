@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Heart, Lock } from "lucide-react";
+import { Check, Heart, Lock, Square, SquaresSubtract } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { PhotoImage } from "@/components/photo/photo-image";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,14 @@ export function ClientGalleryDemo({
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
   const limit = payload.project.selection_limit;
+
+  const visibleIds = useMemo(
+    () =>
+      payload.shots.filter((s) => s.preview_url).map((s) => s.id),
+    [payload.shots]
+  );
 
   const cover =
     payload.shots.find((s) => s.preview_url)?.preview_url ?? null;
@@ -46,7 +53,36 @@ export function ClientGalleryDemo({
     });
   }
 
+  function selectUpToLimit() {
+    setMessage(null);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of visibleIds) {
+        if (next.size >= limit) break;
+        next.add(id);
+      }
+      if (next.size === prev.size) {
+        setMessage(
+          prev.size >= limit
+            ? `Already at your limit of ${limit}.`
+            : "All visible photos are already selected."
+        );
+      }
+      return next;
+    });
+  }
+
+  function clearAll() {
+    setMessage(null);
+    setSelected(new Set());
+  }
+
   const count = selected.size;
+  const remaining = Math.max(0, limit - count);
+  const allMaxed =
+    count >= limit ||
+    (visibleIds.length > 0 &&
+      visibleIds.every((id) => selected.has(id)));
 
   return (
     <div className="min-h-screen bg-[oklch(0.12_0.01_50)] text-stone-100">
@@ -84,26 +120,86 @@ export function ClientGalleryDemo({
       </header>
 
       <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-8">
           <p className="text-sm text-stone-400">
             Proof up to <span className="text-stone-200">{limit}</span> photos
+            {bulkMode && remaining > 0 ? (
+              <span className="ml-2 text-stone-500">· {remaining} left</span>
+            ) : null}
           </p>
-          <Button
-            size="sm"
-            className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
-          >
-            <Heart
-              className={cn(
-                "mr-1.5 h-3.5 w-3.5",
-                count > 0 && "fill-stone-900"
-              )}
-            />
-            {count} / {limit}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {bulkMode ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
+                  disabled={allMaxed}
+                  onClick={selectUpToLimit}
+                >
+                  <Square className="mr-1.5 h-3.5 w-3.5" />
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
+                  disabled={count === 0}
+                  onClick={clearAll}
+                >
+                  <SquaresSubtract className="mr-1.5 h-3.5 w-3.5" />
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
+                  onClick={() => setBulkMode(false)}
+                >
+                  Done
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
+                disabled={visibleIds.length === 0}
+                onClick={() => {
+                  setBulkMode(true);
+                  setMessage(null);
+                }}
+              >
+                <Check className="mr-1.5 h-3.5 w-3.5" />
+                Bulk select
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
+            >
+              <Heart
+                className={cn(
+                  "mr-1.5 h-3.5 w-3.5",
+                  count > 0 && "fill-stone-900"
+                )}
+              />
+              {count} / {limit}
+            </Button>
+          </div>
         </div>
         {message ? (
           <p className="border-t border-white/5 px-4 py-2 text-center text-xs text-amber-200/90">
             {message}
+          </p>
+        ) : null}
+        {bulkMode ? (
+          <p className="border-t border-white/5 px-4 py-2 text-center text-[11px] text-stone-500">
+            Tap photos to add or remove · Select all fills up to your limit
           </p>
         ) : null}
       </div>
@@ -120,7 +216,12 @@ export function ClientGalleryDemo({
                 key={shot.id}
                 type="button"
                 onClick={() => onToggle(shot.id)}
-                className="group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3"
+                className={cn(
+                  "group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3",
+                  bulkMode &&
+                    isOn &&
+                    "ring-2 ring-white ring-offset-2 ring-offset-[oklch(0.12_0.01_50)]"
+                )}
               >
                 <div
                   className={
@@ -141,12 +242,26 @@ export function ClientGalleryDemo({
                         : "bg-black/0 group-hover:bg-black/15"
                     )}
                   />
+                  {bulkMode ? (
+                    <span
+                      className={cn(
+                        "absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow",
+                        isOn
+                          ? "border-white bg-white text-rose-600"
+                          : "border-white/70 bg-black/35 text-transparent"
+                      )}
+                    >
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                  ) : null}
                   <span
                     className={cn(
                       "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
                       isOn
                         ? "bg-white text-rose-600 opacity-100"
-                        : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
+                        : bulkMode
+                          ? "bg-white/80 text-stone-800 opacity-70"
+                          : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
                     )}
                   >
                     <Heart

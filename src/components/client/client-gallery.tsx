@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Heart, Lock } from "lucide-react";
-import { toggleClientSelection } from "@/actions/share";
+import { Check, Heart, Lock, Square, SquaresSubtract } from "lucide-react";
+import {
+  setClientSelections,
+  toggleClientSelection,
+} from "@/actions/share";
 import { Logo } from "@/components/brand/logo";
 import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { PhotoImage } from "@/components/photo/photo-image";
@@ -21,9 +24,20 @@ export function ClientGallery({
   const [limit] = useState(initial.project.selection_limit);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /** Multi-select mode: checkmarks always visible, bulk toolbar active */
+  const [bulkMode, setBulkMode] = useState(false);
 
   const shotSrc = (s: (typeof initial.shots)[number]) =>
     s.display_url ?? s.preview_url ?? null;
+
+  const visibleIds = useMemo(
+    () =>
+      initial.shots
+        .filter((s) => Boolean(shotSrc(s)))
+        .map((s) => s.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shotSrc is pure over shot fields
+    [initial.shots]
+  );
 
   const studioLabel =
     initial.studio?.studio_name ||
@@ -34,6 +48,14 @@ export function ClientGallery({
     initial.shots.map(shotSrc).find(Boolean) ?? null;
 
   const count = selected.size;
+  const atLimit = count >= limit;
+  const remaining = Math.max(0, limit - count);
+  const allMaxed =
+    count >= limit ||
+    (visibleIds.length > 0 &&
+      visibleIds.every((id) => selected.has(id)) &&
+      count === Math.min(limit, visibleIds.length));
+
   const subtitle = useMemo(() => {
     const parts = [initial.project.client_name, initial.project.description]
       .filter(Boolean)
@@ -41,21 +63,88 @@ export function ClientGallery({
     return parts || "Tap hearts to proof your favorites";
   }, [initial.project]);
 
+  function applyResult(
+    res: {
+      error?: string;
+      selected_shot_ids?: string[];
+      selection_limit?: number;
+    },
+    rollback?: Set<string>
+  ) {
+    if (res.error === "limit_reached") {
+      setMessage(
+        `You can proof up to ${res.selection_limit ?? limit} photos.`
+      );
+      if (rollback) setSelected(rollback);
+      return;
+    }
+    if (res.error === "schema_missing") {
+      setMessage(
+        "Bulk select needs a quick database update — ask your photographer, or pick photos one by one."
+      );
+      if (rollback) setSelected(rollback);
+      return;
+    }
+    if (res.error) {
+      setMessage("Could not update proofing. Try again.");
+      if (rollback) setSelected(rollback);
+      return;
+    }
+    setSelected(new Set(res.selected_shot_ids ?? []));
+  }
+
   function onToggle(shotId: string) {
     setMessage(null);
+    const prev = new Set(selected);
+    const next = new Set(selected);
+    if (next.has(shotId)) {
+      next.delete(shotId);
+    } else {
+      if (next.size >= limit) {
+        setMessage(`You can proof up to ${limit} photos.`);
+        return;
+      }
+      next.add(shotId);
+    }
+    // Optimistic
+    setSelected(next);
     startTransition(async () => {
       const res = await toggleClientSelection(initial.token, shotId);
-      if (res.error === "limit_reached") {
-        setMessage(
-          `You can proof up to ${res.selection_limit ?? limit} photos.`
-        );
-        return;
-      }
-      if (res.error) {
-        setMessage("Could not update proofing. Try again.");
-        return;
-      }
-      setSelected(new Set(res.selected_shot_ids ?? []));
+      applyResult(res, prev);
+    });
+  }
+
+  function selectUpToLimit() {
+    setMessage(null);
+    const prev = new Set(selected);
+    const next = new Set(selected);
+    for (const id of visibleIds) {
+      if (next.size >= limit) break;
+      next.add(id);
+    }
+    if (next.size === prev.size) {
+      setMessage(
+        prev.size >= limit
+          ? `Already at your limit of ${limit}.`
+          : "All visible photos are already selected."
+      );
+      return;
+    }
+    setSelected(next);
+    startTransition(async () => {
+      const res = await setClientSelections(initial.token, [...next]);
+      applyResult(res, prev);
+    });
+  }
+
+  function clearAll() {
+    if (!selected.size) return;
+    setMessage(null);
+    const prev = new Set(selected);
+    setSelected(new Set());
+    startTransition(async () => {
+      const res = await setClientSelections(initial.token, []);
+      applyResult(res, prev);
     });
   }
 
@@ -97,29 +186,94 @@ export function ClientGallery({
       </header>
 
       <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50)]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-8">
           <p className="text-sm text-stone-400">
             Proof up to <span className="text-stone-200">{limit}</span> photos
             {pending ? (
               <span className="ml-2 text-stone-500">· saving…</span>
             ) : null}
+            {bulkMode && remaining > 0 ? (
+              <span className="ml-2 text-stone-500">
+                · {remaining} left
+              </span>
+            ) : null}
           </p>
-          <Button
-            size="sm"
-            className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
-          >
-            <Heart
-              className={cn(
-                "mr-1.5 h-3.5 w-3.5",
-                count > 0 && "fill-stone-900"
-              )}
-            />
-            {count} / {limit}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {bulkMode ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
+                  disabled={pending || allMaxed}
+                  onClick={selectUpToLimit}
+                  title={`Select up to ${limit} photos`}
+                >
+                  <Square className="mr-1.5 h-3.5 w-3.5" />
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
+                  disabled={pending || count === 0}
+                  onClick={clearAll}
+                >
+                  <SquaresSubtract className="mr-1.5 h-3.5 w-3.5" />
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
+                  disabled={pending}
+                  onClick={() => setBulkMode(false)}
+                >
+                  Done
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
+                disabled={pending || visibleIds.length === 0}
+                onClick={() => {
+                  setBulkMode(true);
+                  setMessage(null);
+                }}
+              >
+                <Check className="mr-1.5 h-3.5 w-3.5" />
+                Bulk select
+              </Button>
+            )}
+            <Button
+              size="sm"
+              className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
+            >
+              <Heart
+                className={cn(
+                  "mr-1.5 h-3.5 w-3.5",
+                  count > 0 && "fill-stone-900"
+                )}
+              />
+              {count} / {limit}
+            </Button>
+          </div>
         </div>
         {message ? (
           <p className="border-t border-white/5 px-4 py-2 text-center text-xs text-amber-200/90 sm:px-8">
             {message}
+          </p>
+        ) : null}
+        {bulkMode ? (
+          <p className="border-t border-white/5 px-4 py-2 text-center text-[11px] text-stone-500 sm:px-8">
+            Tap photos to add or remove · Select all fills up to your limit
+            {atLimit ? " · limit reached" : ""}
           </p>
         ) : null}
       </div>
@@ -148,8 +302,11 @@ export function ClientGallery({
             onItemClick={(item) => {
               if (!pending) onToggle(item.id);
             }}
-            itemClassName={() =>
-              cn(pending && "pointer-events-none opacity-80")
+            itemClassName={({ item }) =>
+              cn(
+                pending && "pointer-events-none opacity-80",
+                bulkMode && selected.has(item.id) && "ring-2 ring-white ring-offset-2 ring-offset-[oklch(0.12_0.01_50)]"
+              )
             }
             renderTile={({ item, image }) => {
               const isOn = selected.has(item.id);
@@ -166,12 +323,26 @@ export function ClientGallery({
                         : "bg-black/0 group-hover:bg-black/15"
                     )}
                   />
+                  {bulkMode ? (
+                    <span
+                      className={cn(
+                        "absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow transition",
+                        isOn
+                          ? "border-white bg-white text-rose-600"
+                          : "border-white/70 bg-black/35 text-transparent backdrop-blur-sm"
+                      )}
+                    >
+                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                    </span>
+                  ) : null}
                   <span
                     className={cn(
                       "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
                       isOn
                         ? "bg-white text-rose-600 opacity-100"
-                        : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
+                        : bulkMode
+                          ? "bg-white/80 text-stone-800 opacity-70"
+                          : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
                     )}
                   >
                     <Heart

@@ -73,3 +73,82 @@ $$;
 
 revoke all on function public.record_share_view(text) from public;
 grant execute on function public.record_share_view(text) to anon, authenticated;
+
+-- Bulk set client proofing selections (replace set, capped by selection_limit)
+create or replace function public.set_client_selections(
+  p_token text,
+  p_shot_ids uuid[]
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_link public.share_links%rowtype;
+  v_project public.projects%rowtype;
+  v_limit int;
+  v_ids uuid[];
+  v_selected uuid[];
+begin
+  if p_token is null or length(trim(p_token)) < 8 then
+    return jsonb_build_object('error', 'invalid');
+  end if;
+
+  select * into v_link from public.share_links where token = p_token limit 1;
+  if not found or not v_link.is_active then
+    return jsonb_build_object('error', 'not_found');
+  end if;
+  if v_link.expires_at is not null and v_link.expires_at < now() then
+    return jsonb_build_object('error', 'expired');
+  end if;
+
+  select * into v_project from public.projects where id = v_link.project_id;
+  if not found then
+    return jsonb_build_object('error', 'not_found');
+  end if;
+  v_limit := coalesce(v_project.selection_limit, 40);
+
+  -- Keep only shots that belong to this project; dedupe; cap to limit
+  select coalesce(array_agg(x.id), array[]::uuid[])
+  into v_ids
+  from (
+    select distinct s.id
+    from unnest(coalesce(p_shot_ids, array[]::uuid[])) as u(id)
+    join public.shots s
+      on s.id = u.id
+     and s.project_id = v_link.project_id
+    limit v_limit
+  ) x;
+
+  delete from public.shot_selections where share_link_id = v_link.id;
+
+  if v_ids is not null and coalesce(array_length(v_ids, 1), 0) > 0 then
+    insert into public.shot_selections (project_id, share_link_id, shot_id)
+    select v_link.project_id, v_link.id, sid
+    from unnest(v_ids) as sid
+    on conflict (share_link_id, shot_id) do nothing;
+
+    if v_project.status in ('draft', 'shared') then
+      update public.projects
+      set status = 'proofing', updated_at = now()
+      where id = v_project.id;
+    end if;
+  end if;
+
+  select coalesce(array_agg(ss.shot_id), array[]::uuid[])
+  into v_selected
+  from public.shot_selections ss
+  where ss.share_link_id = v_link.id;
+
+  return jsonb_build_object(
+    'ok', true,
+    'selected_shot_ids', to_jsonb(v_selected),
+    'selected_count', coalesce(array_length(v_selected, 1), 0),
+    'selection_limit', v_limit
+  );
+end;
+$$;
+
+revoke all on function public.set_client_selections(text, uuid[]) from public;
+grant execute on function public.set_client_selections(text, uuid[]) to anon, authenticated;

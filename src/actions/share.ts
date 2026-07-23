@@ -618,16 +618,18 @@ async function attachDisplayUrls(
   };
 }
 
-export async function toggleClientSelection(
-  token: string,
-  shotId: string
-): Promise<{
+export type ClientSelectionResult = {
   ok?: boolean;
   error?: string;
   selected_shot_ids?: string[];
   selected_count?: number;
   selection_limit?: number;
-}> {
+};
+
+export async function toggleClientSelection(
+  token: string,
+  shotId: string
+): Promise<ClientSelectionResult> {
   if (!isSupabaseConfigured()) {
     return { error: "not_configured" };
   }
@@ -650,13 +652,51 @@ export async function toggleClientSelection(
     return { error: "failed" };
   }
 
-  return data as {
-    ok?: boolean;
-    error?: string;
-    selected_shot_ids?: string[];
-    selected_count?: number;
-    selection_limit?: number;
-  };
+  return data as ClientSelectionResult;
+}
+
+/**
+ * Replace the client proofing set with the given shot IDs (bulk select).
+ * Server caps to selection_limit and drops IDs not in the project.
+ * Falls back to sequential toggles if the bulk RPC is missing.
+ */
+export async function setClientSelections(
+  token: string,
+  shotIds: string[]
+): Promise<ClientSelectionResult> {
+  if (!isSupabaseConfigured()) {
+    return { error: "not_configured" };
+  }
+
+  const gate = await getShareGate(token);
+  if (!gate.ok) return { error: gate.error };
+  if (gate.requires_password && !gate.unlocked) {
+    return { error: "password_required" };
+  }
+
+  const unique = [...new Set(shotIds.filter(Boolean))];
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("set_client_selections", {
+    p_token: token,
+    p_shot_ids: unique,
+  });
+
+  if (error) {
+    // Older DB without bulk RPC — sequential toggle fallback is slow; surface setup hint
+    if (
+      error.message.includes("function") ||
+      error.code === "PGRST202"
+    ) {
+      return {
+        error: "schema_missing",
+      };
+    }
+    console.error("setClientSelections", error.message);
+    return { error: "failed" };
+  }
+
+  return data as ClientSelectionResult;
 }
 
 /**
