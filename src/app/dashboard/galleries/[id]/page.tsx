@@ -14,8 +14,8 @@ import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { ContactSheet } from "@/components/projects/contact-sheet";
 import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
-import { MarkFinalButton } from "@/components/projects/mark-final-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
+import { ProjectStatusControl } from "@/components/projects/project-status-control";
 import { SeedPhotosButton } from "@/components/projects/seed-photos-button";
 import { ShareLinkPanel } from "@/components/projects/share-link-panel";
 import { Button } from "@/components/ui/button";
@@ -174,9 +174,9 @@ export default async function GalleryDetailPage({
                 projectTitle={gallery.title}
                 shots={selectedShots}
               />
-              <MarkFinalButton
+              <ProjectStatusControl
                 projectId={gallery.id}
-                disabled={gallery.status === "final"}
+                status={gallery.status}
               />
             </div>
           </div>
@@ -354,20 +354,21 @@ export default async function GalleryDetailPage({
                       {gallery.selection_limit}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-4 py-2">
+                  <div className="flex items-center justify-between gap-4 py-2">
                     <dt className="text-stone-400">Status</dt>
-                    <dd className="text-right text-stone-800">
-                      {gallery.status}
+                    <dd className="text-right">
+                      {!isDemo ? (
+                        <ProjectStatusControl
+                          projectId={gallery.id}
+                          status={gallery.status}
+                        />
+                      ) : (
+                        <span className="text-stone-800">{gallery.status}</span>
+                      )}
                     </dd>
                   </div>
                 </dl>
               </div>
-              {!isDemo ? (
-                <MarkFinalButton
-                  projectId={gallery.id}
-                  disabled={gallery.status === "final"}
-                />
-              ) : null}
             </div>
           </TabsContent>
         </Tabs>

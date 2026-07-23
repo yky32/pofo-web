@@ -310,16 +310,37 @@ export async function seedDemoShots(
   return { success: `Added ${rows.length} sample photos.` };
 }
 
-export async function markProjectFinal(
-  _prev: ShotActionState,
-  formData: FormData
-): Promise<ShotActionState> {
+const PROJECT_STATUSES = [
+  "draft",
+  "shared",
+  "proofing",
+  "final",
+  "archived",
+] as const;
+
+export type ProjectStatusValue = (typeof PROJECT_STATUSES)[number];
+
+function isProjectStatus(v: string): v is ProjectStatusValue {
+  return (PROJECT_STATUSES as readonly string[]).includes(v);
+}
+
+/**
+ * Photographer can move a project to any status (draft ↔ shared ↔ proofing ↔ final ↔ archived).
+ */
+export async function updateProjectStatus(input: {
+  projectId: string;
+  status: string;
+}): Promise<ShotActionState> {
   if (!isSupabaseConfigured()) {
     return { error: "Supabase is not configured." };
   }
 
-  const projectId = String(formData.get("project_id") ?? "").trim();
+  const projectId = input.projectId?.trim();
+  const status = input.status?.trim();
   if (!projectId) return { error: "Missing project." };
+  if (!status || !isProjectStatus(status)) {
+    return { error: "Invalid status." };
+  }
 
   const supabase = await createClient();
   const {
@@ -329,7 +350,7 @@ export async function markProjectFinal(
 
   const { error } = await supabase
     .from("projects")
-    .update({ status: "final" })
+    .update({ status, updated_at: new Date().toISOString() })
     .eq("id", projectId)
     .eq("owner_id", user.id);
 
@@ -337,7 +358,17 @@ export async function markProjectFinal(
 
   revalidatePath(`/dashboard/galleries/${projectId}`);
   revalidatePath("/dashboard");
-  return { success: "Project marked as final delivery." };
+  revalidatePath("/dashboard/galleries");
+  return { success: `Status set to ${status}.` };
+}
+
+/** @deprecated Prefer updateProjectStatus — kept for any old form posts */
+export async function markProjectFinal(
+  _prev: ShotActionState,
+  formData: FormData
+): Promise<ShotActionState> {
+  const projectId = String(formData.get("project_id") ?? "").trim();
+  return updateProjectStatus({ projectId, status: "final" });
 }
 
 const DELETE_CHUNK = 100;
