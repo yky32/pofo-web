@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ExternalLink, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { Logo } from "@/components/brand/logo";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -80,6 +80,7 @@ export function DashboardShell({
               onClick={toggle}
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-expanded={!collapsed}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               className={cn(
                 "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
                 "hover:bg-stone-900/5 hover:text-stone-800",
@@ -87,9 +88,9 @@ export function DashboardShell({
               )}
             >
               {collapsed ? (
-                <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
+                <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
               ) : (
-                <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
+                <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
               )}
             </button>
           </div>
