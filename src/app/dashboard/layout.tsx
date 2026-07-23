@@ -3,6 +3,8 @@ import type { DashboardUser } from "@/components/dashboard-user-menu";
 import {
   avatarFromMetadata,
   displayNameFromMetadata,
+  identitiesFromUser,
+  primaryProvider,
 } from "@/lib/auth-identities";
 import { isSupabaseConfigured } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
@@ -23,6 +25,8 @@ async function loadDashboardUser(): Promise<DashboardUser | null> {
       .eq("id", user.id)
       .maybeSingle();
 
+    const identities = identitiesFromUser(user);
+
     return {
       email: user.email,
       displayName:
@@ -30,6 +34,8 @@ async function loadDashboardUser(): Promise<DashboardUser | null> {
         profile?.studio_name ||
         displayNameFromMetadata(meta, user.email),
       avatarUrl: profile?.avatar_url || avatarFromMetadata(meta),
+      // Prefer IdP on the session (Triftly: identities → google/apple/email)
+      signInProvider: primaryProvider(identities),
     };
   } catch {
     return null;
