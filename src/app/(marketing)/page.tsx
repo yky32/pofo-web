@@ -1,12 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Heart,
-  Link2,
-  Shield,
-  Timer,
-  Upload,
-} from "lucide-react";
+import { ArrowRight, Heart, Shield, Timer, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoFrame } from "@/components/photo/photo-frame";
 import { FilmStrip } from "@/components/photo/film-strip";
@@ -17,121 +10,104 @@ const features = [
   {
     icon: Upload,
     title: "JPEG + RAW",
-    description: "Previews first. Originals when you say so.",
+    description: "Previews first. Originals when you choose.",
   },
   {
     icon: Shield,
     title: "Private links",
-    description: "Password + expiry. Your files, your rules.",
+    description: "Password and expiry. Your control.",
   },
   {
     icon: Heart,
-    title: "Client proofing",
-    description: "They pick favorites. You keep the chat clean.",
+    title: "Proofing",
+    description: "Clients select favorites. You stay focused.",
   },
   {
     icon: Timer,
     title: "Timed downloads",
-    description: "RAW access that doesn’t live forever.",
+    description: "Access that ends with the job.",
   },
 ];
 
 const steps = [
-  { n: "01", title: "Upload", body: "Drop the set after your offline edit." },
-  { n: "02", title: "Share", body: "Send a private gallery link." },
-  { n: "03", title: "Select", body: "Client marks favorites in minutes." },
-  { n: "04", title: "Deliver", body: "Upload finals. Optional portfolio." },
+  { n: "01", title: "Upload", body: "Add the set after your edit." },
+  { n: "02", title: "Share", body: "One private link for the client." },
+  { n: "03", title: "Select", body: "They mark favorites in minutes." },
+  { n: "04", title: "Deliver", body: "Finals up. Portfolio optional." },
 ];
 
 export default function HomePage() {
   return (
     <main>
-      {/* Hero — image-first */}
-      <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-16">
-          <div className="flex flex-col justify-center lg:col-span-5">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              For wedding photographers
-            </p>
-            <h1 className="mt-4 font-heading text-5xl font-medium leading-[1.05] tracking-tight text-stone-900 sm:text-6xl lg:text-[3.5rem]">
-              Deliver photos
-              <br />
-              <span className="text-stone-500">like they deserve.</span>
-            </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-stone-600 sm:text-lg">
-              Private galleries. Simple proofing. No Drive folders. Just a
-              beautiful handoff from shoot to client.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Button
-                size="lg"
-                className="rounded-full bg-stone-900 px-7 text-stone-50 hover:bg-stone-800"
-                asChild
-              >
-                <Link href="/signup">
-                  Start free
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="rounded-full border-stone-300 bg-transparent"
-                asChild
-              >
-                <Link href="/dashboard">See the studio</Link>
-              </Button>
-            </div>
-            <p className="mt-5 text-sm text-stone-400">
-              Free during MVP · No credit card
-            </p>
+      {/* Hero — museum wall */}
+      <section className="border-b border-neutral-200">
+        <div className="mx-auto max-w-6xl px-4 pb-20 pt-16 sm:px-6 sm:pb-28 sm:pt-24">
+          <p className="label-micro">Design v3 · White Cube</p>
+          <h1 className="mt-6 max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-tight text-neutral-900 sm:text-6xl lg:text-7xl">
+            Space for the work.
+            <br />
+            <span className="text-neutral-400">Nothing else.</span>
+          </h1>
+          <p className="mt-8 max-w-lg text-lg leading-relaxed text-neutral-500">
+            Private client galleries with room to breathe. Simple proofing.
+            Professional delivery — without the noise.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center gap-3">
+            <Button
+              size="lg"
+              className="rounded-none bg-neutral-900 px-8 text-white hover:bg-neutral-800"
+              asChild
+            >
+              <Link href="/signup">
+                Start free
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-none border-neutral-300"
+              asChild
+            >
+              <Link href="/dashboard">View studio</Link>
+            </Button>
           </div>
+        </div>
 
-          {/* Photo collage */}
-          <div className="relative lg:col-span-7">
-            <div className="grid grid-cols-12 gap-3 sm:gap-4">
-              <div className="col-span-7 row-span-2">
-                <PhotoFrame
-                  src={studioPhotos.heroMain}
-                  alt="Wedding couple portrait"
-                  priority
-                  aspect="aspect-[4/5]"
-                  sizes="(max-width:1024px) 60vw, 40vw"
-                  className="h-full"
-                />
-              </div>
-              <div className="col-span-5">
-                <PhotoFrame
-                  src={studioPhotos.rings}
-                  alt="Ring detail"
-                  aspect="aspect-square"
-                  sizes="25vw"
-                />
-              </div>
-              <div className="col-span-5">
-                <PhotoFrame
-                  src={studioPhotos.ceremony}
-                  alt="Ceremony moment"
-                  aspect="aspect-[4/5]"
-                  sizes="25vw"
-                />
-              </div>
+        {/* Full-width photo band */}
+        <div className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
+          <div className="grid grid-cols-12 gap-2 sm:gap-3">
+            <div className="col-span-7">
+              <PhotoFrame
+                src={studioPhotos.heroMain}
+                alt="Wedding portrait"
+                priority
+                aspect="aspect-[5/4]"
+                sizes="60vw"
+              />
             </div>
-            <div className="pointer-events-none absolute -bottom-4 -left-2 hidden rotate-[-3deg] sm:block lg:-left-6">
-              <div className="rounded-sm bg-white px-3 py-2 text-xs text-stone-500 shadow-lg ring-1 ring-stone-900/5">
-                <span className="font-heading text-base text-stone-800">
-                  286
-                </span>{" "}
-                photos · shared privately
-              </div>
+            <div className="col-span-5 flex flex-col gap-2 sm:gap-3">
+              <PhotoFrame
+                src={studioPhotos.rings}
+                alt="Detail"
+                aspect="aspect-square"
+                sizes="40vw"
+              />
+              <PhotoFrame
+                src={studioPhotos.ceremony}
+                alt="Ceremony"
+                aspect="aspect-[4/3]"
+                sizes="40vw"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Film strip band */}
-      <section className="border-y border-stone-900/5 bg-stone-900/95 py-8">
+      {/* Quiet strip */}
+      <section className="border-b border-neutral-200 bg-neutral-50 py-12">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <p className="label-micro mb-6 text-center">Selected work</p>
           <FilmStrip
             photos={[
               studioPhotos.heroSideA,
@@ -140,37 +116,27 @@ export default function HomePage() {
               studioPhotos.outdoor,
             ]}
           />
-          <p className="mt-4 text-center text-xs tracking-[0.2em] text-stone-500 uppercase">
-            Your work, presented with care
-          </p>
         </div>
       </section>
 
-      {/* Features — simple cards with photo accents */}
-      <section id="features" className="py-20 sm:py-28">
+      {/* Features */}
+      <section id="features" className="border-b border-neutral-200 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-xl">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Features
-            </p>
-            <h2 className="mt-3 font-heading text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
-              Built around the photo, not the software.
+            <p className="label-micro">Features</p>
+            <h2 className="mt-4 font-heading text-4xl font-medium tracking-tight text-neutral-900 sm:text-5xl">
+              Only what you need after the shoot.
             </h2>
           </div>
 
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
             {features.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="paper rounded-sm p-6 transition hover:shadow-[0_16px_40px_-20px_rgba(28,25,23,0.2)]"
-              >
-                <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-700">
-                  <Icon className="h-4 w-4" strokeWidth={1.75} />
-                </div>
-                <h3 className="font-heading text-xl font-medium text-stone-900">
+              <div key={title}>
+                <Icon className="h-5 w-5 text-neutral-900" strokeWidth={1.25} />
+                <h3 className="mt-5 font-heading text-xl font-medium tracking-tight">
                   {title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                <p className="mt-2 text-sm leading-relaxed text-neutral-500">
                   {description}
                 </p>
               </div>
@@ -179,33 +145,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Look — large visual section */}
-      <section id="look" className="pb-8 sm:pb-12">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-sm film-grain">
-            <div className="relative aspect-[21/9] min-h-[240px] sm:min-h-[320px]">
-              <PhotoImage
-                src={studioPhotos.golden}
-                alt="Golden hour couple"
-                sizes="100vw"
-                className="scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-stone-950/70 via-stone-950/30 to-transparent" />
-              <div className="absolute inset-0 flex items-end p-6 sm:p-10">
-                <div className="max-w-md text-white">
-                  <p className="text-xs uppercase tracking-[0.22em] text-white/60">
-                    Client view
-                  </p>
-                  <h2 className="mt-2 font-heading text-3xl font-medium sm:text-4xl">
-                    They open a link.
-                    <br />
-                    They fall in love with the set.
+      {/* Look */}
+      <section id="look" className="border-b border-neutral-200">
+        <div className="relative">
+          <div className="relative aspect-[21/9] min-h-[280px]">
+            <PhotoImage
+              src={studioPhotos.golden}
+              alt="Client gallery"
+              sizes="100vw"
+            />
+            <div className="absolute inset-0 bg-white/10" />
+            <div className="absolute inset-0 flex items-end">
+              <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+                <div className="max-w-md bg-white/95 p-6 backdrop-blur sm:p-8">
+                  <p className="label-micro">Client view</p>
+                  <h2 className="mt-3 font-heading text-3xl font-medium tracking-tight text-neutral-900">
+                    A quiet room for their photos.
                   </h2>
                   <Button
-                    className="mt-6 rounded-full bg-white text-stone-900 hover:bg-stone-100"
+                    className="mt-6 rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
                     asChild
                   >
-                    <Link href="/g/demo-gal_1">Preview client gallery</Link>
+                    <Link href="/g/demo-gal_1">Preview gallery</Link>
                   </Button>
                 </div>
               </div>
@@ -214,28 +175,22 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Workflow — neat numbered */}
-      <section id="workflow" className="py-20 sm:py-28">
+      {/* Workflow */}
+      <section id="workflow" className="border-b border-neutral-200 py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Workflow
-            </p>
-            <h2 className="mt-3 font-heading text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
-              Four steps. Done.
-            </h2>
-          </div>
+          <p className="label-micro text-center">Workflow</p>
+          <h2 className="mt-4 text-center font-heading text-4xl font-medium tracking-tight sm:text-5xl">
+            Four steps.
+          </h2>
 
-          <div className="mt-14 grid gap-px overflow-hidden rounded-sm bg-stone-200/80 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
-              <div key={step.n} className="bg-[oklch(0.975_0.008_75)] p-7">
-                <span className="font-mono text-xs tracking-widest text-stone-400">
-                  {step.n}
-                </span>
-                <h3 className="mt-3 font-heading text-2xl font-medium text-stone-900">
+              <div key={step.n} className="border-t border-neutral-900 pt-6">
+                <span className="label-micro text-neutral-900">{step.n}</span>
+                <h3 className="mt-3 font-heading text-2xl font-medium tracking-tight">
                   {step.title}
                 </h3>
-                <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                <p className="mt-2 text-sm leading-relaxed text-neutral-500">
                   {step.body}
                 </p>
               </div>
@@ -244,42 +199,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Bottom CTA with photo strip */}
-      <section className="pb-24">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="paper relative overflow-hidden rounded-sm px-6 py-12 sm:px-12 sm:py-16">
-            <div className="absolute -right-8 top-0 hidden h-full w-1/2 opacity-90 md:block">
-              <div className="relative h-full w-full">
-                <PhotoImage
-                  src={studioPhotos.portrait}
-                  alt=""
-                  sizes="40vw"
-                  className="object-cover object-top"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.99_0.005_80)] via-[oklch(0.99_0.005_80_/_0.7)] to-transparent" />
-              </div>
-            </div>
-            <div className="relative max-w-md">
-              <h2 className="font-heading text-4xl font-medium tracking-tight text-stone-900 sm:text-5xl">
-                Ready for a cleaner delivery?
-              </h2>
-              <p className="mt-4 text-stone-500">
-                Join early access. Unlimited galleries while we build the MVP.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Button
-                  size="lg"
-                  className="rounded-full bg-stone-900 px-7 text-stone-50 hover:bg-stone-800"
-                  asChild
-                >
-                  <Link href="/signup">
-                    Get early access
-                    <Link2 className="ml-1 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
+      {/* CTA */}
+      <section className="py-20 sm:py-28">
+        <div className="mx-auto max-w-6xl px-4 text-center sm:px-6">
+          <p className="label-micro">Early access</p>
+          <h2 className="mx-auto mt-4 max-w-xl font-heading text-4xl font-medium tracking-tight sm:text-5xl">
+            Ready for a cleaner wall?
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-neutral-500">
+            Join the waitlist. Free during MVP.
+          </p>
+          <Button
+            size="lg"
+            className="mt-8 rounded-none bg-neutral-900 px-8 text-white hover:bg-neutral-800"
+            asChild
+          >
+            <Link href="/signup">Get early access</Link>
+          </Button>
         </div>
       </section>
     </main>

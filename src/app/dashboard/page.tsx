@@ -15,77 +15,63 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="space-y-10">
-      {/* Welcome banner with photo */}
-      <section className="relative overflow-hidden rounded-sm film-grain">
-        <div className="relative min-h-[180px] sm:min-h-[200px]">
-          <PhotoImage
-            src={studioPhotos.outdoor}
-            alt=""
-            sizes="100vw"
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-stone-950/20" />
-          <div className="relative flex h-full min-h-[180px] flex-col justify-end p-6 sm:min-h-[200px] sm:p-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-              Your studio
-            </p>
-            <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="font-heading text-3xl font-medium text-white sm:text-4xl">
-                  Good light today.
-                </h1>
-                <p className="mt-1 text-sm text-white/70">
-                  {galleries.length} galleries · {totalPhotos} photos ·{" "}
-                  {proofing} awaiting selection
-                </p>
-              </div>
-              <Button
-                className="w-fit rounded-full bg-white text-stone-900 hover:bg-stone-100"
-                asChild
-              >
-                <Link href="/dashboard/galleries/new">
-                  <Plus className="mr-1 h-4 w-4" />
-                  New gallery
-                </Link>
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-12">
+      <section className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="label-micro">Studio</p>
+          <h1 className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
+            Overview
+          </h1>
+          <p className="mt-2 text-neutral-500">
+            {galleries.length} galleries · {totalPhotos} photos · {proofing}{" "}
+            proofing
+          </p>
         </div>
+        <Button
+          className="w-fit rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
+          asChild
+        >
+          <Link href="/dashboard/galleries/new">
+            <Plus className="mr-1 h-4 w-4" />
+            New gallery
+          </Link>
+        </Button>
       </section>
 
-      {/* Simple stats */}
-      <section className="grid grid-cols-3 gap-3 sm:gap-4">
+      <section className="relative aspect-[21/7] min-h-[160px] overflow-hidden bg-neutral-100">
+        <PhotoImage
+          src={studioPhotos.outdoor}
+          alt=""
+          sizes="100vw"
+          className="object-cover"
+        />
+      </section>
+
+      <section className="grid grid-cols-3 gap-8 border-y border-neutral-200 py-8">
         {[
           { label: "Galleries", value: galleries.length },
           { label: "Proofing", value: proofing },
           { label: "Photos", value: totalPhotos },
         ].map((stat) => (
-          <div key={stat.label} className="paper rounded-sm px-4 py-5 sm:px-6">
-            <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
-              {stat.label}
-            </p>
-            <p className="mt-1 font-heading text-3xl font-medium text-stone-900 sm:text-4xl">
+          <div key={stat.label}>
+            <p className="label-micro">{stat.label}</p>
+            <p className="mt-2 font-heading text-4xl font-medium tracking-tight text-neutral-900">
               {stat.value}
             </p>
           </div>
         ))}
       </section>
 
-      {/* Recent — visual grid */}
       <section>
-        <div className="mb-5 flex items-end justify-between">
-          <div>
-            <h2 className="font-heading text-2xl font-medium text-stone-900">
-              Recent galleries
-            </h2>
-            <p className="text-sm text-stone-500">Your latest client deliveries</p>
-          </div>
-          <Button variant="ghost" size="sm" className="text-stone-600" asChild>
+        <div className="mb-8 flex items-end justify-between">
+          <h2 className="font-heading text-2xl font-medium tracking-tight">
+            Recent
+          </h2>
+          <Button variant="ghost" size="sm" className="text-neutral-500" asChild>
             <Link href="/dashboard/galleries">View all</Link>
           </Button>
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-2 xl:grid-cols-3">
           {galleries.slice(0, 3).map((gallery) => (
             <GalleryCard
               key={gallery.id}

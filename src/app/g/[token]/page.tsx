@@ -13,49 +13,46 @@ export default async function ClientGalleryPage({
   const sheet = contactSheet;
 
   return (
-    <div className="min-h-screen bg-[oklch(0.12_0.01_50)] text-stone-100">
-      {/* Full-bleed cover */}
-      <header className="relative">
-        <div className="relative h-[42vh] min-h-[280px] max-h-[420px]">
-          <PhotoImage
-            src={studioPhotos.heroMain}
-            alt="Gallery cover"
-            priority
-            sizes="100vw"
-            className="object-cover object-center"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[oklch(0.12_0.01_50)] via-[oklch(0.12_0.01_50_/_0.4)] to-black/20" />
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 py-4 sm:px-8">
-            <Logo className="text-white" markClassName="text-white" />
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 backdrop-blur">
-              <Lock className="h-3 w-3" />
-              Private
-            </span>
-          </div>
-          <div className="absolute inset-x-0 bottom-0 px-4 pb-8 sm:px-8">
-            <p className="text-xs uppercase tracking-[0.22em] text-white/50">
-              Shared with you
-            </p>
-            <h1 className="mt-2 font-heading text-4xl font-medium tracking-tight sm:text-5xl">
-              Alicia & James
-            </h1>
-            <p className="mt-1 text-sm text-white/60">
-              Wedding day · Tap hearts to select favorites
-            </p>
-          </div>
+    <div className="min-h-screen bg-white text-neutral-900">
+      <header className="border-b border-neutral-200">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+          <Logo />
+          <span className="inline-flex items-center gap-1.5 label-micro text-neutral-500">
+            <Lock className="h-3 w-3" />
+            Private
+          </span>
         </div>
       </header>
 
-      {/* Sticky selection bar */}
-      <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50_/_0.9)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
-          <p className="text-sm text-stone-400">
-            Select up to{" "}
-            <span className="text-stone-200">40</span> photos
+      <div className="mx-auto max-w-6xl px-4 pt-12 sm:px-6 sm:pt-16">
+        <p className="label-micro">Shared with you</p>
+        <h1 className="mt-3 font-heading text-4xl font-medium tracking-tight sm:text-5xl">
+          Alicia & James
+        </h1>
+        <p className="mt-2 text-neutral-500">
+          Wedding day · Tap hearts to select favorites
+        </p>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-6xl px-4 sm:px-6">
+        <div className="relative aspect-[21/9] min-h-[200px] overflow-hidden bg-neutral-100">
+          <PhotoImage
+            src={studioPhotos.heroMain}
+            alt="Cover"
+            priority
+            sizes="100vw"
+          />
+        </div>
+      </div>
+
+      <div className="sticky top-0 z-30 mt-8 border-y border-neutral-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+          <p className="text-sm text-neutral-500">
+            Select up to <span className="text-neutral-900">40</span>
           </p>
           <Button
             size="sm"
-            className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
+            className="rounded-none bg-neutral-900 text-white hover:bg-neutral-800"
           >
             <Heart className="mr-1.5 h-3.5 w-3.5" />
             0 / 40
@@ -63,29 +60,30 @@ export default async function ClientGalleryPage({
         </div>
       </div>
 
-      <main className="mx-auto max-w-6xl px-2 py-6 sm:px-4 sm:py-8">
-        <div className="columns-2 gap-2 sm:columns-3 sm:gap-3 md:columns-4">
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="columns-2 gap-3 sm:columns-3 sm:gap-4 md:columns-4">
           {sheet.map((src, i) => {
             const tall = i % 5 === 0 || i % 7 === 3;
             return (
               <button
                 key={`${src}-${i}`}
                 type="button"
-                className="group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3"
+                className="group mb-3 w-full break-inside-avoid sm:mb-4"
               >
                 <div
                   className={
-                    tall ? "relative aspect-[3/4]" : "relative aspect-square"
+                    tall
+                      ? "photo-edge relative aspect-[3/4]"
+                      : "photo-edge relative aspect-square"
                   }
                 >
                   <PhotoImage
                     src={src}
                     alt={`Photo ${i + 1}`}
                     sizes="(max-width:768px) 50vw, 25vw"
-                    className="transition duration-500 group-hover:scale-[1.03]"
+                    className="transition duration-500 group-hover:scale-[1.02]"
                   />
-                  <div className="absolute inset-0 bg-black/0 transition group-hover:bg-black/15" />
-                  <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-stone-800 opacity-0 shadow transition group-hover:opacity-100">
+                  <span className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center bg-white/95 text-neutral-900 opacity-0 shadow-sm transition group-hover:opacity-100">
                     <Heart className="h-3.5 w-3.5" />
                   </span>
                 </div>
@@ -94,8 +92,8 @@ export default async function ClientGalleryPage({
           })}
         </div>
 
-        <p className="mt-10 text-center text-xs text-stone-600">
-          Gallery · {token}
+        <p className="mt-12 text-center label-micro text-neutral-300">
+          {token}
         </p>
       </main>
     </div>

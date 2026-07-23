@@ -21,7 +21,7 @@ export function DashboardNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1">
       {items.map(({ href, label, icon: Icon }) => {
         const active =
           href === "/dashboard"
@@ -33,13 +33,13 @@ export function DashboardNav() {
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm transition-colors",
+              "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors",
               active
-                ? "bg-stone-900 text-stone-50"
-                : "text-stone-500 hover:bg-stone-900/5 hover:text-stone-900"
+                ? "bg-neutral-900 text-white"
+                : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
             )}
           >
-            <Icon className="h-4 w-4 opacity-80" strokeWidth={1.75} />
+            <Icon className="h-4 w-4 opacity-80" strokeWidth={1.5} />
             {label}
           </Link>
         );

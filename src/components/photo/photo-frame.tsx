@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { PhotoImage } from "@/components/photo/photo-image";
 
-/** Soft print / mat frame around a photo */
+/** V3 — floating image, no mat, lots of air */
 export function PhotoFrame({
   src,
   alt,
@@ -20,23 +20,18 @@ export function PhotoFrame({
   sizes?: string;
 }) {
   return (
-    <figure
-      className={cn(
-        "group overflow-hidden rounded-sm bg-white p-2 shadow-[0_12px_40px_-12px_rgba(28,25,23,0.28)] ring-1 ring-stone-900/5",
-        className
-      )}
-    >
-      <div className={cn("relative overflow-hidden bg-stone-100", aspect)}>
+    <figure className={cn("group", className)}>
+      <div className={cn("photo-edge", aspect)}>
         <PhotoImage
           src={src}
           alt={alt}
           priority={priority}
           sizes={sizes}
-          className="transition duration-700 ease-out group-hover:scale-[1.03]"
+          className="transition duration-700 ease-out group-hover:scale-[1.02]"
         />
       </div>
       {caption ? (
-        <figcaption className="px-1 pt-2.5 pb-1 font-heading text-sm text-stone-600">
+        <figcaption className="mt-3 label-micro text-neutral-500">
           {caption}
         </figcaption>
       ) : null}
