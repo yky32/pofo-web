@@ -60,7 +60,7 @@ export default async function DashboardPage() {
           { label: "Proofing", value: proofing },
           {
             label: "Photos",
-            value: demoMode ? totalPhotos : "—",
+            value: totalPhotos,
           },
         ].map((stat) => (
           <div

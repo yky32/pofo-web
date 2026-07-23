@@ -15,11 +15,12 @@ export function GalleryCard({
   className?: string;
 }) {
   const cover =
-    galleryCovers[gallery.id] ?? studioPhotos.studio;
+    gallery.cover_url ||
+    galleryCovers[gallery.id] ||
+    studioPhotos.studio;
 
   const proofSuffix =
-    gallery.status === "proofing" &&
-    gallery.selection_limit != null
+    gallery.status === "proofing" && gallery.selection_limit != null
       ? `${gallery.selection_count ?? 0}/${gallery.selection_limit}`
       : null;
 
@@ -40,12 +41,8 @@ export function GalleryCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950/55 via-transparent to-black/10" />
 
-        {/* Status (+ proof count when proofing) — top right */}
         <div className="absolute right-2.5 top-2.5 z-10">
-          <GalleryStatusBadge
-            status={gallery.status}
-            suffix={proofSuffix}
-          />
+          <GalleryStatusBadge status={gallery.status} suffix={proofSuffix} />
         </div>
 
         <div className="absolute bottom-3 left-3 right-3">
@@ -53,7 +50,9 @@ export function GalleryCard({
             {gallery.title}
           </p>
           <p className="mt-0.5 text-xs text-white/75">
-            {gallery.client_name} · {gallery.photo_count ?? 0} photos
+            {[gallery.client_name, `${gallery.photo_count ?? 0} photos`]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
       </div>

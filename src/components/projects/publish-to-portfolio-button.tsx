@@ -32,7 +32,7 @@ export function PublishToPortfolioButton({
           ? "Publish this photo to your portfolio?"
           : `Publish ${n} photos to your portfolio?`,
       description:
-        "They appear on your public studio page. You can hide or remove them later from Portfolio.",
+        "They appear on your public studio page. You can hide or remove them later from Portfolio. Optionally set the project to Final after publishing.",
       confirmLabel: n === 1 ? "Publish photo" : `Publish ${n}`,
       cancelLabel: "Cancel",
     });
@@ -44,7 +44,8 @@ export function PublishToPortfolioButton({
       const res = await publishShotsToPortfolio({
         projectId,
         shotIds,
-        markProjectFinal: false,
+        // Soft-complete the job when publishing client finals
+        markProjectFinal: true,
       });
       if (res.error) {
         setError(res.error);

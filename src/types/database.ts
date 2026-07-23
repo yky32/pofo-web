@@ -43,6 +43,8 @@ export interface Project {
   /** Optional UI denorms */
   photo_count?: number;
   selection_count?: number;
+  /** First photo signed/external URL for cards (read-time only) */
+  cover_url?: string | null;
 }
 
 export interface Container {

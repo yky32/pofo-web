@@ -4,125 +4,97 @@
 
 Built for wedding and pre-wedding photographers who need a fast, professional way to deliver photos after a shoot — without the hassle of Google Drive or expensive complicated platforms.
 
-## Core Features
+## Core Features (MVP1)
 
-- Upload photos (JPEG + RAW)
-- Create beautiful private client galleries in minutes
-- Generate secure shareable links with expiration and password protection
-- Client proofing (mark favorites / select 10-40 shots)
-- Time-limited RAW & original file downloads
-- Version management (Draft → Final)
-- Final selected photos can be added to your public Portfolio
+- Upload photos (batch JPEG/PNG/WebP)
+- Private client galleries with secure share links
+- Password protection, link expiry, revoke
+- Client proofing (hearts + bulk select, limit enforced)
+- Photographer ZIP: full gallery or client’s finished proof
+- Studio notes/flags on photos
+- Share analytics (views / last open)
+- Original download window for clients
+- Publish finals to public portfolio (`/s/{slug}`)
+- Free status control (draft → shared → proofing → final → archived)
 
 ## Workflow
 
-1. Finish editing photos offline
-2. Upload to Pofo and create a new Gallery
-3. Share private link with client
-4. Client views gallery and selects favorites
-5. Retouch selected shots and upload final version
-6. Client approves → selected photos can be added to your Portfolio
+1. Finish editing photos offline  
+2. Create a project and upload  
+3. Share a private link (optional password + original download window)  
+4. Client proofs favorites (and optionally downloads their picks)  
+5. You download the proof ZIP, retouch offline if needed  
+6. Publish picks to portfolio and mark **Final**
 
 ## Tech Stack
 
 - **Next.js 15** (App Router + Server Actions)
-- **Supabase** (Auth + Postgres Database)
-- **Cloudflare R2** (Storage + Signed URLs)
+- **Supabase** (Auth + Postgres + Storage)
+- **Cloudflare R2** (optional scale-up storage)
 - **Tailwind CSS + shadcn/ui**
-- **Sharp** (Image processing)
 - **Vercel** (Deployment)
 
 ## Getting started
 
 ```bash
-# Install
 bun install
-
-# Env (optional for demo UI)
 cp .env.example .env.local
-
-# Dev server
+# fill Supabase keys — see supabase/SETUP.md
 bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Without Supabase env vars the app runs in **demo mode** with mock galleries so you can explore the UI.
+Without Supabase env vars the app runs in **demo mode**.
 
-### CI (GitHub Actions)
+### Database (required for full MVP)
 
-Triftly-style workflows:
+In Supabase **SQL Editor**, run in order:
 
-- **PR** — lint, typecheck, build on every pull request
-- **Prod** — push `main` or manual run: verify + Vercel deploy; optional Supabase schema / auth URLs
+1. `supabase/schema.sql`
+2. `supabase/storage.sql`
+3. `supabase/profiles-providers.sql`
+4. `supabase/share-gate.sql`
+5. `supabase/features-p1-p2.sql`
+6. `supabase/features-p3.sql`
+7. Optional: `supabase/slug.sql`
+
+Service role key is required on Vercel so client galleries can mint signed image URLs.
+
+### CI / deploy
 
 ```bash
-bun run verify   # repo P0 checks
+bun run verify   # repo checks
 bun run ci       # lint + typecheck + build
 ```
 
-See [docs/CI.md](docs/CI.md) for secrets (`VERCEL_*`, `SUPABASE_*`).
+Push to `main` → GitHub Actions verify + Vercel deploy. See [docs/CI.md](docs/CI.md).
 
-### Supabase setup
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Run full `supabase/schema.sql` in the SQL editor (projects, shots, share links, proofing RPCs)
-3. Add keys to `.env.local`
-
-### Product flow (now)
-
-1. Sign up / log in  
-2. **New project** → Main Gallery container  
-3. **Upload photos** (Supabase Storage) or add samples  
-4. **Create share link** (optional expiry) → client opens `/g/{token}`  
-5. Client **hearts** favorites (limit enforced)  
-6. Review **Selections**, **Export** list, **Mark as final**
-
-### Cloudflare R2 setup
-
-1. Create an R2 bucket
-2. Create API tokens with object read/write
-3. Add `R2_*` vars to `.env.local`
-
-## Project structure
-
-```
-src/
-  app/
-    (marketing)/     # Landing page
-    (auth)/          # Login / signup
-    dashboard/       # Photographer app
-    g/[token]/       # Client gallery (public link)
-  components/        # UI + product components
-  lib/
-    supabase/        # Browser + server clients
-    r2.ts            # Signed upload/download URLs
-    mock-data.ts     # Demo galleries
-  types/             # Domain types
-supabase/
-  schema.sql         # Postgres + RLS
-```
-
-## MVP roadmap
+## MVP1 roadmap
 
 - [x] App scaffold (Next.js 15, Tailwind, shadcn)
 - [x] Marketing site + dashboard shell
-- [x] Client gallery preview route
-- [x] Supabase schema + RLS
-- [x] R2 signed URL helpers
-- [ ] Real Supabase auth (email magic link / password)
-- [ ] Create gallery Server Actions
-- [ ] Multipart upload to R2 + Sharp thumbnails
-- [ ] Share links (password, expiry, RAW window)
-- [ ] Client proofing selections
-- [ ] Draft → Final version switch
-- [ ] Portfolio publish flow
+- [x] Supabase auth (email + Google/Apple)
+- [x] Create project + upload batch
+- [x] Contact sheet (mosaic, bulk delete, notes/flags)
+- [x] Share links (password, expiry, revoke, email)
+- [x] Client gallery + proofing + bulk select
+- [x] Watermarked previews
+- [x] Download full / proof ZIPs
+- [x] Status control + delivery stepper
+- [x] Portfolio publish + public studio page
+- [x] Original download window
+- [x] Share analytics
+- [x] R2 switchable storage (optional)
+- [ ] True RAW asset pipeline (separate files)
+- [ ] Background Sharp thumbnails worker
+- [ ] Billing
 
 ## Goal
 
 Create the lightest and best client delivery experience for photographers.
 
-**Status**: MVP in active development
+**Status**: MVP1 feature-complete in app — apply SQL migrations on your Supabase project for full runtime.
 
 ---
 

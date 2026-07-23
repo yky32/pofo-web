@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { withDisplayUrls } from "@/lib/storage";
 import type { Project } from "@/types/database";
 
 export type ProjectActionState = {
@@ -33,29 +34,70 @@ export async function listProjects(): Promise<Project[]> {
   const projects = (data ?? []) as Project[];
   if (projects.length === 0) return projects;
 
-  // Attach photo / selection counts for dashboard cards
+  // Attach photo / selection counts + cover for dashboard cards
   const ids = projects.map((p) => p.id);
   const [{ data: shotRows }, { data: selRows }] = await Promise.all([
-    supabase.from("shots").select("project_id").in("project_id", ids),
+    supabase
+      .from("shots")
+      .select("id, project_id, storage_key, preview_url, sort_order, created_at")
+      .in("project_id", ids)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
     supabase.from("shot_selections").select("project_id").in("project_id", ids),
   ]);
 
   const photoMap = new Map<string, number>();
+  const coverShotByProject = new Map<
+    string,
+    {
+      id: string;
+      storage_key: string | null;
+      preview_url: string | null;
+    }
+  >();
+
   for (const row of shotRows ?? []) {
-    const pid = (row as { project_id: string }).project_id;
-    photoMap.set(pid, (photoMap.get(pid) ?? 0) + 1);
+    const r = row as {
+      id: string;
+      project_id: string;
+      storage_key: string | null;
+      preview_url: string | null;
+    };
+    photoMap.set(r.project_id, (photoMap.get(r.project_id) ?? 0) + 1);
+    if (!coverShotByProject.has(r.project_id)) {
+      coverShotByProject.set(r.project_id, {
+        id: r.id,
+        storage_key: r.storage_key,
+        preview_url: r.preview_url,
+      });
+    }
   }
+
   const selMap = new Map<string, number>();
   for (const row of selRows ?? []) {
     const pid = (row as { project_id: string }).project_id;
     selMap.set(pid, (selMap.get(pid) ?? 0) + 1);
   }
 
-  return projects.map((p) => ({
-    ...p,
-    photo_count: photoMap.get(p.id) ?? 0,
-    selection_count: selMap.get(p.id) ?? 0,
-  }));
+  const coverShots = [...coverShotByProject.values()];
+  const withUrls = coverShots.length
+    ? await withDisplayUrls(supabase, coverShots)
+    : [];
+  const coverUrlByShotId = new Map(
+    withUrls.map((s) => [s.id, s.display_url])
+  );
+
+  return projects.map((p) => {
+    const coverShot = coverShotByProject.get(p.id);
+    return {
+      ...p,
+      photo_count: photoMap.get(p.id) ?? 0,
+      selection_count: selMap.get(p.id) ?? 0,
+      cover_url: coverShot
+        ? coverUrlByShotId.get(coverShot.id) ?? null
+        : null,
+    };
+  });
 }
 
 export async function getProject(id: string): Promise<Project | null> {
