@@ -45,6 +45,28 @@ export function DashboardShell({
     });
   }
 
+  const toggleButton = (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      aria-expanded={!collapsed}
+      title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      className={cn(
+        "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
+        "hover:bg-stone-900/5 hover:text-stone-800",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+        collapsed ? "mx-auto" : ""
+      )}
+    >
+      {collapsed ? (
+        <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
+      ) : (
+        <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
+      )}
+    </button>
+  );
+
   return (
     <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen max-w-[1400px]">
@@ -57,42 +79,17 @@ export function DashboardShell({
         >
           <div
             className={cn(
-              "mb-8 flex items-center gap-1",
-              collapsed ? "flex-col gap-2" : "justify-between px-0.5"
+              "mb-8",
+              collapsed ? "flex justify-center" : "px-0.5"
             )}
           >
-            <Link
-              href="/"
-              className={cn(
-                "text-stone-900",
-                collapsed && "flex justify-center"
-              )}
-              title="Pofo"
-            >
+            <Link href="/" className="text-stone-900" title="Pofo">
               {collapsed ? (
                 <Logo showWord={false} className="justify-center" />
               ) : (
                 <Logo />
               )}
             </Link>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              aria-expanded={!collapsed}
-              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-[5px] text-stone-400 transition-colors",
-                "hover:bg-stone-900/5 hover:text-stone-800",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
-              )}
-            >
-              {collapsed ? (
-                <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
-              )}
-            </button>
           </div>
 
           <DashboardNav collapsed={collapsed} />
@@ -100,7 +97,7 @@ export function DashboardShell({
           <div
             className={cn(
               "mt-auto space-y-3",
-              collapsed ? "px-0" : "px-1"
+              collapsed ? "flex flex-col items-center px-0" : "px-1"
             )}
           >
             {demoMode && !collapsed ? (
@@ -111,9 +108,7 @@ export function DashboardShell({
             ) : null}
             {showSignOut ? (
               collapsed ? (
-                <div className="flex justify-center">
-                  <SignOutButton compact />
-                </div>
+                <SignOutButton compact />
               ) : (
                 <SignOutButton />
               )
@@ -122,7 +117,7 @@ export function DashboardShell({
               <Button
                 variant="outline"
                 size="icon"
-                className="mx-auto rounded-full border-stone-200 bg-white/50"
+                className="rounded-full border-stone-200 bg-white/50"
                 asChild
                 title="Marketing site"
               >
@@ -141,6 +136,16 @@ export function DashboardShell({
                 <Link href="/">Marketing site</Link>
               </Button>
             )}
+
+            {/* Sidebar expand / collapse — bottom of rail */}
+            <div
+              className={cn(
+                "border-t border-stone-900/5 pt-3",
+                collapsed ? "flex justify-center" : "flex justify-start"
+              )}
+            >
+              {toggleButton}
+            </div>
           </div>
         </aside>
 
