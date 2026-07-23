@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
 import {
+  generateSharePassword,
   hashSharePassword,
   hasShareUnlock,
   setShareUnlockCookie,
@@ -192,6 +193,67 @@ export async function revokeShareLink(
 
   revalidatePath(`/dashboard/galleries/${projectId}`);
   return { success: "Link revoked." };
+}
+
+/**
+ * Compensation: regenerate password when photographer + client both forgot.
+ * Same token/URL; new scrypt hash. Plain password returned once (like Supabase DB password reset).
+ */
+export async function regenerateSharePassword(input: {
+  projectId: string;
+  linkId: string;
+}): Promise<ShareActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const projectId = input.projectId?.trim();
+  const linkId = input.linkId?.trim();
+  if (!projectId || !linkId) return { error: "Missing link." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!project) return { error: "Project not found." };
+
+  const { data: link, error: fetchErr } = await supabase
+    .from("share_links")
+    .select("id, token, is_active")
+    .eq("id", linkId)
+    .eq("project_id", projectId)
+    .maybeSingle();
+
+  if (fetchErr || !link) return { error: "Link not found." };
+  if (!link.is_active) {
+    return { error: "This link is revoked. Create a new link instead." };
+  }
+
+  const plain = generateSharePassword(20);
+  const password_hash = hashSharePassword(plain);
+
+  const { error } = await supabase
+    .from("share_links")
+    .update({ password_hash })
+    .eq("id", linkId)
+    .eq("project_id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/galleries/${projectId}`);
+  return {
+    success: "Password regenerated. Copy it now — it won’t be shown again.",
+    token: link.token as string,
+    plain_password: plain,
+  };
 }
 
 export type ShareGateInfo =

@@ -10,10 +10,12 @@ import {
   Eye,
   EyeOff,
   Link2,
+  RefreshCw,
   XCircle,
 } from "lucide-react";
 import {
   createShareLink,
+  regenerateSharePassword,
   revokeShareLink,
   type ShareActionState,
   type ShareLinkPublic,
@@ -25,7 +27,7 @@ const initial: ShareActionState = {};
 
 /**
  * Client-link control: icon trigger (avatar-menu style).
- * After create with password → one-time secret reveal (Supabase-style).
+ * After create / regenerate password → one-time secret reveal (Supabase-style).
  */
 export function ShareLinkPanel({
   projectId,
@@ -59,12 +61,15 @@ export function ShareLinkPanel({
   const [expiresDays, setExpiresDays] = useState("30");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  /** One-time secret reveal after successful create */
+  /** One-time secret reveal after create or regenerate */
   const [secretReveal, setSecretReveal] = useState<{
     token: string;
     password?: string;
+    mode: "created" | "regenerated";
   } | null>(null);
   const [showPassword, setShowPassword] = useState(true);
+  const [regenLinkId, setRegenLinkId] = useState<string | null>(null);
+  const [regenError, setRegenError] = useState<string | null>(null);
   const lastHandledToken = useRef<string | null>(null);
 
   const active = links.filter((l) => l.is_active);
@@ -73,18 +78,23 @@ export function ShareLinkPanel({
 
   useEffect(() => setMounted(true), []);
 
-  // Capture one-time password from action result
+  // Capture one-time password from create action
   useEffect(() => {
     if (!createState.success || !createState.token) return;
-    if (lastHandledToken.current === createState.token) return;
-    lastHandledToken.current = createState.token;
+    if (lastHandledToken.current === `c:${createState.token}`) return;
+    lastHandledToken.current = `c:${createState.token}`;
     setSecretReveal({
       token: createState.token,
       password: createState.plain_password,
+      mode: "created",
     });
     setPassword("");
     setPasswordConfirm("");
     setShowPassword(true);
+    setRegenError(null);
+    if (createState.plain_password) {
+      void copyText("secret-pw", createState.plain_password);
+    }
   }, [createState.success, createState.token, createState.plain_password]);
 
   useEffect(() => {
@@ -150,6 +160,36 @@ export function ShareLinkPanel({
     setShowPassword(false);
   }
 
+  async function onRegenerate(linkId: string) {
+    if (
+      !window.confirm(
+        "Generate a new password for this link?\n\nThe old password will stop working. The gallery URL stays the same."
+      )
+    ) {
+      return;
+    }
+    setRegenError(null);
+    setRegenLinkId(linkId);
+    try {
+      const res = await regenerateSharePassword({ projectId, linkId });
+      if (res.error || !res.token || !res.plain_password) {
+        setRegenError(res.error ?? "Could not regenerate password.");
+        return;
+      }
+      lastHandledToken.current = `r:${res.token}:${Date.now()}`;
+      setSecretReveal({
+        token: res.token,
+        password: res.plain_password,
+        mode: "regenerated",
+      });
+      setShowPassword(true);
+      // Instant copy like Supabase secret UX
+      await copyText("secret-pw", res.plain_password);
+    } finally {
+      setRegenLinkId(null);
+    }
+  }
+
   return (
     <>
       <button
@@ -211,11 +251,15 @@ export function ShareLinkPanel({
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-400/90">
-                            Save these now
+                            {secretReveal.mode === "regenerated"
+                              ? "New password"
+                              : "Save these now"}
                           </p>
                           <p className="mt-0.5 text-[11px] leading-snug text-stone-400">
                             {secretReveal.password
-                              ? "Password is shown once. We only store a hash."
+                              ? secretReveal.mode === "regenerated"
+                                ? "Copied to clipboard. Shown once — old password no longer works."
+                                : "Password is shown once. We only store a hash."
                               : "Copy the link for your client."}
                           </p>
                         </div>
@@ -387,6 +431,9 @@ export function ShareLinkPanel({
                       {revokeState.error}
                     </p>
                   ) : null}
+                  {regenError ? (
+                    <p className="text-xs text-rose-600/90">{regenError}</p>
+                  ) : null}
 
                   {!secretReveal && latestToken ? (
                     <div className="flex gap-1.5">
@@ -453,6 +500,27 @@ export function ShareLinkPanel({
                               ) : (
                                 <Copy className="h-3.5 w-3.5" />
                               )}
+                            </button>
+                            {/* Regenerate password — same URL, new secret */}
+                            <button
+                              type="button"
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50"
+                              disabled={
+                                regenLinkId === link.id || revokePending
+                              }
+                              onClick={() => void onRegenerate(link.id)}
+                              title={
+                                link.password_protected
+                                  ? "Regenerate password"
+                                  : "Set a new password (locks this link)"
+                              }
+                            >
+                              <RefreshCw
+                                className={cn(
+                                  "h-3.5 w-3.5",
+                                  regenLinkId === link.id && "animate-spin"
+                                )}
+                              />
                             </button>
                             <form action={revokeAction} className="shrink-0">
                               <input

@@ -19,6 +19,21 @@ function gateSecret() {
   );
 }
 
+/**
+ * Human-copyable secret (Supabase DB-password style).
+ * ~20 chars, mixed case + digits, no ambiguous 0/O/1/l.
+ */
+export function generateSharePassword(length = 20): string {
+  const alphabet =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = randomBytes(length);
+  let out = "";
+  for (let i = 0; i < length; i++) {
+    out += alphabet[bytes[i] % alphabet.length];
+  }
+  return out;
+}
+
 /** One-way password hash (scrypt + salt). Never put this in the URL. */
 export function hashSharePassword(password: string): string {
   const salt = randomBytes(16).toString("hex");
