@@ -50,7 +50,7 @@ export function CreateProjectForm({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="limit">Selection limit</Label>
+        <Label htmlFor="limit">Proofing limit</Label>
         <Input
           id="limit"
           name="limit"

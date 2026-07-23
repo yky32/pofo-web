@@ -50,7 +50,7 @@ export function GalleryCard({
       </div>
       {gallery.status === "proofing" ? (
         <div className="flex items-center justify-between px-3 py-2.5 text-xs text-stone-500">
-          <span>Client selecting</span>
+          <span>Proofing</span>
           <span className="font-medium text-stone-800">
             {gallery.selection_count}/{gallery.selection_limit}
           </span>

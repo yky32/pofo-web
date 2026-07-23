@@ -15,7 +15,7 @@ export function ExportSelectionButton({
     if (!shots.length) return;
 
     const lines = [
-      `# Pofo selection — ${projectTitle}`,
+      `# Pofo proofing — ${projectTitle}`,
       `# ${shots.length} photos`,
       `# exported ${new Date().toISOString()}`,
       "",
@@ -29,7 +29,7 @@ export function ExportSelectionButton({
     const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${projectTitle.replace(/[^\w.-]+/g, "_").slice(0, 40) || "selection"}-favorites.txt`;
+    a.download = `${projectTitle.replace(/[^\w.-]+/g, "_").slice(0, 40) || "gallery"}-proofing.txt`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -43,12 +43,12 @@ export function ExportSelectionButton({
       onClick={exportList}
       title={
         shots.length
-          ? "Download favorites list"
-          : "No client selections yet"
+          ? "Download proofing list"
+          : "No proofing picks yet"
       }
     >
       <Download className="mr-2 h-4 w-4" />
-      Export selection
+      Export proofing
     </Button>
   );
 }

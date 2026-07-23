@@ -1,22 +1,17 @@
-import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type DeliveryStepId = "upload" | "share" | "selecting" | "final";
+export type DeliveryStepId = "upload" | "share" | "proofing" | "final";
 export type DeliveryStepState = "complete" | "current" | "upcoming";
 
 export type DeliveryStep = {
   id: DeliveryStepId;
   label: string;
-  hint: string;
   state: DeliveryStepState;
 };
 
 /**
- * Delivery pipeline:
- * 1 Upload → 2 Share → 3 Client selecting (partial) → 4 Final
- *
- * Percent weights: upload 25 · share 25 · selecting 35 · final 15
- * Selecting advances with favorites / selection_limit.
+ * Upload → Share → Proofing → Final
+ * Weights: 25 · 25 · 35 · 15 (proofing scales with picks / limit)
  */
 export function computeDeliveryProgress(input: {
   photoCount: number;
@@ -28,7 +23,7 @@ export function computeDeliveryProgress(input: {
   steps: DeliveryStep[];
   percent: number;
   currentId: DeliveryStepId;
-  summary: string;
+  detail: string | null;
 } {
   const {
     photoCount,
@@ -44,125 +39,58 @@ export function computeDeliveryProgress(input: {
   const pickRatio = Math.min(1, selectedCount / limit);
   const picksFull = hasPicks && selectedCount >= limit;
 
-  // Overall %
   let percent = 0;
   if (isFinal) {
     percent = 100;
   } else {
     if (hasPhotos) percent += 25;
     if (hasShareLink) percent += 25;
-    if (hasShareLink) {
-      // 0 → 35 as client fills favorites
-      percent += Math.round(35 * pickRatio);
-    }
-    // final step only when marked
-    percent = Math.min(99, percent); // 100 only when final
+    if (hasShareLink) percent += Math.round(35 * pickRatio);
+    percent = Math.min(99, percent);
   }
 
-  // Current step
   let currentId: DeliveryStepId;
   if (isFinal) currentId = "final";
   else if (!hasPhotos) currentId = "upload";
   else if (!hasShareLink) currentId = "share";
-  else if (!picksFull) currentId = "selecting";
+  else if (!picksFull) currentId = "proofing";
   else currentId = "final";
 
-  const done = {
+  const order: DeliveryStepId[] = ["upload", "share", "proofing", "final"];
+  const labels: Record<DeliveryStepId, string> = {
+    upload: "Upload",
+    share: "Share",
+    proofing: "Proofing",
+    final: "Final",
+  };
+
+  const done: Record<DeliveryStepId, boolean> = {
     upload: hasPhotos,
     share: hasShareLink,
-    selecting: isFinal || picksFull,
+    proofing: isFinal || picksFull,
     final: isFinal,
   };
 
-  function state(id: DeliveryStepId): DeliveryStepState {
-    if (done[id] && id !== currentId) return "complete";
-    if (done[id] && id === "final" && isFinal) return "complete";
-    if (id === currentId) return "current";
-    if (done[id]) return "complete";
-    return "upcoming";
-  }
+  const steps: DeliveryStep[] = order.map((id) => {
+    let state: DeliveryStepState = "upcoming";
+    if (isFinal) state = "complete";
+    else if (id === currentId) state = "current";
+    else if (done[id] || order.indexOf(id) < order.indexOf(currentId))
+      state = "complete";
+    return { id, label: labels[id], state };
+  });
 
-  // When current is selecting and some picks exist, selecting is still current (not complete)
-  const steps: DeliveryStep[] = [
-    {
-      id: "upload",
-      label: "Upload",
-      hint: hasPhotos
-        ? `${photoCount} photo${photoCount === 1 ? "" : "s"}`
-        : "Add gallery photos",
-      state: state("upload"),
-    },
-    {
-      id: "share",
-      label: "Share",
-      hint: hasShareLink ? "Client link live" : "Send private link",
-      state: state("share"),
-    },
-    {
-      id: "selecting",
-      label: "Client selecting",
-      hint: !hasShareLink
-        ? "After you share"
-        : hasPicks
-          ? `${selectedCount} of ${limit} favorites`
-          : "Waiting for picks",
-      state:
-        currentId === "selecting"
-          ? "current"
-          : done.selecting
-            ? "complete"
-            : "upcoming",
-    },
-    {
-      id: "final",
-      label: "Final",
-      hint: isFinal ? "Delivery complete" : "Mark as final",
-      state:
-        isFinal
-          ? "complete"
-          : currentId === "final"
-            ? "current"
-            : "upcoming",
-    },
-  ];
+  let detail: string | null = null;
+  if (isFinal) detail = "Delivery complete";
+  else if (currentId === "upload") detail = "Add photos to begin";
+  else if (currentId === "share") detail = "Send a client link";
+  else if (currentId === "proofing")
+    detail = hasPicks
+      ? `${selectedCount} / ${limit} picks`
+      : "Waiting for client";
+  else if (currentId === "final") detail = "Ready to mark final";
 
-  // Ensure earlier steps show complete when later ones are active
-  if (currentId === "share" || currentId === "selecting" || currentId === "final") {
-    steps[0].state = hasPhotos ? "complete" : steps[0].state;
-  }
-  if (currentId === "selecting" || currentId === "final") {
-    steps[1].state = hasShareLink ? "complete" : steps[1].state;
-  }
-  if (currentId === "final" && !isFinal) {
-    steps[2].state = picksFull ? "complete" : steps[2].state;
-  }
-  if (isFinal) {
-    steps.forEach((s) => {
-      s.state = "complete";
-    });
-  }
-
-  let summary = "";
-  switch (currentId) {
-    case "upload":
-      summary = "Start by uploading photos for this delivery.";
-      break;
-    case "share":
-      summary = "Create a private link so your client can view the gallery.";
-      break;
-    case "selecting":
-      summary = hasPicks
-        ? `Client is selecting favorites · ${selectedCount}/${limit}.`
-        : "Link is live — waiting for the client to select favorites.";
-      break;
-    case "final":
-      summary = isFinal
-        ? "This delivery is complete."
-        : "Client picks are ready — mark as final when you’re done.";
-      break;
-  }
-
-  return { steps, percent, currentId, summary };
+  return { steps, percent, currentId, detail };
 }
 
 export function DeliveryStepper({
@@ -180,7 +108,7 @@ export function DeliveryStepper({
   isFinal: boolean;
   className?: string;
 }) {
-  const { steps, percent, summary } = computeDeliveryProgress({
+  const { steps, percent, detail } = computeDeliveryProgress({
     photoCount,
     hasShareLink,
     selectedCount,
@@ -189,29 +117,40 @@ export function DeliveryStepper({
   });
 
   return (
-    <div
-      className={cn(
-        "rounded-[10px] border border-stone-200/80 bg-white/70 px-4 py-4 sm:px-5",
-        className
-      )}
-    >
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-stone-400">
-            Delivery progress
-          </p>
-          <p className="mt-0.5 text-sm text-stone-600">{summary}</p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="font-heading text-2xl font-medium tabular-nums leading-none text-stone-900">
-            {percent}
-            <span className="text-base font-normal text-stone-400">%</span>
-          </p>
-          <p className="mt-0.5 text-[11px] text-stone-400">complete</p>
-        </div>
+    <div className={cn("w-full", className)}>
+      <div className="flex items-baseline justify-between gap-4">
+        <ol className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+          {steps.map((s, i) => (
+            <li key={s.id} className="flex items-center gap-1">
+              {i > 0 ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mx-1 h-px w-4 sm:w-6",
+                    s.state === "upcoming" ? "bg-stone-200" : "bg-stone-400"
+                  )}
+                />
+              ) : null}
+              <span
+                className={cn(
+                  "tracking-tight",
+                  s.state === "complete" && "text-stone-500",
+                  s.state === "current" && "font-medium text-stone-900",
+                  s.state === "upcoming" && "text-stone-300"
+                )}
+              >
+                {s.label}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <p className="shrink-0 font-heading text-lg tabular-nums text-stone-900 sm:text-xl">
+          {percent}
+          <span className="text-sm text-stone-400">%</span>
+        </p>
       </div>
 
-      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100">
+      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-stone-100">
         <div
           className={cn(
             "h-full rounded-full transition-[width] duration-500 ease-out",
@@ -226,107 +165,9 @@ export function DeliveryStepper({
         />
       </div>
 
-      <ol className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 sm:gap-0">
-        {steps.map((s, i) => {
-          const isLast = i === steps.length - 1;
-          return (
-            <li
-              key={s.id}
-              className="relative flex flex-col items-start sm:items-center"
-            >
-              {!isLast ? (
-                <span
-                  aria-hidden
-                  className={cn(
-                    "pointer-events-none absolute left-[calc(50%+16px)] right-[calc(-50%+16px)] top-[13px] hidden h-px sm:block",
-                    steps[i].state === "complete" ||
-                      steps[i + 1]?.state !== "upcoming"
-                      ? "bg-stone-800"
-                      : "bg-stone-200"
-                  )}
-                />
-              ) : null}
-
-              <div className="relative z-[1] flex items-center gap-2.5 sm:flex-col sm:gap-2">
-                <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium",
-                    s.state === "complete" && "bg-stone-900 text-white",
-                    s.state === "current" &&
-                      "bg-white text-stone-900 ring-2 ring-stone-900 ring-offset-2 ring-offset-[oklch(0.99_0.002_80)]",
-                    s.state === "upcoming" && "bg-stone-100 text-stone-400"
-                  )}
-                >
-                  {s.state === "complete" ? (
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  ) : (
-                    i + 1
-                  )}
-                </span>
-                <div className="min-w-0 sm:text-center">
-                  <p
-                    className={cn(
-                      "text-xs font-medium leading-tight",
-                      s.state === "upcoming" ? "text-stone-400" : "text-stone-800"
-                    )}
-                  >
-                    {s.label}
-                  </p>
-                  <p
-                    className={cn(
-                      "mt-0.5 text-[11px] leading-snug",
-                      s.state === "current" ? "text-stone-600" : "text-stone-400"
-                    )}
-                  >
-                    {s.hint}
-                  </p>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
-
-      {/* Client selecting detail bar */}
-      {hasShareLink && !isFinal ? (
-        <div className="mt-4 rounded-[8px] bg-stone-50 px-3 py-2.5">
-          <div className="flex items-center justify-between gap-2 text-[11px]">
-            <span className="font-medium text-stone-600">
-              Client selecting favorites
-            </span>
-            <span className="tabular-nums text-stone-500">
-              {selectedCount} / {limitLabel(selectionLimit)}
-              <span className="ml-1.5 text-stone-400">
-                (
-                {Math.min(
-                  100,
-                  Math.round(
-                    (selectedCount / Math.max(1, selectionLimit)) * 100
-                  )
-                )}
-                %)
-              </span>
-            </span>
-          </div>
-          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-stone-200/90">
-            <div
-              className="h-full rounded-full bg-rose-400/90 transition-[width] duration-500"
-              style={{
-                width: `${Math.min(
-                  100,
-                  Math.round(
-                    (selectedCount / Math.max(1, selectionLimit)) * 100
-                  )
-                )}%`,
-              }}
-            />
-          </div>
-        </div>
+      {detail ? (
+        <p className="mt-2 text-xs text-stone-500">{detail}</p>
       ) : null}
     </div>
   );
-}
-
-function limitLabel(n: number) {
-  return Math.max(1, n || 1);
 }

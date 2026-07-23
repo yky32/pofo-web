@@ -198,7 +198,7 @@ export default async function GalleryDetailPage({
             <span className="mx-2 text-stone-300">·</span>
             <span className="font-medium text-stone-800">{selectedCount}</span>
             <span className="text-stone-400">/{gallery.selection_limit}</span>{" "}
-            selected
+            picks
             {activeLink || isDemo ? (
               <>
                 <span className="mx-2 text-stone-300">·</span>
@@ -214,7 +214,7 @@ export default async function GalleryDetailPage({
               Contact sheet
             </TabsTrigger>
             <TabsTrigger value="selections" className="rounded-full">
-              Selections ({selectedCount})
+              Proofing ({selectedCount})
             </TabsTrigger>
             <TabsTrigger value="settings" className="rounded-full">
               Settings
@@ -276,18 +276,17 @@ export default async function GalleryDetailPage({
             {isDemo ? (
               <div className="rounded-[8px] border border-stone-200/70 bg-white/40 p-8 text-center">
                 <p className="font-heading text-xl text-stone-900">
-                  {selectedCount} favorites
+                  {selectedCount} picks
                 </p>
                 <p className="mt-2 text-sm text-stone-500">
-                  Demo data — use a live project for client picks.
+                  Demo data — use a live project for proofing.
                 </p>
               </div>
             ) : selectedShots.length > 0 ? (
               <div className="space-y-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-stone-500">
-                    Client favorites · {selectedShots.length} of{" "}
-                    {gallery.selection_limit}
+                    {selectedShots.length} of {gallery.selection_limit} picks
                   </p>
                   <ExportSelectionButton
                     projectTitle={gallery.title}
@@ -305,7 +304,7 @@ export default async function GalleryDetailPage({
                       >
                         <PhotoImage
                           src={src}
-                          alt={shot.filename ?? "Favorite"}
+                          alt={shot.filename ?? "Proofing pick"}
                           sizes="20vw"
                         />
                         <span className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-white text-rose-600 shadow">
@@ -319,14 +318,14 @@ export default async function GalleryDetailPage({
             ) : (
               <div className="rounded-[8px] border border-stone-200/70 bg-white/40 p-10 text-center">
                 <p className="font-heading text-xl text-stone-900">
-                  No favorites yet
+                  No picks yet
                 </p>
                 <p className="mx-auto mt-2 max-w-sm text-sm text-stone-500">
                   {photoCount === 0
-                    ? "Add photos first, then share a private link so the client can pick favorites."
+                    ? "Add photos, then share a link for proofing."
                     : clientHref
-                      ? "Send the private link — selections appear here."
-                      : "Create a share link so the client can pick favorites."}
+                      ? "Send the link — client picks show up here."
+                      : "Create a client link to start proofing."}
                 </p>
                 {clientHref ? (
                   <Button
@@ -363,7 +362,7 @@ export default async function GalleryDetailPage({
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-                    <dt className="text-stone-400">Selection limit</dt>
+                    <dt className="text-stone-400">Proofing limit</dt>
                     <dd className="text-right text-stone-800">
                       {gallery.selection_limit}
                     </dd>
