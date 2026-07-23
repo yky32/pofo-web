@@ -18,13 +18,13 @@ export default function NewGalleryPage() {
         </p>
       </div>
 
-      <div className="paper space-y-5 rounded-sm p-6">
+      <div className="paper space-y-5 rounded-[5px] p-6">
         <div className="space-y-2">
           <Label htmlFor="title">Title</Label>
           <Input
             id="title"
             placeholder="Alicia & James — Wedding"
-            className="rounded-sm border-stone-300 bg-white"
+            className="rounded-[5px] border-stone-300 bg-white"
           />
         </div>
         <div className="space-y-2">
@@ -32,7 +32,7 @@ export default function NewGalleryPage() {
           <Input
             id="client"
             placeholder="Alicia Chen"
-            className="rounded-sm border-stone-300 bg-white"
+            className="rounded-[5px] border-stone-300 bg-white"
           />
         </div>
         <div className="space-y-2">
@@ -43,7 +43,7 @@ export default function NewGalleryPage() {
             defaultValue={40}
             min={1}
             max={200}
-            className="rounded-sm border-stone-300 bg-white"
+            className="rounded-[5px] border-stone-300 bg-white"
           />
         </div>
         <div className="flex flex-wrap gap-2 pt-1">

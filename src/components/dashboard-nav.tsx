@@ -33,7 +33,7 @@ export function DashboardNav() {
             key={href}
             href={href}
             className={cn(
-              "flex items-center gap-3 rounded-sm px-3 py-2.5 text-sm transition-colors",
+              "flex items-center gap-3 rounded-[5px] px-3 py-2.5 text-sm transition-colors",
               active
                 ? "bg-stone-900 text-stone-50"
                 : "text-stone-500 hover:bg-stone-900/5 hover:text-stone-900"

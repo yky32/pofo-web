@@ -46,8 +46,8 @@ export default async function ClientGalleryPage({
         </div>
       </header>
 
-      {/* Sticky selection bar */}
-      <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50_/_0.9)] backdrop-blur-md">
+      {/* Sticky selection bar — flat, no glass */}
+      <div className="sticky top-0 z-30 border-b border-white/5 bg-[oklch(0.12_0.01_50)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-8">
           <p className="text-sm text-stone-400">
             Select up to{" "}

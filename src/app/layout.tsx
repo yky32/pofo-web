@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans, Geist_Mono } from "next/font/google";
+import { Caveat, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const heading = Cormorant_Garamond({
+/** Site stack — Notebook Hand */
+const heading = Caveat({
   variable: "--font-heading",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
 
-const sans = DM_Sans({
+const sans = Plus_Jakarta_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],

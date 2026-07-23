@@ -43,7 +43,7 @@ export default async function GalleryDetailPage({
       </Button>
 
       {/* Cover hero */}
-      <section className="relative overflow-hidden rounded-sm film-grain">
+      <section className="relative overflow-hidden rounded-[5px] film-grain">
         <div className="relative aspect-[21/9] min-h-[200px]">
           <PhotoImage
             src={cover}
@@ -100,7 +100,7 @@ export default async function GalleryDetailPage({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="paper rounded-sm p-5">
+        <div className="paper rounded-[5px] p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Photos
           </p>
@@ -108,7 +108,7 @@ export default async function GalleryDetailPage({
             {gallery.photo_count ?? 0}
           </p>
         </div>
-        <div className="paper rounded-sm p-5">
+        <div className="paper rounded-[5px] p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Selected
           </p>
@@ -119,7 +119,7 @@ export default async function GalleryDetailPage({
             </span>
           </p>
         </div>
-        <div className="paper rounded-sm p-5">
+        <div className="paper rounded-[5px] p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Client link
           </p>
@@ -138,7 +138,7 @@ export default async function GalleryDetailPage({
       </div>
 
       <Tabs defaultValue="photos">
-        <TabsList className="rounded-full bg-stone-200/60 p-1">
+        <TabsList className="rounded-full bg-white/60 p-1 ring-1 ring-white/80 backdrop-blur-sm">
           <TabsTrigger value="photos" className="rounded-full">
             Contact sheet
           </TabsTrigger>
@@ -154,7 +154,7 @@ export default async function GalleryDetailPage({
             {sheet.map((src, i) => (
               <div
                 key={`${src}-${i}`}
-                className="group relative aspect-square overflow-hidden bg-stone-200"
+                className="group relative aspect-square overflow-hidden bg-stone-50 ring-1 ring-white/70"
               >
                 <PhotoImage
                   src={src}
@@ -170,7 +170,7 @@ export default async function GalleryDetailPage({
           </div>
         </TabsContent>
         <TabsContent value="selections" className="mt-5">
-          <div className="paper rounded-sm p-8 text-center">
+          <div className="paper rounded-[5px] p-8 text-center">
             <p className="font-heading text-xl text-stone-900">
               {gallery.selection_count ?? 0} favorites so far
             </p>
@@ -180,7 +180,7 @@ export default async function GalleryDetailPage({
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-5">
-          <div className="paper rounded-sm p-8">
+          <div className="paper rounded-[5px] p-8">
             <p className="font-heading text-xl text-stone-900">Gallery settings</p>
             <p className="mt-2 text-sm text-stone-500">
               Password, expiration, RAW window, and versions — coming next.

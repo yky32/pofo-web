@@ -17,13 +17,13 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="paper space-y-5 rounded-sm p-6">
+      <div className="paper space-y-5 rounded-[5px] p-6">
         <div className="space-y-2">
           <Label htmlFor="studio">Studio name</Label>
           <Input
             id="studio"
             defaultValue="Light & Frame Studio"
-            className="rounded-sm border-stone-300 bg-white"
+            className="rounded-[5px] border-stone-300 bg-white"
           />
         </div>
         <div className="space-y-2">
@@ -31,7 +31,7 @@ export default function SettingsPage() {
           <Input
             id="name"
             defaultValue="Wayne"
-            className="rounded-sm border-stone-300 bg-white"
+            className="rounded-[5px] border-stone-300 bg-white"
           />
         </div>
         <Button className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800">
