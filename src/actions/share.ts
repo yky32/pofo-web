@@ -299,7 +299,19 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
     if (row.error) return { ok: false, error: row.error };
 
     const requires = Boolean(row.requires_password);
-    const unlocked = requires ? await hasShareUnlock(token) : true;
+    let unlocked = true;
+    if (requires) {
+      // Need current password_hash so regen invalidates old unlock cookies
+      const admin = createAdminClient();
+      const { data: secret } = admin
+        ? await admin
+            .from("share_links")
+            .select("password_hash")
+            .eq("token", token)
+            .maybeSingle()
+        : { data: null };
+      unlocked = await hasShareUnlock(token, secret?.password_hash ?? null);
+    }
     return {
       ok: true,
       requires_password: requires,
@@ -349,7 +361,9 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
   }
 
   const requires = Boolean(link.password_hash);
-  const unlocked = requires ? await hasShareUnlock(token) : true;
+  const unlocked = requires
+    ? await hasShareUnlock(token, link.password_hash)
+    : true;
   return {
     ok: true,
     requires_password: requires,
@@ -395,7 +409,7 @@ export async function unlockShareLink(
   }
   if (!link.password_hash) {
     // No password — treat as open
-    await setShareUnlockCookie(token);
+    await setShareUnlockCookie(token, null);
     return { ok: true };
   }
 
@@ -403,7 +417,7 @@ export async function unlockShareLink(
     return { error: "Incorrect password. Try again." };
   }
 
-  await setShareUnlockCookie(token);
+  await setShareUnlockCookie(token, link.password_hash);
   return { ok: true };
 }
 

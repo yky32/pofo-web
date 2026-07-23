@@ -60,41 +60,67 @@ export function verifySharePassword(
   }
 }
 
+/** Fingerprint of current password_hash — changes on regenerate. */
+export function passwordFingerprint(
+  passwordHash: string | null | undefined
+): string {
+  if (!passwordHash) return "open";
+  return createHash("sha256")
+    .update(passwordHash)
+    .digest("hex")
+    .slice(0, 16);
+}
+
 function cookieNameForToken(token: string) {
   const dig = createHash("sha256").update(token).digest("hex").slice(0, 20);
   return `${COOKIE_PREFIX}${dig}`;
 }
 
-function signUnlock(token: string, exp: number) {
-  const payload = `${token}.${exp}`;
+function signUnlock(token: string, fp: string, exp: number) {
+  const payload = `${token}.${fp}.${exp}`;
   const sig = createHmac("sha256", gateSecret())
     .update(payload)
     .digest("base64url");
-  return `${exp}.${sig}`;
+  return `${fp}.${exp}.${sig}`;
 }
 
-function verifyUnlockCookie(token: string, value: string | undefined): boolean {
+function verifyUnlockCookie(
+  token: string,
+  fp: string,
+  value: string | undefined
+): boolean {
   if (!value) return false;
-  const [expStr, sig] = value.split(".");
-  const exp = Number(expStr);
-  if (!expStr || !sig || !Number.isFinite(exp)) return false;
-  if (exp < Math.floor(Date.now() / 1000)) return false;
-  const expected = signUnlock(token, exp);
-  const a = Buffer.from(value);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  try {
-    return timingSafeEqual(a, b);
-  } catch {
-    return false;
+  const parts = value.split(".");
+  // v2: fp.exp.sig
+  if (parts.length === 3) {
+    const [cookieFp, expStr, sig] = parts;
+    const exp = Number(expStr);
+    if (!cookieFp || !expStr || !sig || !Number.isFinite(exp)) return false;
+    if (cookieFp !== fp) return false; // password was regenerated
+    if (exp < Math.floor(Date.now() / 1000)) return false;
+    const expected = signUnlock(token, fp, exp);
+    const a = Buffer.from(value);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    try {
+      return timingSafeEqual(a, b);
+    } catch {
+      return false;
+    }
   }
+  // legacy v1: exp.sig (no fp) — reject so clients re-auth after deploy
+  return false;
 }
 
-/** After password OK — httpOnly cookie so gallery can load without re-entry. */
-export async function setShareUnlockCookie(token: string) {
+/** After password OK — httpOnly cookie bound to current password fingerprint. */
+export async function setShareUnlockCookie(
+  token: string,
+  passwordHash: string | null | undefined
+) {
+  const fp = passwordFingerprint(passwordHash);
   const exp = Math.floor(Date.now() / 1000) + UNLOCK_TTL_SEC;
   const jar = await cookies();
-  jar.set(cookieNameForToken(token), signUnlock(token, exp), {
+  jar.set(cookieNameForToken(token), signUnlock(token, fp, exp), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -108,8 +134,11 @@ export async function clearShareUnlockCookie(token: string) {
   jar.delete(cookieNameForToken(token));
 }
 
-export async function hasShareUnlock(token: string): Promise<boolean> {
+export async function hasShareUnlock(
+  token: string,
+  passwordHash: string | null | undefined
+): Promise<boolean> {
   const jar = await cookies();
   const value = jar.get(cookieNameForToken(token))?.value;
-  return verifyUnlockCookie(token, value);
+  return verifyUnlockCookie(token, passwordFingerprint(passwordHash), value);
 }
