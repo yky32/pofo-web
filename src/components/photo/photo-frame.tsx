@@ -22,7 +22,7 @@ export function PhotoFrame({
   return (
     <figure
       className={cn(
-        "group overflow-hidden rounded-sm bg-white/70 p-2 shadow-[0_12px_36px_-14px_rgba(28,25,23,0.14)] ring-1 ring-white/80 backdrop-blur-sm",
+        "group overflow-hidden rounded-[5px] bg-white/70 p-2 shadow-[0_12px_36px_-14px_rgba(28,25,23,0.14)] ring-1 ring-white/80 backdrop-blur-sm",
         className
       )}
     >

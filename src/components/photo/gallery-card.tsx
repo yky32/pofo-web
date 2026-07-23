@@ -21,7 +21,7 @@ export function GalleryCard({
     <Link
       href={href}
       className={cn(
-        "group block overflow-hidden rounded-sm bg-white/65 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.12)] ring-1 ring-white/80 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_16px_36px_-14px_rgba(28,25,23,0.16)]",
+        "group block overflow-hidden rounded-[5px] bg-white/65 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.12)] ring-1 ring-white/80 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_16px_36px_-14px_rgba(28,25,23,0.16)]",
         className
       )}
     >

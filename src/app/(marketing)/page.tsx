@@ -118,7 +118,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className="pointer-events-none absolute -bottom-4 -left-2 hidden rotate-[-3deg] sm:block lg:-left-6">
-              <div className="paper rounded-sm px-3 py-2 text-xs text-stone-500">
+              <div className="paper rounded-[5px] px-3 py-2 text-xs text-stone-500">
                 <span className="font-heading text-base text-stone-800">
                   286
                 </span>{" "}
@@ -162,7 +162,7 @@ export default function HomePage() {
             {features.map(({ icon: Icon, title, description }) => (
               <div
                 key={title}
-                className="paper rounded-sm p-6 transition hover:shadow-[0_16px_40px_-20px_rgba(28,25,23,0.2)]"
+                className="paper rounded-[5px] p-6 transition hover:shadow-[0_16px_40px_-20px_rgba(28,25,23,0.2)]"
               >
                 <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-full bg-stone-100 text-stone-700">
                   <Icon className="h-4 w-4" strokeWidth={1.75} />
@@ -179,24 +179,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Look — large visual section */}
-      <section id="look" className="pb-8 sm:pb-12">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-sm film-grain">
-            <div className="relative aspect-[21/9] min-h-[240px] sm:min-h-[320px]">
-              <PhotoImage
-                src={studioPhotos.golden}
-                alt="Golden hour couple"
-                sizes="100vw"
-                className="scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-stone-950/70 via-stone-950/30 to-transparent" />
-              <div className="absolute inset-0 flex items-end p-6 sm:p-10">
+      {/* Look — full-bleed photo frame (100% width) */}
+      <section id="look" className="relative w-full">
+        <div className="relative w-full overflow-hidden film-grain">
+          <div className="relative h-[70vh] min-h-[360px] w-full sm:h-[80vh] sm:min-h-[480px]">
+            <PhotoImage
+              src={studioPhotos.golden}
+              alt="Golden hour couple"
+              sizes="100vw"
+              className="object-cover object-center"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-stone-950/70 via-stone-950/30 to-transparent" />
+            <div className="absolute inset-0 flex items-end p-6 sm:p-10 md:p-14">
+              <div className="mx-auto w-full max-w-6xl">
                 <div className="max-w-md text-white">
                   <p className="text-xs uppercase tracking-[0.22em] text-white/60">
                     Client view
                   </p>
-                  <h2 className="mt-2 font-heading text-3xl font-medium sm:text-4xl">
+                  <h2 className="mt-2 font-heading text-3xl font-medium sm:text-4xl md:text-5xl">
                     They open a link.
                     <br />
                     They fall in love with the set.
@@ -214,6 +214,7 @@ export default function HomePage() {
         </div>
       </section>
 
+
       {/* Workflow — neat numbered */}
       <section id="workflow" className="py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
@@ -226,7 +227,7 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-14 grid gap-px overflow-hidden rounded-sm bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid gap-px overflow-hidden rounded-[5px] bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step) => (
               <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
                 <span className="font-mono text-xs tracking-widest text-stone-400">
@@ -247,7 +248,7 @@ export default function HomePage() {
       {/* Bottom CTA with photo strip */}
       <section className="pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="paper relative overflow-hidden rounded-sm px-6 py-12 sm:px-12 sm:py-16">
+          <div className="paper relative overflow-hidden rounded-[5px] px-6 py-12 sm:px-12 sm:py-16">
             <div className="absolute -right-8 top-0 hidden h-full w-1/2 opacity-90 md:block">
               <div className="relative h-full w-full">
                 <PhotoImage

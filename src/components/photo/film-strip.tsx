@@ -12,7 +12,7 @@ export function FilmStrip({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-sm bg-white/55 px-3 py-4 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.1)] ring-1 ring-white/80 backdrop-blur-sm",
+        "relative overflow-hidden rounded-[5px] bg-white/55 px-3 py-4 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.1)] ring-1 ring-white/80 backdrop-blur-sm",
         className
       )}
       aria-hidden

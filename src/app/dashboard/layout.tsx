@@ -21,7 +21,7 @@ export default function DashboardLayout({
           <DashboardNav />
           <div className="mt-auto space-y-3 px-1">
             {demoMode && (
-              <p className="paper rounded-sm px-3 py-2.5 text-[11px] leading-relaxed text-stone-600">
+              <p className="paper rounded-[5px] px-3 py-2.5 text-[11px] leading-relaxed text-stone-600">
                 Demo studio — mock galleries until Supabase is connected.
               </p>
             )}

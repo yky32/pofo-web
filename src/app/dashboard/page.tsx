@@ -17,7 +17,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-10">
       {/* Welcome banner with photo */}
-      <section className="relative overflow-hidden rounded-sm film-grain">
+      <section className="relative overflow-hidden rounded-[5px] film-grain">
         <div className="relative min-h-[180px] sm:min-h-[200px]">
           <PhotoImage
             src={studioPhotos.outdoor}
@@ -61,7 +61,7 @@ export default function DashboardPage() {
           { label: "Proofing", value: proofing },
           { label: "Photos", value: totalPhotos },
         ].map((stat) => (
-          <div key={stat.label} className="paper rounded-sm px-4 py-5 sm:px-6">
+          <div key={stat.label} className="paper rounded-[5px] px-4 py-5 sm:px-6">
             <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
               {stat.label}
             </p>
