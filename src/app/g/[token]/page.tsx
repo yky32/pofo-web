@@ -63,6 +63,9 @@ export default async function ClientGalleryPage({
         token={token}
         projectTitle={gate.project_title}
         studioName={gate.studio_name}
+        clientName={gate.client_name}
+        displayName={gate.display_name}
+        avatarUrl={gate.avatar_url}
       />
     );
   }
@@ -76,6 +79,9 @@ export default async function ClientGalleryPage({
           token={token}
           projectTitle={gate.project_title}
           studioName={gate.studio_name}
+          clientName={gate.client_name}
+          displayName={gate.display_name}
+          avatarUrl={gate.avatar_url}
         />
       );
     }

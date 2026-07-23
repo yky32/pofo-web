@@ -193,11 +193,14 @@ export type ShareGateInfo =
       requires_password: boolean;
       unlocked: boolean;
       project_title: string | null;
+      client_name: string | null;
       studio_name: string | null;
+      display_name: string | null;
+      avatar_url: string | null;
     }
   | { ok: false; error: string };
 
-/** Lightweight gate check — no shots leaked. */
+/** Lightweight gate check — no shots / no password_hash leaked. */
 export async function getShareGate(token: string): Promise<ShareGateInfo> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "not_configured" };
@@ -206,10 +209,45 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
     return { ok: false, error: "invalid_token" };
   }
 
-  const admin = createAdminClient();
-  const supabase = admin ?? (await createClient());
+  const supabase = await createClient();
 
-  const { data: link, error } = await supabase
+  // Prefer public SECURITY DEFINER RPC (works with anon; no hash returned)
+  const { data: rpcData, error: rpcErr } = await supabase.rpc(
+    "get_share_gate",
+    { p_token: token }
+  );
+
+  if (!rpcErr && rpcData) {
+    const row = rpcData as {
+      error?: string;
+      requires_password?: boolean;
+      project_title?: string | null;
+      client_name?: string | null;
+      studio_name?: string | null;
+      display_name?: string | null;
+      avatar_url?: string | null;
+    };
+    if (row.error) return { ok: false, error: row.error };
+
+    const requires = Boolean(row.requires_password);
+    const unlocked = requires ? await hasShareUnlock(token) : true;
+    return {
+      ok: true,
+      requires_password: requires,
+      unlocked,
+      project_title: row.project_title ?? null,
+      client_name: row.client_name ?? null,
+      studio_name: row.studio_name ?? null,
+      display_name: row.display_name ?? null,
+      avatar_url: row.avatar_url ?? null,
+    };
+  }
+
+  // Fallback: admin / session reads (older DBs without get_share_gate)
+  const admin = createAdminClient();
+  const db = admin ?? supabase;
+
+  const { data: link, error } = await db
     .from("share_links")
     .select("id, token, password_hash, is_active, expires_at, project_id")
     .eq("token", token)
@@ -221,41 +259,37 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
     return { ok: false, error: "expired" };
   }
 
-  const { data: project } = await supabase
+  const { data: project } = await db
     .from("projects")
-    .select("title, owner_id")
+    .select("title, client_name, owner_id")
     .eq("id", link.project_id)
     .maybeSingle();
 
   let studio_name: string | null = null;
+  let display_name: string | null = null;
+  let avatar_url: string | null = null;
   if (project?.owner_id) {
-    const { data: profile } = await supabase
+    const { data: profile } = await db
       .from("profiles")
-      .select("studio_name, display_name")
+      .select("studio_name, display_name, avatar_url")
       .eq("id", project.owner_id)
       .maybeSingle();
     studio_name = profile?.studio_name || profile?.display_name || null;
+    display_name = profile?.display_name ?? null;
+    avatar_url = profile?.avatar_url ?? null;
   }
 
   const requires = Boolean(link.password_hash);
-  // Without service role we cannot verify unlock for password links safely
-  if (requires && !admin) {
-    return {
-      ok: true,
-      requires_password: true,
-      unlocked: false,
-      project_title: project?.title ?? null,
-      studio_name,
-    };
-  }
-
   const unlocked = requires ? await hasShareUnlock(token) : true;
   return {
     ok: true,
     requires_password: requires,
     unlocked,
     project_title: project?.title ?? null,
+    client_name: project?.client_name ?? null,
     studio_name,
+    display_name,
+    avatar_url,
   };
 }
 
@@ -275,7 +309,7 @@ export async function unlockShareLink(
   if (!admin) {
     return {
       error:
-        "Password links need SUPABASE_SERVICE_ROLE_KEY on the server.",
+        "This gallery can’t unlock right now. Please try again later.",
     };
   }
 

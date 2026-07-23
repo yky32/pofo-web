@@ -7,26 +7,43 @@ import { unlockShareLink } from "@/actions/share";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
- * Liquid-glass password gate for protected client links.
- * Matches create-project dialog feel.
+ * Clean password unlock for protected client links.
+ * Highlights who shared the gallery (studio), then a simple form.
  */
 export function SharePasswordGate({
   token,
   projectTitle,
   studioName,
+  clientName,
+  displayName,
+  avatarUrl,
 }: {
   token: string;
   projectTitle?: string | null;
   studioName?: string | null;
+  clientName?: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
 }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const fromLabel =
+    studioName?.trim() ||
+    displayName?.trim() ||
+    "Your photographer";
+
+  const initial = fromLabel
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "P";
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,55 +59,66 @@ export function SharePasswordGate({
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[oklch(0.14_0.01_50)] px-4 py-12">
+    <div className="relative flex min-h-screen flex-col bg-[oklch(0.12_0.01_50)] text-stone-100">
+      {/* Soft ambient */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-[radial-gradient(circle,oklch(0.45_0.04_75/0.35),transparent_70%)] blur-2xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 bottom-20 h-80 w-80 rounded-full bg-[radial-gradient(circle,oklch(0.35_0.03_40/0.4),transparent_70%)] blur-3xl"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_20%,oklch(0.32_0.02_60/0.5),transparent_70%)]"
       />
 
-      <div className="relative z-10 mb-8">
-        <Logo className="text-white" markClassName="text-white" />
-      </div>
+      <header className="relative z-10 flex items-center justify-center px-6 pt-10 sm:pt-14">
+        <Logo className="text-white/90" markClassName="text-white/90" />
+      </header>
 
-      <div
-        className={cn(
-          "dialog-glass-panel relative z-10 w-full max-w-md rounded-[12px] p-6 sm:p-7",
-          "text-stone-900 ring-1 ring-white/50"
-        )}
-      >
-        <div className="mb-6 flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-stone-900/5 text-stone-700">
-            <Lock className="h-4 w-4" strokeWidth={1.75} />
-          </span>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-400">
-              Private gallery
-            </p>
-            <h1 className="mt-1 font-heading text-2xl font-medium tracking-tight text-stone-900">
-              Enter password
-            </h1>
-            <p className="mt-1 text-sm text-stone-500">
-              {projectTitle
-                ? `“${projectTitle}” is password protected.`
-                : "This link is password protected."}
-              {studioName ? (
-                <span className="block text-stone-400">
-                  Shared by {studioName}
-                </span>
+      <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 pb-16 pt-8">
+        {/* From · studio */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="relative mb-4">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                className="h-16 w-16 rounded-full object-cover ring-2 ring-white/15"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 font-heading text-lg text-white/90 ring-1 ring-white/15">
+                {initial}
+              </div>
+            )}
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-stone-900 ring-2 ring-[oklch(0.12_0.01_50)]">
+              <Lock className="h-3 w-3 text-stone-300" strokeWidth={2} />
+            </span>
+          </div>
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-stone-500">
+            Shared with you
+          </p>
+          <p className="mt-2 font-heading text-xl font-medium tracking-tight text-white sm:text-2xl">
+            {fromLabel}
+          </p>
+          {projectTitle ? (
+            <p className="mt-1.5 max-w-xs text-sm text-stone-400">
+              {projectTitle}
+              {clientName ? (
+                <span className="text-stone-500"> · {clientName}</span>
               ) : null}
             </p>
-          </div>
+          ) : null}
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="share-password" className="text-stone-600">
-              Password
-            </Label>
+        {/* Card */}
+        <div
+          className={cn(
+            "w-full max-w-[22rem] rounded-2xl p-6 sm:p-7",
+            "bg-white/[0.07] ring-1 ring-white/10",
+            "backdrop-blur-xl"
+          )}
+        >
+          <p className="text-center text-sm text-stone-400">
+            Enter the password to open this gallery
+          </p>
+
+          <form onSubmit={onSubmit} className="mt-5 space-y-3">
             <Input
               id="share-password"
               name="password"
@@ -100,31 +128,36 @@ export function SharePasswordGate({
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password from your photographer"
-              className="rounded-xl bg-white/80"
+              placeholder="Password"
+              aria-label="Gallery password"
+              className={cn(
+                "h-11 rounded-xl border-0 bg-white/95 text-center text-stone-900",
+                "placeholder:text-stone-400",
+                "focus-visible:ring-2 focus-visible:ring-white/40"
+              )}
               disabled={pending}
             />
-          </div>
 
-          {error ? (
-            <p className="rounded-[8px] bg-rose-50/90 px-3 py-2 text-sm text-rose-800 ring-1 ring-rose-100">
-              {error}
-            </p>
-          ) : null}
+            {error ? (
+              <p className="rounded-xl bg-rose-500/15 px-3 py-2.5 text-center text-xs leading-relaxed text-rose-200 ring-1 ring-rose-400/20">
+                {error}
+              </p>
+            ) : null}
 
-          <Button
-            type="submit"
-            disabled={pending || !password.trim()}
-            className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-          >
-            {pending ? "Checking…" : "Open gallery"}
-          </Button>
-        </form>
-      </div>
+            <Button
+              type="submit"
+              disabled={pending || !password.trim()}
+              className="h-11 w-full rounded-full bg-white text-stone-900 hover:bg-stone-100"
+            >
+              {pending ? "Opening…" : "Open gallery"}
+            </Button>
+          </form>
+        </div>
 
-      <p className="relative z-10 mt-8 max-w-sm text-center text-xs text-stone-500">
-        Ask your photographer if you don’t have the password.
-      </p>
+        <p className="mt-8 max-w-[18rem] text-center text-[11px] leading-relaxed text-stone-600">
+          The password was shared separately by your photographer.
+        </p>
+      </main>
     </div>
   );
 }
