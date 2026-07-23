@@ -86,6 +86,11 @@ export async function createDownloadUrl(key: string, expiresIn = 60 * 60) {
   return getSignedUrl(client, command, { expiresIn });
 }
 
+/**
+ * Object key for shots bucket / R2.
+ * First path segment MUST be the owner UUID so Supabase Storage RLS
+ * (`foldername(name)[1] = auth.uid()`) allows the insert without custom policies.
+ */
 export function photoStorageKey(
   ownerId: string,
   projectId: string,
@@ -93,5 +98,5 @@ export function photoStorageKey(
   unique = crypto.randomUUID()
 ) {
   const safe = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  return `owners/${ownerId}/projects/${projectId}/${unique}-${safe}`;
+  return `${ownerId}/projects/${projectId}/${unique}-${safe}`;
 }

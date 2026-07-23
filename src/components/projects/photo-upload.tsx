@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { ImagePlus, Upload } from "lucide-react";
 import { registerUploadedShots } from "@/actions/shots";
 import {
-  getUploadBackend,
   prepareBatchUpload,
   type UploadBackend,
   type UploadSlot,
@@ -20,7 +19,8 @@ const MAX_FILES_PER_PICK = 800;
 const CONCURRENCY = 5;
 const PREPARE_CHUNK = 100;
 const REGISTER_CHUNK = 50;
-const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg";
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg";
 
 type FileStatus = "queued" | "uploading" | "done" | "failed";
 
@@ -30,6 +30,33 @@ type FileItem = {
   status: FileStatus;
   error?: string;
 };
+
+export type PhotoUploadVariant = "hero" | "compact";
+
+function friendlyUploadError(raw: string): string {
+  const m = raw.toLowerCase();
+  if (
+    m.includes("row-level security") ||
+    m.includes("violates row-level") ||
+    m.includes("rls")
+  ) {
+    return "Storage permission blocked this file. Ask your admin to re-run supabase/storage.sql, then retry.";
+  }
+  if (m.includes("bucket not found") || m.includes("not found")) {
+    return "Photo storage isn’t set up yet. Run supabase/storage.sql in the Supabase SQL Editor.";
+  }
+  if (m.includes("payload too large") || m.includes("maximum allowed")) {
+    return "File is too large (max 30MB).";
+  }
+  if (m.includes("network") || m.includes("fetch")) {
+    return "Network error — check your connection and retry.";
+  }
+  if (m.includes("jwt") || m.includes("not authenticated") || m.includes("session")) {
+    return "Session expired — refresh the page and sign in again.";
+  }
+  // Keep short; drop noisy prefixes
+  return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
+}
 
 async function putToR2(slot: UploadSlot, file: File) {
   if (!slot.uploadUrl) throw new Error("Missing presigned URL");
@@ -41,24 +68,33 @@ async function putToR2(slot: UploadSlot, file: File) {
     },
   });
   if (!res.ok) {
-    throw new Error(`R2 upload failed (${res.status})`);
+    throw new Error(`Upload failed (${res.status})`);
   }
 }
 
 async function putToSupabase(slot: UploadSlot, file: File) {
   const supabase = createClient();
-  const { error } = await supabase.storage.from("shots").upload(slot.storagePath, file, {
-    cacheControl: "3600",
-    upsert: false,
-    contentType: slot.contentType || file.type || "image/jpeg",
-  });
+  const { error } = await supabase.storage
+    .from("shots")
+    .upload(slot.storagePath, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: slot.contentType || file.type || "image/jpeg",
+    });
   if (error) throw new Error(error.message);
 }
 
-export function PhotoUpload({ projectId }: { projectId: string }) {
+export function PhotoUpload({
+  projectId,
+  variant = "compact",
+  className,
+}: {
+  projectId: string;
+  variant?: PhotoUploadVariant;
+  className?: string;
+}) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [backend, setBackend] = useState<UploadBackend>("supabase");
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<FileItem[]>([]);
   const [done, setDone] = useState(0);
@@ -66,10 +102,7 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-
-  useEffect(() => {
-    void getUploadBackend().then(setBackend);
-  }, []);
+  const [showDetails, setShowDetails] = useState(false);
 
   const patchItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setItems((prev) =>
@@ -80,6 +113,7 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
   async function runUpload(fileList: File[]) {
     setError(null);
     setSuccess(null);
+    setShowDetails(false);
 
     if (!fileList.length) return;
 
@@ -97,7 +131,8 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
     }
 
     const nonImage = fileList.find(
-      (f) => f.type && !f.type.startsWith("image/") && !/\.jpe?g$/i.test(f.name)
+      (f) =>
+        f.type && !f.type.startsWith("image/") && !/\.jpe?g$/i.test(f.name)
     );
     if (nonImage) {
       setError("Only image files are supported (JPEG / PNG / WebP / HEIC).");
@@ -116,9 +151,8 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
     setTotal(queue.length);
 
     try {
-      // 1) Prepare slots (presign R2 or Supabase paths) in chunks
       const slotByClientId = new Map<string, UploadSlot>();
-      let activeBackend: UploadBackend = backend;
+      let activeBackend: UploadBackend = "supabase";
 
       for (const group of chunkArray(queue, PREPARE_CHUNK)) {
         const prepared = await prepareBatchUpload({
@@ -132,12 +166,11 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         });
 
         if (!prepared.ok) {
-          setError(prepared.error);
+          setError(friendlyUploadError(prepared.error));
           return;
         }
 
         activeBackend = prepared.backend;
-        setBackend(prepared.backend);
         for (const slot of prepared.slots) {
           slotByClientId.set(slot.clientId, slot);
         }
@@ -151,7 +184,6 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         sizeBytes: number;
       };
 
-      // 2) Concurrent direct-to-storage PUTs
       const tasks = queue.map((item) => async (): Promise<Meta> => {
         const slot = slotByClientId.get(item.id);
         if (!slot) throw new Error("Missing upload slot");
@@ -190,16 +222,39 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
             result.reason instanceof Error
               ? result.reason.message
               : "Upload failed";
-          patchItem(queue[i].id, { status: "failed", error: msg });
+          patchItem(queue[i].id, {
+            status: "failed",
+            error: friendlyUploadError(msg),
+          });
         }
       });
 
       if (uploaded.length === 0) {
-        setError("No photos uploaded. Check connection and try again.");
+        const firstFail = items.find((i) => i.status === "failed")?.error;
+        // items state may be stale; pull from settled
+        const reason =
+          settled.find((r) => r.status === "rejected") &&
+          settled.find((r): r is PromiseRejectedResult => r.status === "rejected")
+            ? friendlyUploadError(
+                settled.find((r): r is PromiseRejectedResult => r.status === "rejected")!
+                  .reason instanceof Error
+                  ? (
+                      settled.find(
+                        (r): r is PromiseRejectedResult => r.status === "rejected"
+                      )!.reason as Error
+                    ).message
+                  : "Upload failed"
+              )
+            : null;
+        setError(
+          reason
+            ? `Couldn’t upload any photos. ${reason}`
+            : "Couldn’t upload any photos. Check connection and try again."
+        );
+        void firstFail;
         return;
       }
 
-      // 3) Register metadata in chunks
       let registered = 0;
       let sortStart: number | undefined;
       for (const chunk of chunkArray(uploaded, REGISTER_CHUNK)) {
@@ -210,7 +265,7 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         });
         if (result.error) {
           setError(
-            `Uploaded files, but saving metadata failed: ${result.error}`
+            `Files reached storage, but saving the gallery failed: ${friendlyUploadError(result.error)}`
           );
           break;
         }
@@ -220,17 +275,18 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
 
       const failed = queue.length - uploaded.length;
       if (registered > 0) {
-        const via = activeBackend === "r2" ? "R2" : "Storage";
         setSuccess(
           failed > 0
-            ? `${registered} saved via ${via} · ${failed} failed`
-            : `${registered} photos added (${via})`
+            ? `${registered} photos added · ${failed} failed`
+            : `${registered} photo${registered === 1 ? "" : "s"} added`
         );
         router.refresh();
       }
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed.");
+      setError(
+        friendlyUploadError(e instanceof Error ? e.message : "Upload failed.")
+      );
     } finally {
       setBusy(false);
     }
@@ -243,9 +299,11 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
 
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const failedCount = items.filter((i) => i.status === "failed").length;
+  const showProgress = busy || (total > 0 && (busy || failedCount > 0 || success));
+  const isHero = variant === "hero";
 
   return (
-    <div className="space-y-3">
+    <div className={cn("w-full", className)}>
       <input
         ref={inputRef}
         type="file"
@@ -275,33 +333,67 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
           void runUpload(Array.from(e.dataTransfer.files));
         }}
         className={cn(
-          "rounded-[5px] border border-dashed px-4 py-5 transition-colors",
+          "rounded-[8px] border border-dashed transition-colors",
+          isHero ? "px-6 py-14 sm:py-16" : "px-4 py-4",
           dragOver
-            ? "border-stone-400 bg-stone-100/80"
-            : "border-stone-200 bg-stone-50/50"
+            ? "border-stone-400 bg-stone-100/90"
+            : isHero
+              ? "border-stone-200/90 bg-stone-50/40"
+              : "border-stone-200 bg-white/50"
         )}
       >
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            size="sm"
-            className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-            disabled={busy}
-            onClick={() => inputRef.current?.click()}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {busy ? "Uploading…" : "Upload photos"}
-          </Button>
-          <p className="text-xs text-stone-500">
-            Drop large batches here · up to 30MB ·{" "}
-            <span className="text-stone-600">
-              {backend === "r2" ? "Cloudflare R2" : "Supabase Storage"}
-            </span>
-          </p>
+        <div
+          className={cn(
+            "flex gap-3",
+            isHero
+              ? "flex-col items-center text-center"
+              : "flex-wrap items-center"
+          )}
+        >
+          {isHero ? (
+            <>
+              <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-stone-900/5 text-stone-700">
+                <ImagePlus className="h-5 w-5" />
+              </div>
+              <p className="font-heading text-xl text-stone-900">
+                Start this delivery
+              </p>
+              <p className="max-w-sm text-sm text-stone-500">
+                Drop a batch of wedding JPEGs here, or choose files from your
+                computer. Up to 30MB each.
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                className="mt-3 rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {busy ? "Uploading…" : "Choose photos"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+                disabled={busy}
+                onClick={() => inputRef.current?.click()}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {busy ? "Uploading…" : "Upload photos"}
+              </Button>
+              <p className="text-xs text-stone-500">
+                Drop files here · JPEG / PNG · max 30MB
+              </p>
+            </>
+          )}
         </div>
 
-        {busy || total > 0 ? (
-          <div className="mt-4 space-y-1.5">
+        {showProgress && busy ? (
+          <div className={cn("space-y-1.5", isHero ? "mx-auto mt-8 max-w-sm" : "mt-4")}>
             <div className="flex justify-between text-[11px] text-stone-500">
               <span>
                 {done} / {total}
@@ -319,20 +411,53 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         ) : null}
       </div>
 
-      {error ? <p className="text-xs text-red-600/90">{error}</p> : null}
-      {success ? <p className="text-xs text-emerald-700">{success}</p> : null}
+      {error ? (
+        <div
+          className={cn(
+            "mt-3 rounded-[8px] border border-rose-200/80 bg-rose-50/90 px-3.5 py-3 text-left",
+            isHero && "mx-auto max-w-md"
+          )}
+        >
+          <p className="text-sm font-medium text-rose-900">
+            {failedCount > 0
+              ? `Couldn’t save ${failedCount} photo${failedCount === 1 ? "" : "s"}`
+              : "Upload failed"}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-800/90">{error}</p>
+          {items.some((i) => i.status === "failed") ? (
+            <button
+              type="button"
+              className="mt-2 text-[11px] font-medium text-rose-700 underline-offset-2 hover:underline"
+              onClick={() => setShowDetails((v) => !v)}
+            >
+              {showDetails ? "Hide details" : "Show file details"}
+            </button>
+          ) : null}
+          {showDetails ? (
+            <ul className="mt-2 max-h-28 space-y-0.5 overflow-y-auto text-[11px] text-rose-700/80">
+              {items
+                .filter((i) => i.status === "failed")
+                .slice(0, 20)
+                .map((i) => (
+                  <li key={i.id} className="truncate">
+                    {i.file.name}
+                    {i.error ? ` — ${i.error}` : ""}
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
-      {items.some((i) => i.status === "failed") ? (
-        <ul className="max-h-28 space-y-0.5 overflow-y-auto text-[11px] text-stone-500">
-          {items
-            .filter((i) => i.status === "failed")
-            .slice(0, 20)
-            .map((i) => (
-              <li key={i.id} className="truncate text-red-600/80">
-                {i.file.name}: {i.error}
-              </li>
-            ))}
-        </ul>
+      {success ? (
+        <p
+          className={cn(
+            "mt-2 text-xs text-emerald-700",
+            isHero && "text-center"
+          )}
+        >
+          {success}
+        </p>
       ) : null}
     </div>
   );

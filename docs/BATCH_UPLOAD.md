@@ -106,7 +106,7 @@ Do **not** block upload on full-res re-encode.
 1. SQL Editor → run `supabase/storage.sql` (private `shots` bucket + owner folder policies).
 2. Set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` / Vercel (server only) so client share links can sign images.
 3. Re-run `schema.sql` or `slug.sql` so `get_client_gallery` returns `storage_key`.
-4. Upload UI shows **Supabase Storage**. Paths: `owners/{uid}/projects/{projectId}/{uuid}-{file}`.
+4. Upload UI uses **Supabase Storage**. Paths: `{uid}/projects/{projectId}/{uuid}-{file}` (first segment = owner id for RLS).
 
 ## Phase B — R2 setup (when you scale)
 
