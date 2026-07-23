@@ -11,30 +11,31 @@ export default function MarketingLayout({
     <div className="min-h-screen">
       <SiteHeader />
       {children}
-      <footer className="border-t border-stone-900/5 bg-stone-900 text-stone-300">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between">
+      <footer className="relative border-t border-white/40">
+        <div className="glass absolute inset-0 rounded-none border-0" />
+        <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-4 py-14 sm:px-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <Link href="/" className="text-stone-50">
-              <Logo markClassName="text-stone-50" />
+            <Link href="/" className="text-foreground">
+              <Logo />
             </Link>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-stone-400">
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Private galleries, proofing, and clean delivery — made for working
               photographers.
             </p>
           </div>
-          <div className="flex flex-wrap gap-6 text-sm text-stone-400">
-            <Link href="/dashboard" className="hover:text-stone-100">
+          <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
+            <Link href="/dashboard" className="hover:text-foreground">
               Dashboard
             </Link>
-            <Link href="/login" className="hover:text-stone-100">
+            <Link href="/login" className="hover:text-foreground">
               Log in
             </Link>
-            <Link href="/signup" className="hover:text-stone-100">
+            <Link href="/signup" className="hover:text-foreground">
               Start free
             </Link>
           </div>
-          <p className="text-xs text-stone-500">
-            © {new Date().getFullYear()} Pofo
+          <p className="text-xs text-muted-foreground">
+            © {new Date().getFullYear()} Pofo · Design v1.1
           </p>
         </div>
       </footer>

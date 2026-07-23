@@ -42,33 +42,36 @@ export default async function GalleryDetailPage({
         </Link>
       </Button>
 
-      {/* Cover hero */}
-      <section className="relative overflow-hidden rounded-sm film-grain">
-        <div className="relative aspect-[21/9] min-h-[200px]">
+      {/* Immersive HD cover */}
+      <section className="photo-stage relative overflow-hidden rounded-3xl film-grain">
+        <div className="relative aspect-[21/8] min-h-[240px] sm:min-h-[320px]">
           <PhotoImage
             src={cover}
             alt={gallery.title}
             sizes="100vw"
             priority
+            className="object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-stone-950/25 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-5 sm:p-8">
-            <div className="flex flex-wrap items-center gap-3">
-              <GalleryStatusBadge
-                status={gallery.status}
-                className="bg-white/90 text-stone-800"
-              />
-              <span className="text-xs text-white/60">
-                {gallery.photo_count} photos
-              </span>
+          <div className="absolute inset-0 z-[1] bg-gradient-to-t from-stone-950/75 via-stone-950/20 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 z-[2] p-5 sm:p-8">
+            <div className="glass-dark max-w-2xl rounded-2xl p-5 text-white sm:p-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <GalleryStatusBadge
+                  status={gallery.status}
+                  className="bg-white/90 text-stone-800"
+                />
+                <span className="text-xs text-white/60">
+                  {gallery.photo_count} photos
+                </span>
+              </div>
+              <h1 className="mt-2 font-heading text-3xl font-medium sm:text-4xl">
+                {gallery.title}
+              </h1>
+              <p className="mt-1 text-sm text-white/70">
+                {gallery.client_name}
+                {gallery.description ? ` · ${gallery.description}` : null}
+              </p>
             </div>
-            <h1 className="mt-2 font-heading text-3xl font-medium text-white sm:text-4xl">
-              {gallery.title}
-            </h1>
-            <p className="mt-1 text-sm text-white/70">
-              {gallery.client_name}
-              {gallery.description ? ` · ${gallery.description}` : null}
-            </p>
           </div>
         </div>
       </section>
@@ -77,7 +80,7 @@ export default async function GalleryDetailPage({
         <Button
           variant="outline"
           size="sm"
-          className="rounded-full border-stone-300"
+          className="rounded-full border-stone-300/80 bg-white/40 backdrop-blur"
         >
           <Upload className="mr-2 h-4 w-4" />
           Upload
@@ -85,7 +88,7 @@ export default async function GalleryDetailPage({
         <Button
           variant="outline"
           size="sm"
-          className="rounded-full border-stone-300"
+          className="rounded-full border-stone-300/80 bg-white/40 backdrop-blur"
         >
           <Link2 className="mr-2 h-4 w-4" />
           Share
@@ -100,7 +103,7 @@ export default async function GalleryDetailPage({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="paper rounded-sm p-5">
+        <div className="glass rounded-2xl p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Photos
           </p>
@@ -108,7 +111,7 @@ export default async function GalleryDetailPage({
             {gallery.photo_count ?? 0}
           </p>
         </div>
-        <div className="paper rounded-sm p-5">
+        <div className="glass rounded-2xl p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Selected
           </p>
@@ -119,7 +122,7 @@ export default async function GalleryDetailPage({
             </span>
           </p>
         </div>
-        <div className="paper rounded-sm p-5">
+        <div className="glass rounded-2xl p-5">
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Client link
           </p>
@@ -138,7 +141,7 @@ export default async function GalleryDetailPage({
       </div>
 
       <Tabs defaultValue="photos">
-        <TabsList className="rounded-full bg-stone-200/60 p-1">
+        <TabsList className="glass h-auto rounded-full p-1">
           <TabsTrigger value="photos" className="rounded-full">
             Contact sheet
           </TabsTrigger>
@@ -150,11 +153,11 @@ export default async function GalleryDetailPage({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="photos" className="mt-5">
-          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5">
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 sm:gap-3">
             {sheet.map((src, i) => (
               <div
                 key={`${src}-${i}`}
-                className="group relative aspect-square overflow-hidden bg-stone-200"
+                className="photo-stage group relative aspect-square overflow-hidden rounded-xl ring-1 ring-white/50"
               >
                 <PhotoImage
                   src={src}
@@ -162,28 +165,25 @@ export default async function GalleryDetailPage({
                   sizes="20vw"
                   className="transition duration-500 group-hover:scale-105"
                 />
-                <span className="absolute bottom-1 left-1 rounded bg-black/40 px-1 font-mono text-[10px] text-white/80">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
               </div>
             ))}
           </div>
         </TabsContent>
         <TabsContent value="selections" className="mt-5">
-          <div className="paper rounded-sm p-8 text-center">
+          <div className="glass rounded-2xl p-8 text-center">
             <p className="font-heading text-xl text-stone-900">
               {gallery.selection_count ?? 0} favorites so far
             </p>
             <p className="mt-2 text-sm text-stone-500">
-              Client picks appear here. Export, retouch, upload Finals.
+              Client picks land here. Export, retouch, upload Finals.
             </p>
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-5">
-          <div className="paper rounded-sm p-8">
+          <div className="glass rounded-2xl p-8">
             <p className="font-heading text-xl text-stone-900">Gallery settings</p>
             <p className="mt-2 text-sm text-stone-500">
-              Password, expiration, RAW window, and versions — coming next.
+              Password, expiration, RAW download window — next.
             </p>
           </div>
         </TabsContent>

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { PhotoImage } from "@/components/photo/photo-image";
 
-/** Soft print / mat frame around a photo */
+/** V1.1 — glass-edged mat around HD photo */
 export function PhotoFrame({
   src,
   alt,
@@ -20,23 +20,30 @@ export function PhotoFrame({
   sizes?: string;
 }) {
   return (
-    <figure
-      className={cn(
-        "group overflow-hidden rounded-sm bg-white p-2 shadow-[0_12px_40px_-12px_rgba(28,25,23,0.28)] ring-1 ring-stone-900/5",
-        className
-      )}
-    >
-      <div className={cn("relative overflow-hidden bg-stone-100", aspect)}>
-        <PhotoImage
-          src={src}
-          alt={alt}
-          priority={priority}
-          sizes={sizes}
-          className="transition duration-700 ease-out group-hover:scale-[1.03]"
-        />
+    <figure className={cn("group", className)}>
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl p-1.5 shadow-[0_20px_50px_-18px_rgba(28,25,23,0.35)]",
+          "glass"
+        )}
+      >
+        <div
+          className={cn(
+            "photo-stage relative overflow-hidden rounded-xl bg-stone-100",
+            aspect
+          )}
+        >
+          <PhotoImage
+            src={src}
+            alt={alt}
+            priority={priority}
+            sizes={sizes}
+            className="transition duration-700 ease-out group-hover:scale-[1.04]"
+          />
+        </div>
       </div>
       {caption ? (
-        <figcaption className="px-1 pt-2.5 pb-1 font-heading text-sm text-stone-600">
+        <figcaption className="px-1 pt-3 font-heading text-sm text-stone-600">
           {caption}
         </figcaption>
       ) : null}

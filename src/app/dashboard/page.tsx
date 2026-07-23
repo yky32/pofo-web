@@ -16,52 +16,54 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      {/* Welcome banner with photo */}
-      <section className="relative overflow-hidden rounded-sm film-grain">
-        <div className="relative min-h-[180px] sm:min-h-[200px]">
+      {/* Immersive studio banner */}
+      <section className="photo-stage relative overflow-hidden rounded-3xl film-grain">
+        <div className="relative min-h-[240px] sm:min-h-[300px]">
           <PhotoImage
             src={studioPhotos.outdoor}
             alt=""
             sizes="100vw"
             className="object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-stone-950/80 via-stone-950/50 to-stone-950/20" />
-          <div className="relative flex h-full min-h-[180px] flex-col justify-end p-6 sm:min-h-[200px] sm:p-8">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/60">
-              Your studio
-            </p>
-            <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="font-heading text-3xl font-medium text-white sm:text-4xl">
-                  Good light today.
-                </h1>
-                <p className="mt-1 text-sm text-white/70">
-                  {galleries.length} galleries · {totalPhotos} photos ·{" "}
-                  {proofing} awaiting selection
-                </p>
+          <div className="absolute inset-0 z-[1] bg-gradient-to-r from-stone-950/70 via-stone-950/35 to-transparent" />
+          <div className="absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_70%_50%,transparent_20%,oklch(0.2_0.02_50_/_0.25)_100%)]" />
+          <div className="relative z-[2] flex min-h-[240px] flex-col justify-end p-6 sm:min-h-[300px] sm:p-8">
+            <div className="glass-dark max-w-lg rounded-2xl p-5 text-white sm:p-6">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/55">
+                Your studio
+              </p>
+              <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h1 className="font-heading text-3xl font-medium sm:text-4xl">
+                    Good light today.
+                  </h1>
+                  <p className="mt-1 text-sm text-white/70">
+                    {galleries.length} galleries · {totalPhotos} photos ·{" "}
+                    {proofing} awaiting selection
+                  </p>
+                </div>
+                <Button
+                  className="w-fit shrink-0 rounded-full bg-white/95 text-stone-900 hover:bg-white"
+                  asChild
+                >
+                  <Link href="/dashboard/galleries/new">
+                    <Plus className="mr-1 h-4 w-4" />
+                    New gallery
+                  </Link>
+                </Button>
               </div>
-              <Button
-                className="w-fit rounded-full bg-white text-stone-900 hover:bg-stone-100"
-                asChild
-              >
-                <Link href="/dashboard/galleries/new">
-                  <Plus className="mr-1 h-4 w-4" />
-                  New gallery
-                </Link>
-              </Button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Simple stats */}
       <section className="grid grid-cols-3 gap-3 sm:gap-4">
         {[
           { label: "Galleries", value: galleries.length },
           { label: "Proofing", value: proofing },
           { label: "Photos", value: totalPhotos },
         ].map((stat) => (
-          <div key={stat.label} className="paper rounded-sm px-4 py-5 sm:px-6">
+          <div key={stat.label} className="glass rounded-2xl px-4 py-5 sm:px-6">
             <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
               {stat.label}
             </p>
@@ -72,7 +74,6 @@ export default function DashboardPage() {
         ))}
       </section>
 
-      {/* Recent — visual grid */}
       <section>
         <div className="mb-5 flex items-end justify-between">
           <div>
