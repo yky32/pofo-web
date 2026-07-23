@@ -87,10 +87,55 @@ Do **not** block upload on full-res re-encode.
 
 | Phase | Deliverable |
 |-------|-------------|
-| **A (now)** | Concurrent Supabase uploads, progress, retries, chunked DB insert, higher batch cap |
-| **B** | R2 presigned multi-file session; switch storage backend behind adapter |
+| **A** | Concurrent uploads, progress, retries, chunked DB insert, higher batch cap |
+| **B (now)** | R2 presigned multi-file session; auto-fallback to Supabase Storage |
 | **C** | Resumable (tus or S3 multipart) for flaky hotel Wi‑Fi |
 | **D** | Async derivatives + optional RAW |
+
+## Phase B — R2 setup
+
+1. Cloudflare dashboard → **R2** → Create bucket (e.g. `pofo-shots`).
+2. **Manage R2 API Tokens** → create token with Object Read & Write on that bucket.
+3. Enable **Public access** (r2.dev subdomain) **or** attach a custom domain → copy public base URL.
+4. **CORS policy** on the bucket (Settings → CORS), e.g.:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3002",
+      "https://pofo-web.vercel.app"
+    ],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+5. Add to `.env.local` and Vercel:
+
+```bash
+R2_ACCOUNT_ID=...
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=pofo-shots
+R2_PUBLIC_URL=https://pub-xxxxx.r2.dev
+```
+
+6. Restart dev / redeploy. Upload UI shows **Cloudflare R2** when ready.
+
+### Flow (code)
+
+```text
+prepareBatchUpload (server) → presigned PUT slots
+  → client PUT file (pool of 5)
+  → registerUploadedShots (DB chunks)
+```
+
+If R2 env incomplete → same UI uses **Supabase Storage** (path upload via SDK).
 
 ## Security
 

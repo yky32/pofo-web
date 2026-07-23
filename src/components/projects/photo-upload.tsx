@@ -1,19 +1,24 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 import { registerUploadedShots } from "@/actions/shots";
+import {
+  getUploadBackend,
+  prepareBatchUpload,
+  type UploadBackend,
+  type UploadSlot,
+} from "@/actions/uploads";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { chunkArray, runPool, withRetry } from "@/lib/upload-pool";
 import { cn } from "@/lib/utils";
 
-/** Per-file cap — wedding JPEGs often 8–12MB; leave headroom */
 const MAX_BYTES = 30 * 1024 * 1024;
-/** Soft product cap per select (can multi-select again to add more) */
 const MAX_FILES_PER_PICK = 800;
 const CONCURRENCY = 5;
+const PREPARE_CHUNK = 100;
 const REGISTER_CHUNK = 50;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg";
 
@@ -26,9 +31,34 @@ type FileItem = {
   error?: string;
 };
 
+async function putToR2(slot: UploadSlot, file: File) {
+  if (!slot.uploadUrl) throw new Error("Missing presigned URL");
+  const res = await fetch(slot.uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: {
+      "Content-Type": slot.contentType || file.type || "image/jpeg",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`R2 upload failed (${res.status})`);
+  }
+}
+
+async function putToSupabase(slot: UploadSlot, file: File) {
+  const supabase = createClient();
+  const { error } = await supabase.storage.from("shots").upload(slot.storagePath, file, {
+    cacheControl: "3600",
+    upsert: false,
+    contentType: slot.contentType || file.type || "image/jpeg",
+  });
+  if (error) throw new Error(error.message);
+}
+
 export function PhotoUpload({ projectId }: { projectId: string }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [backend, setBackend] = useState<UploadBackend>("supabase");
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<FileItem[]>([]);
   const [done, setDone] = useState(0);
@@ -36,6 +66,10 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    void getUploadBackend().then(setBackend);
+  }, []);
 
   const patchItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setItems((prev) =>
@@ -57,7 +91,7 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
     const tooBig = fileList.find((f) => f.size > MAX_BYTES);
     if (tooBig) {
       setError(
-        `"${tooBig.name}" is over 30MB. Compress or split RAW delivery later.`
+        `"${tooBig.name}" is over 30MB. Compress or use RAW delivery later.`
       );
       return;
     }
@@ -82,13 +116,31 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
     setTotal(queue.length);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setError("You must be logged in.");
-        return;
+      // 1) Prepare slots (presign R2 or Supabase paths) in chunks
+      const slotByClientId = new Map<string, UploadSlot>();
+      let activeBackend: UploadBackend = backend;
+
+      for (const group of chunkArray(queue, PREPARE_CHUNK)) {
+        const prepared = await prepareBatchUpload({
+          projectId,
+          files: group.map((item) => ({
+            clientId: item.id,
+            filename: item.file.name,
+            contentType: item.file.type || "image/jpeg",
+            sizeBytes: item.file.size,
+          })),
+        });
+
+        if (!prepared.ok) {
+          setError(prepared.error);
+          return;
+        }
+
+        activeBackend = prepared.backend;
+        setBackend(prepared.backend);
+        for (const slot of prepared.slots) {
+          slotByClientId.set(slot.clientId, slot);
+        }
       }
 
       type Meta = {
@@ -99,27 +151,25 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         sizeBytes: number;
       };
 
+      // 2) Concurrent direct-to-storage PUTs
       const tasks = queue.map((item) => async (): Promise<Meta> => {
+        const slot = slotByClientId.get(item.id);
+        if (!slot) throw new Error("Missing upload slot");
+
         patchItem(item.id, { status: "uploading", error: undefined });
-        const safe = item.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const path = `${user.id}/${projectId}/${crypto.randomUUID()}-${safe}`;
 
         await withRetry(async () => {
-          const { error: upErr } = await supabase.storage
-            .from("shots")
-            .upload(path, item.file, {
-              cacheControl: "3600",
-              upsert: false,
-              contentType: item.file.type || "image/jpeg",
-            });
-          if (upErr) throw new Error(upErr.message);
+          if (activeBackend === "r2") {
+            await putToR2(slot, item.file);
+          } else {
+            await putToSupabase(slot, item.file);
+          }
         }, 3);
 
-        const { data: pub } = supabase.storage.from("shots").getPublicUrl(path);
         patchItem(item.id, { status: "done" });
         return {
-          storagePath: path,
-          previewUrl: pub.publicUrl,
+          storagePath: slot.storagePath,
+          previewUrl: slot.previewUrl,
           filename: item.file.name,
           mimeType: item.file.type || "image/jpeg",
           sizeBytes: item.file.size,
@@ -149,12 +199,10 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
         return;
       }
 
-      // Chunk metadata registration (large batches)
+      // 3) Register metadata in chunks
       let registered = 0;
-      const chunks = chunkArray(uploaded, REGISTER_CHUNK);
       let sortStart: number | undefined;
-
-      for (const chunk of chunks) {
+      for (const chunk of chunkArray(uploaded, REGISTER_CHUNK)) {
         const result = await registerUploadedShots({
           projectId,
           files: chunk,
@@ -172,10 +220,11 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
 
       const failed = queue.length - uploaded.length;
       if (registered > 0) {
+        const via = activeBackend === "r2" ? "R2" : "Storage";
         setSuccess(
           failed > 0
-            ? `${registered} saved · ${failed} failed — retry those files`
-            : `${registered} photos added`
+            ? `${registered} saved via ${via} · ${failed} failed`
+            : `${registered} photos added (${via})`
         );
         router.refresh();
       }
@@ -244,7 +293,10 @@ export function PhotoUpload({ projectId }: { projectId: string }) {
             {busy ? "Uploading…" : "Upload photos"}
           </Button>
           <p className="text-xs text-stone-500">
-            Drop 300–800 JPEGs here · up to 30MB each · {CONCURRENCY} at a time
+            Drop large batches here · up to 30MB ·{" "}
+            <span className="text-stone-600">
+              {backend === "r2" ? "Cloudflare R2" : "Supabase Storage"}
+            </span>
           </p>
         </div>
 
