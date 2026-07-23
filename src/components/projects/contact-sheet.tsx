@@ -6,6 +6,7 @@ import { Check, Trash2, X } from "lucide-react";
 import { deleteProjectShots } from "@/actions/shots";
 import { MosaicGrid } from "@/components/photo/mosaic-grid";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
 
 export type ContactSheetItem = {
@@ -22,6 +23,7 @@ export function ContactSheet({
   items: ContactSheetItem[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
@@ -55,18 +57,17 @@ export function ContactSheet({
     }
   }
 
-  function onDelete() {
+  async function onDelete() {
     if (!count) return;
     const n = count;
-    if (
-      !window.confirm(
-        n === 1
-          ? "Delete this photo? This cannot be undone."
-          : `Delete ${n} photos? This cannot be undone.`
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      title: n === 1 ? "Delete this photo?" : `Delete ${n} photos?`,
+      description: "This cannot be undone. Photos are removed from the gallery and storage.",
+      confirmLabel: n === 1 ? "Delete photo" : `Delete ${n}`,
+      cancelLabel: "Cancel",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     const ids = [...selected];
     setError(null);

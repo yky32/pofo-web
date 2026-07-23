@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Caveat, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 /** Site stack — Notebook Hand */
@@ -39,7 +40,7 @@ export default function RootLayout({
       <body
         className={`${heading.variable} ${sans.variable} ${mono.variable} font-sans antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
