@@ -36,15 +36,17 @@ export function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {
             className={cn(
               "flex items-center rounded-[5px] text-sm transition-colors",
               collapsed
-                ? "justify-center px-0 py-2.5"
-                : "gap-3 px-3 py-2.5",
+                ? "justify-center px-0 py-2"
+                : "gap-2.5 px-2.5 py-2",
               active
                 ? "bg-stone-900 text-stone-50"
                 : "text-stone-500 hover:bg-stone-900/5 hover:text-stone-900"
             )}
           >
             <Icon className="h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} />
-            {!collapsed ? <span>{label}</span> : (
+            {!collapsed ? (
+              <span className="truncate">{label}</span>
+            ) : (
               <span className="sr-only">{label}</span>
             )}
           </Link>

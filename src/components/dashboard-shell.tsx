@@ -53,14 +53,14 @@ export function DashboardShell({
       <div className="mx-auto flex min-h-screen max-w-[1400px]">
         <aside
           className={cn(
-            "glass-light sticky top-0 hidden h-screen shrink-0 flex-col border-r border-stone-900/5 p-4 transition-[width] duration-200 ease-out md:flex",
-            collapsed ? "w-[4.5rem]" : "w-56 p-5",
+            "glass-light sticky top-0 hidden h-screen shrink-0 flex-col border-r border-stone-900/5 transition-[width] duration-200 ease-out md:flex",
+            collapsed ? "w-14 p-2.5" : "w-48 p-3.5",
             !ready && "opacity-0"
           )}
         >
           <div
             className={cn(
-              "mb-8",
+              "mb-6",
               collapsed ? "flex justify-center" : "px-0.5"
             )}
           >
