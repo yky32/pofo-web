@@ -1,12 +1,20 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { emailFieldError } from "@/lib/email";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+
+export type AuthFields = {
+  email?: string;
+  password?: string;
+  studio?: string;
+};
 
 export type AuthState = {
   error?: string;
   success?: string;
+  fields?: AuthFields;
 };
 
 export async function signUp(
@@ -28,11 +36,15 @@ export async function signUp(
     studioName ||
     email.split("@")[0];
 
-  if (!email || !password) {
-    return { error: "Email and password are required." };
-  }
-  if (password.length < 6) {
-    return { error: "Password must be at least 6 characters." };
+  const fields: AuthFields = {};
+  const emailError = emailFieldError(email);
+  if (emailError) fields.email = emailError;
+  if (!password) fields.password = "Enter your password";
+  else if (password.length < 6)
+    fields.password = "Use at least 6 characters";
+
+  if (fields.email || fields.password) {
+    return { fields };
   }
 
   const supabase = await createClient();
@@ -82,8 +94,13 @@ export async function signIn(
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/dashboard");
 
-  if (!email || !password) {
-    return { error: "Email and password are required." };
+  const fields: AuthFields = {};
+  const emailError = emailFieldError(email);
+  if (emailError) fields.email = emailError;
+  if (!password) fields.password = "Enter your password";
+
+  if (fields.email || fields.password) {
+    return { fields };
   }
 
   const supabase = await createClient();

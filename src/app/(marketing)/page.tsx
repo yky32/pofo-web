@@ -46,26 +46,36 @@ const steps = [
 export default function HomePage() {
   return (
     <main>
-      {/* Hero — image-first */}
+      {/* Hero — image-first + quiet breathing motion */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-16">
+        {/* Soft ambient glows */}
+        <div
+          aria-hidden
+          className="hero-glow pointer-events-none absolute -left-24 top-8 h-72 w-72 rounded-full bg-[radial-gradient(circle,oklch(0.92_0.04_75/0.55),transparent_70%)] blur-2xl"
+        />
+        <div
+          aria-hidden
+          className="hero-glow-delay pointer-events-none absolute -right-16 top-1/3 h-80 w-80 rounded-full bg-[radial-gradient(circle,oklch(0.9_0.03_40/0.4),transparent_70%)] blur-3xl"
+        />
+
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:pb-24 lg:pt-16">
           <div className="flex flex-col justify-center lg:col-span-5">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+            <p className="hero-enter text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
               Client delivery for photographers
             </p>
-            <h1 className="mt-4 font-heading text-5xl font-medium leading-[1.05] tracking-tight text-stone-900 sm:text-6xl lg:text-[3.5rem]">
+            <h1 className="hero-enter hero-enter-delay-1 mt-4 font-heading text-5xl font-medium leading-[1.05] tracking-tight text-stone-900 sm:text-6xl lg:text-[3.5rem]">
               Deliver photos
               <br />
               <span className="text-stone-500">like they deserve.</span>
             </h1>
-            <p className="mt-6 max-w-md text-base leading-relaxed text-stone-600 sm:text-lg">
+            <p className="hero-enter hero-enter-delay-2 mt-6 max-w-md text-base leading-relaxed text-stone-600 sm:text-lg">
               Private galleries. Simple proofing. No Drive folders. Just a
               beautiful handoff from shoot to client.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+            <div className="hero-enter hero-enter-delay-3 mt-8 flex flex-wrap items-center gap-3">
               <Button
                 size="lg"
-                className="rounded-full bg-stone-900 px-7 text-stone-50 hover:bg-stone-800"
+                className="hero-cta-pulse rounded-full bg-stone-900 px-7 text-stone-50 hover:bg-stone-800"
                 asChild
               >
                 <Link href="/signup">
@@ -82,43 +92,46 @@ export default function HomePage() {
                 <Link href="/dashboard">See the studio</Link>
               </Button>
             </div>
-            <p className="mt-5 text-sm text-stone-400">
+            <p className="hero-enter hero-enter-delay-4 mt-5 text-sm text-stone-400">
               Free during MVP · No credit card
             </p>
           </div>
 
-          {/* Photo collage */}
+          {/* Photo collage — staggered breathe */}
           <div className="relative lg:col-span-7">
             <div className="grid grid-cols-12 gap-3 sm:gap-4">
-              <div className="col-span-7 row-span-2">
+              <div className="hero-breathe col-span-7 row-span-2">
                 <PhotoFrame
                   src={studioPhotos.heroMain}
                   alt="Wedding couple portrait"
                   priority
                   aspect="aspect-[4/5]"
                   sizes="(max-width:1024px) 60vw, 40vw"
-                  className="h-full"
+                  className="h-full shadow-[0_20px_50px_-18px_rgba(28,25,23,0.22)]"
+                  imageClassName="hero-image-ken"
                 />
               </div>
-              <div className="col-span-5">
+              <div className="hero-breathe-delay col-span-5">
                 <PhotoFrame
                   src={studioPhotos.rings}
                   alt="Ring detail"
                   aspect="aspect-square"
                   sizes="25vw"
+                  className="shadow-[0_16px_40px_-16px_rgba(28,25,23,0.18)]"
                 />
               </div>
-              <div className="col-span-5">
+              <div className="hero-breathe-delay-2 col-span-5">
                 <PhotoFrame
                   src={studioPhotos.ceremony}
                   alt="Ceremony moment"
                   aspect="aspect-[4/5]"
                   sizes="25vw"
+                  className="shadow-[0_16px_40px_-16px_rgba(28,25,23,0.18)]"
                 />
               </div>
             </div>
-            <div className="pointer-events-none absolute -bottom-4 -left-2 hidden rotate-[-3deg] sm:block lg:-left-6">
-              <div className="paper rounded-[5px] px-3 py-2 text-xs text-stone-500">
+            <div className="hero-float-chip pointer-events-none absolute -bottom-4 -left-2 hidden sm:block lg:-left-6">
+              <div className="paper rounded-[5px] px-3 py-2 text-xs text-stone-500 shadow-[0_12px_28px_-12px_rgba(28,25,23,0.2)]">
                 <span className="font-heading text-base text-stone-800">
                   286
                 </span>{" "}

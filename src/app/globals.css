@@ -176,3 +176,155 @@
   border-color: oklch(0.92 0.008 75 / 0.45);
   box-shadow: 0 1px 0 oklch(1 0 0 / 0.75) inset;
 }
+
+/* —— Home hero: quiet “breathing” motion (Studio Paper) —— */
+@keyframes hero-breathe {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.025) translateY(-6px);
+  }
+}
+
+@keyframes hero-breathe-soft {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.035) translateY(-8px);
+  }
+}
+
+@keyframes hero-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(-2.5deg);
+  }
+}
+
+@keyframes hero-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes hero-image-ken {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes hero-cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.3 0.015 50 / 0.22);
+  }
+  50% {
+    box-shadow: 0 0 0 10px oklch(0.3 0.015 50 / 0);
+  }
+}
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-breathe {
+  animation: hero-breathe 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.hero-breathe-delay {
+  animation: hero-breathe-soft 8.5s ease-in-out infinite;
+  animation-delay: 1.2s;
+  will-change: transform;
+}
+
+.hero-breathe-delay-2 {
+  animation: hero-breathe 9s ease-in-out infinite;
+  animation-delay: 2.4s;
+  will-change: transform;
+}
+
+.hero-float-chip {
+  animation: hero-float 6.5s ease-in-out infinite;
+  animation-delay: 0.6s;
+  will-change: transform;
+}
+
+.hero-glow {
+  animation: hero-glow 8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.hero-glow-delay {
+  animation: hero-glow 10s ease-in-out infinite;
+  animation-delay: 2s;
+  will-change: transform, opacity;
+}
+
+.hero-image-ken {
+  animation: hero-image-ken 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.hero-cta-pulse {
+  animation: hero-cta-pulse 2.8s ease-out infinite;
+}
+
+.hero-enter {
+  animation: hero-fade-up 0.9s ease-out both;
+}
+
+.hero-enter-delay-1 {
+  animation-delay: 0.08s;
+}
+.hero-enter-delay-2 {
+  animation-delay: 0.16s;
+}
+.hero-enter-delay-3 {
+  animation-delay: 0.28s;
+}
+.hero-enter-delay-4 {
+  animation-delay: 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-breathe,
+  .hero-breathe-delay,
+  .hero-breathe-delay-2,
+  .hero-float-chip,
+  .hero-glow,
+  .hero-glow-delay,
+  .hero-image-ken,
+  .hero-cta-pulse,
+  .hero-enter,
+  .hero-enter-delay-1,
+  .hero-enter-delay-2,
+  .hero-enter-delay-3,
+  .hero-enter-delay-4 {
+    animation: none !important;
+  }
+}

@@ -7,6 +7,7 @@ export function PhotoFrame({
   alt,
   caption,
   className,
+  imageClassName,
   aspect = "aspect-[4/5]",
   priority,
   sizes,
@@ -15,6 +16,7 @@ export function PhotoFrame({
   alt: string;
   caption?: string;
   className?: string;
+  imageClassName?: string;
   aspect?: string;
   priority?: boolean;
   sizes?: string;
@@ -32,7 +34,10 @@ export function PhotoFrame({
           alt={alt}
           priority={priority}
           sizes={sizes}
-          className="transition duration-700 ease-out group-hover:scale-[1.03]"
+          className={cn(
+            "transition duration-700 ease-out group-hover:scale-[1.03]",
+            imageClassName,
+          )}
         />
       </div>
       {caption ? (

@@ -3,6 +3,12 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signUp, type AuthState } from "@/actions/auth";
+import { EmailField } from "@/components/auth/email-field";
+import {
+  FieldMessage,
+  FormBanner,
+  fieldInputClass,
+} from "@/components/auth/field-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +17,8 @@ const initial: AuthState = {};
 
 export function SignupForm() {
   const [state, action, pending] = useActionState(signUp, initial);
+
+  const passwordError = state.fields?.password;
 
   return (
     <div className="w-full max-w-sm">
@@ -24,51 +32,52 @@ export function SignupForm() {
         Start delivering projects in minutes.
       </p>
 
-      <form action={action} className="mt-8 space-y-4">
+      <form action={action} noValidate className="mt-8 space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="studio">Studio name</Label>
+          <Label htmlFor="studio" className="text-stone-700">
+            Studio name
+          </Label>
           <Input
             id="studio"
             name="studio"
             placeholder="Light & Frame Studio"
             className="rounded-xl"
           />
+          <FieldMessage tone="muted">
+            Optional — you can change this later.
+          </FieldMessage>
         </div>
+
+        <EmailField serverError={state.fields?.email} />
+
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder="you@studio.com"
-            className="rounded-xl"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-stone-700">
+            Password
+          </Label>
           <Input
             id="password"
             name="password"
             type="password"
             autoComplete="new-password"
-            required
-            minLength={6}
             placeholder="••••••••"
-            className="rounded-xl"
+            aria-invalid={!!passwordError}
+            aria-describedby={
+              passwordError ? "password-error" : "password-hint"
+            }
+            className={fieldInputClass(!!passwordError)}
           />
+          {passwordError ? (
+            <FieldMessage id="password-error">{passwordError}</FieldMessage>
+          ) : (
+            <FieldMessage id="password-hint" tone="muted">
+              At least 6 characters.
+            </FieldMessage>
+          )}
         </div>
 
-        {state.error ? (
-          <p className="rounded-[5px] bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100">
-            {state.error}
-          </p>
-        ) : null}
+        {state.error ? <FormBanner>{state.error}</FormBanner> : null}
         {state.success ? (
-          <p className="rounded-[5px] bg-emerald-50 px-3 py-2 text-sm text-emerald-800 ring-1 ring-emerald-100">
-            {state.success}
-          </p>
+          <FormBanner tone="success">{state.success}</FormBanner>
         ) : null}
 
         <Button
@@ -82,7 +91,10 @@ export function SignupForm() {
 
       <p className="mt-8 text-center text-sm text-stone-500">
         Already have an account?{" "}
-        <Link href="/login" className="text-stone-900 underline-offset-4 hover:underline">
+        <Link
+          href="/login"
+          className="text-stone-900 underline-offset-4 hover:underline"
+        >
           Log in
         </Link>
       </p>
