@@ -501,27 +501,25 @@ export function ShareLinkPanel({
                                 <Copy className="h-3.5 w-3.5" />
                               )}
                             </button>
-                            {/* Regenerate password — same URL, new secret */}
-                            <button
-                              type="button"
-                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50"
-                              disabled={
-                                regenLinkId === link.id || revokePending
-                              }
-                              onClick={() => void onRegenerate(link.id)}
-                              title={
-                                link.password_protected
-                                  ? "Regenerate password"
-                                  : "Set a new password (locks this link)"
-                              }
-                            >
-                              <RefreshCw
-                                className={cn(
-                                  "h-3.5 w-3.5",
-                                  regenLinkId === link.id && "animate-spin"
-                                )}
-                              />
-                            </button>
+                            {/* Regenerate only for password-protected (locked) links */}
+                            {link.password_protected ? (
+                              <button
+                                type="button"
+                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-stone-500 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50"
+                                disabled={
+                                  regenLinkId === link.id || revokePending
+                                }
+                                onClick={() => void onRegenerate(link.id)}
+                                title="Regenerate password"
+                              >
+                                <RefreshCw
+                                  className={cn(
+                                    "h-3.5 w-3.5",
+                                    regenLinkId === link.id && "animate-spin"
+                                  )}
+                                />
+                              </button>
+                            ) : null}
                             <form action={revokeAction} className="shrink-0">
                               <input
                                 type="hidden"
