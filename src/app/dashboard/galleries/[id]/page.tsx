@@ -1,19 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, Download } from "lucide-react";
 import {
-  ArrowLeft,
-  Download,
-  Link2,
-  Upload,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  countProjectSelections,
+  listProjectShots,
+} from "@/actions/shots";
+import { getProject } from "@/actions/projects";
+import { listShareLinks } from "@/actions/share";
 import { GalleryStatusBadge } from "@/components/gallery-status-badge";
 import { PhotoImage } from "@/components/photo/photo-image";
-import { getProject } from "@/actions/projects";
+import { SeedPhotosButton } from "@/components/projects/seed-photos-button";
+import { ShareLinkPanel } from "@/components/projects/share-link-panel";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
 import { mockGalleries } from "@/lib/mock-data";
 import { contactSheet, galleryCovers, studioPhotos } from "@/lib/photos";
-import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
+import { shotDisplayUrl, type Shot } from "@/types/database";
 
 export default async function GalleryDetailPage({
   params,
@@ -24,12 +27,18 @@ export default async function GalleryDetailPage({
 
   let gallery = mockGalleries.find((g) => g.id === id) ?? null;
   let isDemo = true;
+  let shots: Shot[] = [];
+  let selectionCount = 0;
+  let shareLinks: Awaited<ReturnType<typeof listShareLinks>> = [];
 
   if (isSupabaseConfigured()) {
     const real = await getProject(id);
     if (real) {
       gallery = real;
       isDemo = false;
+      shots = await listProjectShots(id);
+      selectionCount = await countProjectSelections(id);
+      shareLinks = await listShareLinks(id);
     } else if (!gallery) {
       notFound();
     }
@@ -39,9 +48,29 @@ export default async function GalleryDetailPage({
 
   if (!gallery) notFound();
 
-  const cover = galleryCovers[gallery.id] ?? studioPhotos.studio;
-  const sharePreview = `${getAppUrl()}/g/demo-${gallery.id}`;
-  const sheet = isDemo ? contactSheet.slice(0, 15) : [];
+  const coverFromShot = shots.map(shotDisplayUrl).find(Boolean);
+  const cover =
+    coverFromShot ||
+    galleryCovers[gallery.id] ||
+    studioPhotos.studio;
+
+  const sheet = isDemo
+    ? contactSheet.slice(0, 15)
+    : shots
+        .map((s) => shotDisplayUrl(s))
+        .filter((u): u is string => Boolean(u));
+
+  const photoCount = isDemo ? (gallery.photo_count ?? 0) : shots.length;
+  const selectedCount = isDemo
+    ? (gallery.selection_count ?? 0)
+    : selectionCount;
+
+  const activeLink = shareLinks.find((l) => l.is_active);
+  const clientHref = isDemo
+    ? `/g/demo-${gallery.id}`
+    : activeLink
+      ? `/g/${activeLink.token}`
+      : null;
 
   return (
     <div className="space-y-8">
@@ -73,9 +102,8 @@ export default async function GalleryDetailPage({
                 className="bg-white/90 text-stone-800"
               />
               <span className="text-xs text-white/60">
-                {isDemo
-                  ? `${gallery.photo_count ?? 0} photos (demo)`
-                  : "No photos yet — upload next"}
+                {photoCount} photos
+                {isDemo ? " (demo)" : ""}
               </span>
             </div>
             <h1 className="mt-2 font-heading text-3xl font-medium text-white sm:text-4xl">
@@ -89,31 +117,18 @@ export default async function GalleryDetailPage({
         </div>
       </section>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full border-stone-300"
-          disabled
-          title="Coming in Phase 2"
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          Upload photos
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="rounded-full border-stone-300"
-          disabled
-          title="Coming in Phase 3"
-        >
-          <Link2 className="mr-2 h-4 w-4" />
-          Share link
-        </Button>
+      <div className="flex flex-wrap items-start gap-4">
+        {!isDemo ? (
+          <SeedPhotosButton
+            projectId={gallery.id}
+            disabled={shots.length > 0}
+          />
+        ) : null}
         <Button
           size="sm"
           className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
           disabled
+          title="Coming soon"
         >
           <Download className="mr-2 h-4 w-4" />
           Export selection
@@ -126,7 +141,7 @@ export default async function GalleryDetailPage({
             Photos
           </p>
           <p className="mt-1 font-heading text-3xl text-stone-900">
-            {gallery.photo_count ?? 0}
+            {photoCount}
           </p>
         </div>
         <div className="paper rounded-[5px] p-5">
@@ -134,7 +149,7 @@ export default async function GalleryDetailPage({
             Selected
           </p>
           <p className="mt-1 font-heading text-3xl text-stone-900">
-            {gallery.selection_count ?? 0}
+            {selectedCount}
             <span className="text-lg text-stone-400">
               /{gallery.selection_limit}
             </span>
@@ -144,17 +159,32 @@ export default async function GalleryDetailPage({
           <p className="text-xs uppercase tracking-[0.15em] text-stone-400">
             Client link
           </p>
-          <p className="mt-1 truncate text-sm text-stone-600">{sharePreview}</p>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="mt-3 rounded-full"
-            asChild
-          >
-            <Link href={`/g/demo-${gallery.id}`} target="_blank">
-              Open client view
-            </Link>
-          </Button>
+          {isDemo ? (
+            <>
+              <p className="mt-1 truncate text-sm text-stone-600">
+                {getAppUrl()}/g/demo-{gallery.id}
+              </p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="mt-3 rounded-full"
+                asChild
+              >
+                <Link href={`/g/demo-${gallery.id}`} target="_blank">
+                  Open client view
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <div className="mt-3">
+              <ShareLinkPanel
+                projectId={gallery.id}
+                links={shareLinks}
+                appUrl={getAppUrl()}
+                hasPhotos={shots.length > 0}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -189,32 +219,59 @@ export default async function GalleryDetailPage({
             </div>
           ) : (
             <div className="paper rounded-[5px] p-10 text-center">
-              <p className="font-heading text-xl text-stone-900">No photos yet</p>
-              <p className="mt-2 text-sm text-stone-500">
-                Phase 2 will add R2 upload + contact sheet.
+              <p className="font-heading text-xl text-stone-900">
+                No photos yet
               </p>
+              <p className="mt-2 text-sm text-stone-500">
+                Add sample photos to try share + client proofing. Real R2
+                upload comes next.
+              </p>
+              {!isDemo ? (
+                <div className="mt-6 flex justify-center">
+                  <SeedPhotosButton projectId={gallery.id} />
+                </div>
+              ) : null}
             </div>
           )}
         </TabsContent>
         <TabsContent value="selections" className="mt-5">
           <div className="paper rounded-[5px] p-8 text-center">
             <p className="font-heading text-xl text-stone-900">
-              {gallery.selection_count ?? 0} favorites
+              {selectedCount} favorites
             </p>
             <p className="mt-2 text-sm text-stone-500">
-              Client proofing comes after share links.
+              {isDemo
+                ? "Demo data — connect Supabase for live proofing."
+                : clientHref
+                  ? "Clients select on the private share link."
+                  : "Create a share link so clients can pick favorites."}
             </p>
+            {clientHref ? (
+              <Button
+                className="mt-6 rounded-full"
+                variant="secondary"
+                asChild
+              >
+                <Link href={clientHref} target="_blank">
+                  Preview client view
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </TabsContent>
         <TabsContent value="settings" className="mt-5">
           <div className="paper rounded-[5px] p-8">
-            <p className="font-heading text-xl text-stone-900">Project settings</p>
+            <p className="font-heading text-xl text-stone-900">
+              Project settings
+            </p>
             <p className="mt-2 text-sm text-stone-500">
               Title: {gallery.title}
               <br />
               Client: {gallery.client_name ?? "—"}
               <br />
               Selection limit: {gallery.selection_limit}
+              <br />
+              Status: {gallery.status}
             </p>
           </div>
         </TabsContent>

@@ -63,12 +63,15 @@ else
   fail ".env.example missing Supabase keys"
 fi
 
-# Schema is Phase 1 (profiles + projects)
+# Schema is Phase 1–4 (profiles + projects + share + proofing)
 if grep -q 'create table if not exists public.profiles' supabase/schema.sql \
-  && grep -q 'create table if not exists public.projects' supabase/schema.sql; then
-  ok "schema.sql has profiles + projects"
+  && grep -q 'create table if not exists public.projects' supabase/schema.sql \
+  && grep -q 'create table if not exists public.shots' supabase/schema.sql \
+  && grep -q 'create table if not exists public.share_links' supabase/schema.sql \
+  && grep -q 'get_client_gallery' supabase/schema.sql; then
+  ok "schema.sql has profiles + projects + shots + share + RPCs"
 else
-  fail "schema.sql missing core tables"
+  fail "schema.sql missing core tables or client RPCs"
 fi
 
 # Auth gates on env helper

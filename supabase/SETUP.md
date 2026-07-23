@@ -1,6 +1,6 @@
-# Supabase setup — Phase 1 (Auth + Projects)
+# Supabase setup — Phase 1–4 (Auth + Projects + Share + Proofing)
 
-Do this once so Pofo can sign you in and save real projects.
+Do this once so Pofo can sign you in, save projects, share client links, and collect favorites.
 
 ---
 
@@ -56,9 +56,13 @@ bun dev
 This creates:
 
 - `profiles` (+ auto row on signup)
-- `projects`
-- `containers` (default “Main Gallery” when you create a project)
-- RLS policies (users only see their own data)
+- `projects` / `containers`
+- `shots` (preview URLs or future R2 keys)
+- `share_links` + `shot_selections` (client proofing)
+- RLS (owners only on tables)
+- RPCs `get_client_gallery` / `toggle_client_selection` (token access for clients)
+
+Re-running the script is safe (idempotent).
 
 ---
 

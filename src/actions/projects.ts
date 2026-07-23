@@ -30,7 +30,32 @@ export async function listProjects(): Promise<Project[]> {
     return [];
   }
 
-  return (data ?? []) as Project[];
+  const projects = (data ?? []) as Project[];
+  if (projects.length === 0) return projects;
+
+  // Attach photo / selection counts for dashboard cards
+  const ids = projects.map((p) => p.id);
+  const [{ data: shotRows }, { data: selRows }] = await Promise.all([
+    supabase.from("shots").select("project_id").in("project_id", ids),
+    supabase.from("shot_selections").select("project_id").in("project_id", ids),
+  ]);
+
+  const photoMap = new Map<string, number>();
+  for (const row of shotRows ?? []) {
+    const pid = (row as { project_id: string }).project_id;
+    photoMap.set(pid, (photoMap.get(pid) ?? 0) + 1);
+  }
+  const selMap = new Map<string, number>();
+  for (const row of selRows ?? []) {
+    const pid = (row as { project_id: string }).project_id;
+    selMap.set(pid, (selMap.get(pid) ?? 0) + 1);
+  }
+
+  return projects.map((p) => ({
+    ...p,
+    photo_count: photoMap.get(p.id) ?? 0,
+    selection_count: selMap.get(p.id) ?? 0,
+  }));
 }
 
 export async function getProject(id: string): Promise<Project | null> {
