@@ -3,21 +3,29 @@
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Check, Copy, ExternalLink, Link2, XCircle } from "lucide-react";
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  Link2,
+  XCircle,
+} from "lucide-react";
 import {
   createShareLink,
   revokeShareLink,
   type ShareActionState,
+  type ShareLinkPublic,
 } from "@/actions/share";
 import { Button } from "@/components/ui/button";
-import type { ShareLinkPublic } from "@/actions/share";
 import { cn } from "@/lib/utils";
 
 const initial: ShareActionState = {};
 
 /**
  * Client-link control: icon trigger (avatar-menu style).
- * Panel only mounts when open — full width stays free for the photo grid.
+ * After create with password → one-time secret reveal (Supabase-style).
  */
 export function ShareLinkPanel({
   projectId,
@@ -51,11 +59,33 @@ export function ShareLinkPanel({
   const [expiresDays, setExpiresDays] = useState("30");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+  /** One-time secret reveal after successful create */
+  const [secretReveal, setSecretReveal] = useState<{
+    token: string;
+    password?: string;
+  } | null>(null);
+  const [showPassword, setShowPassword] = useState(true);
+  const lastHandledToken = useRef<string | null>(null);
 
   const active = links.filter((l) => l.is_active);
-  const latestToken = createState.token ?? active[0]?.token;
+  const latestToken =
+    secretReveal?.token ?? createState.token ?? active[0]?.token;
 
   useEffect(() => setMounted(true), []);
+
+  // Capture one-time password from action result
+  useEffect(() => {
+    if (!createState.success || !createState.token) return;
+    if (lastHandledToken.current === createState.token) return;
+    lastHandledToken.current = createState.token;
+    setSecretReveal({
+      token: createState.token,
+      password: createState.plain_password,
+    });
+    setPassword("");
+    setPasswordConfirm("");
+    setShowPassword(true);
+  }, [createState.success, createState.token, createState.plain_password]);
 
   useEffect(() => {
     if (!copied) return;
@@ -102,14 +132,22 @@ export function ShareLinkPanel({
     return () => document.removeEventListener("mousedown", onPointer);
   }, [open]);
 
-  async function copyToken(token: string) {
-    const url = `${appUrl}/g/${token}`;
+  async function copyText(key: string, text: string) {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(token);
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
     } catch {
       setCopied(null);
     }
+  }
+
+  function copyToken(token: string) {
+    return copyText(token, `${appUrl}/g/${token}`);
+  }
+
+  function dismissSecret() {
+    setSecretReveal(null);
+    setShowPassword(false);
   }
 
   return (
@@ -153,7 +191,7 @@ export function ShareLinkPanel({
                 aria-label="Client share links"
                 style={{ top: pos.top, right: pos.right }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl",
+                  "dialog-glass-panel fixed z-[201] w-[min(21rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
@@ -167,71 +205,171 @@ export function ShareLinkPanel({
                 </div>
 
                 <div className="space-y-3 p-3">
-                  <form action={createAction} className="space-y-2.5">
-                    <input type="hidden" name="project_id" value={projectId} />
-                    <input
-                      type="hidden"
-                      name="expires_days"
-                      value={expiresDays}
-                    />
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
+                  {/* Supabase-style one-time secret reveal */}
+                  {secretReveal ? (
+                    <div className="space-y-2.5 rounded-xl bg-stone-900 px-3 py-3 text-stone-50 shadow-inner">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-400/90">
+                            Save these now
+                          </p>
+                          <p className="mt-0.5 text-[11px] leading-snug text-stone-400">
+                            {secretReveal.password
+                              ? "Password is shown once. We only store a hash."
+                              : "Copy the link for your client."}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={dismissSecret}
+                          className="shrink-0 text-[11px] text-stone-500 underline-offset-2 hover:text-stone-300 hover:underline"
+                        >
+                          Done
+                        </button>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-medium text-stone-500">
+                          Gallery link
+                        </p>
+                        <div className="flex items-center gap-1 rounded-lg bg-stone-800/80 ring-1 ring-white/10">
+                          <p className="min-w-0 flex-1 truncate px-2.5 py-2 font-mono text-[11px] text-stone-200">
+                            {appUrl}/g/{secretReveal.token}
+                          </p>
+                          <button
+                            type="button"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center text-stone-400 hover:text-white"
+                            onClick={() => copyToken(secretReveal.token)}
+                            title="Copy link"
+                          >
+                            {copied === secretReveal.token ? (
+                              <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {secretReveal.password ? (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-medium text-stone-500">
+                            Password
+                          </p>
+                          <div className="flex items-center gap-0.5 rounded-lg bg-stone-800/80 ring-1 ring-amber-400/25">
+                            <p className="min-w-0 flex-1 truncate px-2.5 py-2 font-mono text-[12px] tracking-wide text-amber-100">
+                              {showPassword
+                                ? secretReveal.password
+                                : "•".repeat(
+                                    Math.min(24, secretReveal.password.length)
+                                  )}
+                            </p>
+                            <button
+                              type="button"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center text-stone-400 hover:text-white"
+                              onClick={() => setShowPassword((v) => !v)}
+                              title={
+                                showPassword ? "Hide password" : "Show password"
+                              }
+                            >
+                              {showPassword ? (
+                                <EyeOff className="h-3.5 w-3.5" />
+                              ) : (
+                                <Eye className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center text-stone-400 hover:text-white"
+                              onClick={() =>
+                                copyText(
+                                  "secret-pw",
+                                  secretReveal.password!
+                                )
+                              }
+                              title="Copy password"
+                            >
+                              {copied === "secret-pw" ? (
+                                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <form action={createAction} className="space-y-2.5">
+                      <input
+                        type="hidden"
+                        name="project_id"
+                        value={projectId}
+                      />
+                      <input
+                        type="hidden"
+                        name="expires_days"
                         value={expiresDays}
-                        onChange={(e) => setExpiresDays(e.target.value)}
-                        className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
-                        disabled={!hasPhotos || createPending}
-                        aria-label="Link expiry"
-                      >
-                        <option value="7">7 days</option>
-                        <option value="30">30 days</option>
-                        <option value="90">90 days</option>
-                        <option value="0">Never</option>
-                      </select>
-                      <Button
-                        type="submit"
-                        size="sm"
-                        disabled={!hasPhotos || createPending}
-                        className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
-                        title={
-                          hasPhotos
-                            ? "Create a private client link"
-                            : "Add photos before sharing"
-                        }
-                      >
-                        <Link2 className="mr-1.5 h-3.5 w-3.5" />
-                        {createPending ? "Creating…" : "New link"}
-                      </Button>
-                    </div>
-                    <div className="space-y-1.5 rounded-lg bg-stone-50/80 p-2 ring-1 ring-stone-100">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-stone-400">
-                        Optional password
-                      </p>
-                      <input
-                        type="password"
-                        name="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Password for client"
-                        autoComplete="new-password"
-                        disabled={!hasPhotos || createPending}
-                        className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
                       />
-                      <input
-                        type="password"
-                        name="password_confirm"
-                        value={passwordConfirm}
-                        onChange={(e) => setPasswordConfirm(e.target.value)}
-                        placeholder="Confirm password"
-                        autoComplete="new-password"
-                        disabled={!hasPhotos || createPending}
-                        className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
-                      />
-                      <p className="text-[10px] leading-snug text-stone-400">
-                        Leave blank for open link. Share the password separately
-                        from the URL.
-                      </p>
-                    </div>
-                  </form>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={expiresDays}
+                          onChange={(e) => setExpiresDays(e.target.value)}
+                          className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
+                          disabled={!hasPhotos || createPending}
+                          aria-label="Link expiry"
+                        >
+                          <option value="7">7 days</option>
+                          <option value="30">30 days</option>
+                          <option value="90">90 days</option>
+                          <option value="0">Never</option>
+                        </select>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={!hasPhotos || createPending}
+                          className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+                          title={
+                            hasPhotos
+                              ? "Create a private client link"
+                              : "Add photos before sharing"
+                          }
+                        >
+                          <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                          {createPending ? "Creating…" : "New link"}
+                        </Button>
+                      </div>
+                      <div className="space-y-1.5 rounded-lg bg-stone-50/80 p-2 ring-1 ring-stone-100">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-stone-400">
+                          Optional password
+                        </p>
+                        <input
+                          type="password"
+                          name="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Password for client"
+                          autoComplete="new-password"
+                          disabled={!hasPhotos || createPending}
+                          className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
+                        />
+                        <input
+                          type="password"
+                          name="password_confirm"
+                          value={passwordConfirm}
+                          onChange={(e) => setPasswordConfirm(e.target.value)}
+                          placeholder="Confirm password"
+                          autoComplete="new-password"
+                          disabled={!hasPhotos || createPending}
+                          className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
+                        />
+                        <p className="text-[10px] leading-snug text-stone-400">
+                          Leave blank for open link. After create, password is
+                          shown once to copy.
+                        </p>
+                      </div>
+                    </form>
+                  )}
 
                   {!hasPhotos ? (
                     <p className="text-xs text-stone-500">
@@ -244,16 +382,13 @@ export function ShareLinkPanel({
                       {createState.error}
                     </p>
                   ) : null}
-                  {createState.success && createState.token ? (
-                    <p className="text-xs text-emerald-700">Link ready.</p>
-                  ) : null}
                   {revokeState.error ? (
                     <p className="text-xs text-rose-600/90">
                       {revokeState.error}
                     </p>
                   ) : null}
 
-                  {latestToken ? (
+                  {!secretReveal && latestToken ? (
                     <div className="flex gap-1.5">
                       <Button
                         type="button"
@@ -288,7 +423,7 @@ export function ShareLinkPanel({
                   ) : null}
 
                   {active.length > 0 ? (
-                    <ul className="max-h-48 space-y-1 overflow-y-auto overscroll-contain">
+                    <ul className="max-h-40 space-y-1 overflow-y-auto overscroll-contain">
                       {active.map((link) => {
                         const exp = link.expires_at
                           ? new Date(link.expires_at).toLocaleDateString()
@@ -343,7 +478,7 @@ export function ShareLinkPanel({
                         );
                       })}
                     </ul>
-                  ) : hasPhotos ? (
+                  ) : hasPhotos && !secretReveal ? (
                     <p className="text-xs text-stone-400">
                       No active links yet.
                     </p>

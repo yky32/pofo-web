@@ -18,6 +18,11 @@ export type ShareActionState = {
   error?: string;
   success?: string;
   token?: string;
+  /**
+   * One-time client reveal after create (Supabase-secret style).
+   * Never persisted — only the hash is stored.
+   */
+  plain_password?: string;
 };
 
 /** Safe for photographer UI — never expose password_hash to the browser. */
@@ -146,6 +151,8 @@ export async function createShareLink(
       ? "Password-protected link created."
       : "Share link created.",
     token: link.token,
+    // Echo once for UI copy — not stored in DB
+    plain_password: password || undefined,
   };
 }
 
