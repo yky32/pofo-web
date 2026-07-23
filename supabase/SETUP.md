@@ -192,3 +192,28 @@ NEXT_PUBLIC_APP_URL=http://localhost:3002   # must match redirect host
 ```
 
 Production: set the same on Vercel (`https://pofo-web.vercel.app`).
+
+## 8. Multiple providers on one account (Google + Apple + email)
+
+Same model as Triftly:
+
+| Layer | Stores |
+|-------|--------|
+| `auth.users` | One person / one account id |
+| `auth.identities` | google, apple, email rows (managed by Supabase) |
+| `public.profiles` | Studio profile only — **no** provider column |
+
+### Enabled
+
+- **Manual linking** (`security_manual_linking_enabled`) — link more IdPs while signed in
+- Settings → **Sign-in methods** → Link Google / Link Apple / Unlink
+
+### User flows
+
+1. Sign up with Google → later Settings → Link Apple (same studio)
+2. Sign up with email → Settings → Link Google
+3. Sign in with any linked provider → same `profiles` row / projects
+
+### Note
+
+Signing in with a *new* provider + *same email* may create a **second** account unless linking is used while logged in, or Supabase automatic email matching applies. Prefer **Link** from Settings for a clean multi-provider account.

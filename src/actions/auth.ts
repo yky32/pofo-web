@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { emailFieldError } from "@/lib/email";
 import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
@@ -194,4 +195,83 @@ export async function signInWithApple(formData: FormData) {
   const next = String(formData.get("next") ?? "/dashboard");
   const origin = String(formData.get("origin") ?? "");
   return signInWithOAuth("apple", next, origin);
+}
+
+/**
+ * Link another provider to the *currently signed-in* account (same email / multi-IdP).
+ * Requires Supabase "Manual linking" enabled — Triftly multi-provider model.
+ */
+export async function linkOAuthProvider(
+  provider: OAuthProvider,
+  originFromClient?: string | null
+) {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sign in first, then link a provider." };
+
+  const origin = resolveAppOrigin(originFromClient);
+  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(
+    "/dashboard/settings?linked=1"
+  )}`;
+
+  const { data, error } = await supabase.auth.linkIdentity({
+    provider,
+    options: {
+      redirectTo,
+      queryParams:
+        provider === "google" ? { prompt: "select_account" } : undefined,
+    },
+  });
+
+  if (error) return { error: error.message };
+  if (!data.url) return { error: "Could not start provider linking." };
+
+  redirect(data.url);
+}
+
+export async function linkGoogle(formData: FormData) {
+  return linkOAuthProvider("google", String(formData.get("origin") ?? ""));
+}
+
+export async function linkApple(formData: FormData) {
+  return linkOAuthProvider("apple", String(formData.get("origin") ?? ""));
+}
+
+export async function unlinkOAuthProvider(formData: FormData) {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const identityId = String(formData.get("identity_id") ?? "").trim();
+  if (!identityId) return { error: "Missing identity." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const identities = user.identities ?? [];
+  if (identities.length <= 1) {
+    return {
+      error: "Keep at least one sign-in method. Add another before unlinking.",
+    };
+  }
+
+  const identity = identities.find(
+    (i) => i.identity_id === identityId || i.id === identityId
+  );
+  if (!identity) return { error: "Identity not found on this account." };
+
+  const { error } = await supabase.auth.unlinkIdentity(identity);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  return { success: `Unlinked ${identity.provider}.` };
 }

@@ -33,9 +33,12 @@ begin
     )
   );
 
+  -- One public profile per auth.users id.
+  -- Multiple providers (google/apple/email) share this row via auth.identities.
   insert into public.profiles (id, display_name, studio_name, slug, avatar_url)
   values (new.id, v_display, v_studio, v_slug, v_avatar)
   on conflict (id) do update set
+    -- Prefer existing app-edited name over IdP refresh (Triftly pattern)
     display_name = coalesce(public.profiles.display_name, excluded.display_name),
     studio_name = coalesce(public.profiles.studio_name, excluded.studio_name),
     slug = coalesce(public.profiles.slug, excluded.slug),
@@ -44,3 +47,6 @@ begin
   return new;
 end;
 $$;
+
+-- Note: OAuth provider rows live in auth.identities (managed by Supabase Auth).
+-- Do not store provider flags on public.profiles — same email can have google + apple + email.

@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import {
+  avatarFromMetadata,
+  displayNameFromMetadata,
+} from "@/lib/auth-identities";
 import { isSupabaseConfigured } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
 
 /**
- * OAuth PKCE callback (Triftly-style: provider → redirectTo → exchange code).
- * Supabase redirects here after Google / Apple sign-in.
+ * OAuth PKCE callback — sign-in *or* linkIdentity return.
+ * Multi-provider: same auth.users id gains another auth.identities row.
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -13,65 +17,56 @@ export async function GET(request: Request) {
   const next = nextRaw.startsWith("/") ? nextRaw : "/dashboard";
   const err = searchParams.get("error");
   const errDesc = searchParams.get("error_description");
+  const isLinkFlow = next.includes("/dashboard/settings");
+
+  const failRedirect = (message: string) => {
+    const url = new URL(
+      isLinkFlow ? "/dashboard/settings" : "/login",
+      origin
+    );
+    url.searchParams.set("error", message);
+    return NextResponse.redirect(url);
+  };
 
   if (err) {
-    const login = new URL("/login", origin);
-    login.searchParams.set(
-      "error",
-      errDesc || err || "Social sign-in was cancelled"
-    );
-    return NextResponse.redirect(login);
+    return failRedirect(errDesc || err || "Social sign-in was cancelled");
   }
 
   if (!code || !isSupabaseConfigured()) {
-    const login = new URL("/login", origin);
-    login.searchParams.set("error", "Missing auth code. Try again.");
-    return NextResponse.redirect(login);
+    return failRedirect("Missing auth code. Try again.");
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    const login = new URL("/login", origin);
-    login.searchParams.set("error", error.message);
-    return NextResponse.redirect(login);
+    return failRedirect(error.message);
   }
 
-  // Ensure profile exists (trigger usually fires; upsert for safety)
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (user) {
-    const meta = user.user_metadata ?? {};
-    const display =
-      (meta.display_name as string | undefined) ||
-      (meta.full_name as string | undefined) ||
-      (meta.name as string | undefined) ||
-      user.email?.split("@")[0] ||
-      null;
-    const avatar =
-      (meta.avatar_url as string | undefined) ||
-      (meta.picture as string | undefined) ||
-      null;
+    const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const display = displayNameFromMetadata(meta, user.email);
+    const avatar = avatarFromMetadata(meta);
 
-    // Trigger usually created the row; fill name/avatar without clobbering slug.
-    await supabase
+    // Never wipe custom studio name / slug on OAuth re-auth or link.
+    // Only fill empty profile fields (Triftly display-name preference).
+    const { data: profile } = await supabase
       .from("profiles")
-      .update({
-        display_name: display,
-        avatar_url: avatar,
-      })
+      .select("display_name, avatar_url")
       .eq("id", user.id)
-      .is("display_name", null);
+      .maybeSingle();
 
-    if (avatar) {
-      await supabase
-        .from("profiles")
-        .update({ avatar_url: avatar })
-        .eq("id", user.id)
-        .is("avatar_url", null);
+    if (profile) {
+      const patch: { display_name?: string; avatar_url?: string } = {};
+      if (!profile.display_name && display) patch.display_name = display;
+      if (!profile.avatar_url && avatar) patch.avatar_url = avatar;
+      if (Object.keys(patch).length > 0) {
+        await supabase.from("profiles").update(patch).eq("id", user.id);
+      }
     }
   }
 
