@@ -207,38 +207,38 @@ export function DashboardUserMenu({
                 aria-label="Account"
                 style={{ bottom: pos.bottom, left: pos.left }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl py-1.5",
+                  "dialog-glass-panel fixed z-[201] w-[min(13.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl py-1",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
                 {(user?.displayName || user?.email) && (
-                  <div className="border-b border-stone-900/5 px-3.5 py-3">
-                    <div className="flex items-center gap-2">
+                  <div className="border-b border-stone-900/5 px-3 py-2.5">
+                    <div className="flex items-center gap-1.5">
                       <p className="min-w-0 flex-1 truncate text-sm font-medium text-stone-900">
                         {user.displayName || "Studio"}
                       </p>
                       <ProviderBadge provider={user.signInProvider} />
                     </div>
                     {user.email ? (
-                      <p className="mt-0.5 truncate text-xs text-stone-500">
+                      <p className="mt-0.5 truncate text-[11px] text-stone-500">
                         {user.email}
                       </p>
                     ) : null}
                   </div>
                 )}
 
-                <div className="p-1.5">
+                <div className="p-1">
                   <Link
                     href="/"
                     role="menuitem"
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-stone-700 transition",
+                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-stone-700 transition",
                       "hover:bg-stone-900/5 hover:text-stone-950"
                     )}
                   >
                     <ExternalLink
-                      className="h-4 w-4 shrink-0 opacity-70"
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
                       strokeWidth={1.75}
                     />
                     Marketing
@@ -249,12 +249,12 @@ export function DashboardUserMenu({
                       type="submit"
                       role="menuitem"
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-stone-700 transition",
+                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-stone-700 transition",
                         "hover:bg-stone-900/5 hover:text-stone-950"
                       )}
                     >
                       <LogOut
-                        className="h-4 w-4 shrink-0 opacity-70"
+                        className="h-3.5 w-3.5 shrink-0 opacity-70"
                         strokeWidth={1.75}
                       />
                       Log out
