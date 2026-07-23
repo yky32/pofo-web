@@ -17,7 +17,7 @@ const items = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
-export function DashboardNav() {
+export function DashboardNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -32,15 +32,21 @@ export function DashboardNav() {
           <Link
             key={href}
             href={href}
+            title={label}
             className={cn(
-              "flex items-center gap-3 rounded-[5px] px-3 py-2.5 text-sm transition-colors",
+              "flex items-center rounded-[5px] text-sm transition-colors",
+              collapsed
+                ? "justify-center px-0 py-2.5"
+                : "gap-3 px-3 py-2.5",
               active
                 ? "bg-stone-900 text-stone-50"
                 : "text-stone-500 hover:bg-stone-900/5 hover:text-stone-900"
             )}
           >
-            <Icon className="h-4 w-4 opacity-80" strokeWidth={1.75} />
-            {label}
+            <Icon className="h-4 w-4 shrink-0 opacity-80" strokeWidth={1.75} />
+            {!collapsed ? <span>{label}</span> : (
+              <span className="sr-only">{label}</span>
+            )}
           </Link>
         );
       })}
