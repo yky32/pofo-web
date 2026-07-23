@@ -32,6 +32,69 @@ Built for wedding and pre-wedding photographers who need a fast, professional wa
 - **Sharp** (Image processing)
 - **Vercel** (Deployment)
 
+## Getting started
+
+```bash
+# Install
+bun install
+
+# Env (optional for demo UI)
+cp .env.example .env.local
+
+# Dev server
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+Without Supabase env vars the app runs in **demo mode** with mock galleries so you can explore the UI.
+
+### Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run `supabase/schema.sql` in the SQL editor
+3. Add keys to `.env.local`
+
+### Cloudflare R2 setup
+
+1. Create an R2 bucket
+2. Create API tokens with object read/write
+3. Add `R2_*` vars to `.env.local`
+
+## Project structure
+
+```
+src/
+  app/
+    (marketing)/     # Landing page
+    (auth)/          # Login / signup
+    dashboard/       # Photographer app
+    g/[token]/       # Client gallery (public link)
+  components/        # UI + product components
+  lib/
+    supabase/        # Browser + server clients
+    r2.ts            # Signed upload/download URLs
+    mock-data.ts     # Demo galleries
+  types/             # Domain types
+supabase/
+  schema.sql         # Postgres + RLS
+```
+
+## MVP roadmap
+
+- [x] App scaffold (Next.js 15, Tailwind, shadcn)
+- [x] Marketing site + dashboard shell
+- [x] Client gallery preview route
+- [x] Supabase schema + RLS
+- [x] R2 signed URL helpers
+- [ ] Real Supabase auth (email magic link / password)
+- [ ] Create gallery Server Actions
+- [ ] Multipart upload to R2 + Sharp thumbnails
+- [ ] Share links (password, expiry, RAW window)
+- [ ] Client proofing selections
+- [ ] Draft → Final version switch
+- [ ] Portfolio publish flow
+
 ## Goal
 
 Create the lightest and best client delivery experience for photographers.
