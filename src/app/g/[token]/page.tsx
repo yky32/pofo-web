@@ -1,8 +1,9 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { getClientGalleryByToken } from "@/actions/share";
+import { getClientGalleryByToken, getShareGate } from "@/actions/share";
 import { ClientGallery } from "@/components/client/client-gallery";
 import { ClientGalleryDemo } from "@/components/client/client-gallery-demo";
+import { SharePasswordGate } from "@/components/client/share-password-gate";
 import { Logo } from "@/components/brand/logo";
 import { studioSlugFromHeaders } from "@/lib/host";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -51,9 +52,33 @@ export default async function ClientGalleryPage({
     return <ClientGalleryDemo payload={demoPayload(token)} />;
   }
 
+  const gate = await getShareGate(token);
+  if (!gate.ok) {
+    return <ClientGalleryError code={gate.error} token={token} />;
+  }
+
+  if (gate.requires_password && !gate.unlocked) {
+    return (
+      <SharePasswordGate
+        token={token}
+        projectTitle={gate.project_title}
+        studioName={gate.studio_name}
+      />
+    );
+  }
+
   const result = await getClientGalleryByToken(token, expectedSlug);
 
   if ("error" in result) {
+    if (result.error === "password_required") {
+      return (
+        <SharePasswordGate
+          token={token}
+          projectTitle={gate.project_title}
+          studioName={gate.studio_name}
+        />
+      );
+    }
     return (
       <ClientGalleryError code={result.error ?? "failed"} token={token} />
     );
@@ -93,6 +118,10 @@ function ClientGalleryError({
     not_configured: {
       title: "Unavailable",
       body: "Supabase is not configured for this environment.",
+    },
+    password_required: {
+      title: "Password required",
+      body: "This gallery is password protected.",
     },
   };
 

@@ -10,7 +10,7 @@ import {
   type ShareActionState,
 } from "@/actions/share";
 import { Button } from "@/components/ui/button";
-import type { ShareLink } from "@/types/database";
+import type { ShareLinkPublic } from "@/actions/share";
 import { cn } from "@/lib/utils";
 
 const initial: ShareActionState = {};
@@ -26,7 +26,7 @@ export function ShareLinkPanel({
   hasPhotos,
 }: {
   projectId: string;
-  links: ShareLink[];
+  links: ShareLinkPublic[];
   appUrl: string;
   hasPhotos: boolean;
   /** @deprecated unused — always menu */
@@ -49,6 +49,8 @@ export function ShareLinkPanel({
   );
   const [copied, setCopied] = useState<string | null>(null);
   const [expiresDays, setExpiresDays] = useState("30");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
 
   const active = links.filter((l) => l.is_active);
   const latestToken = createState.token ?? active[0]?.token;
@@ -165,26 +167,26 @@ export function ShareLinkPanel({
                 </div>
 
                 <div className="space-y-3 p-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
+                  <form action={createAction} className="space-y-2.5">
+                    <input type="hidden" name="project_id" value={projectId} />
+                    <input
+                      type="hidden"
+                      name="expires_days"
                       value={expiresDays}
-                      onChange={(e) => setExpiresDays(e.target.value)}
-                      className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
-                      disabled={!hasPhotos || createPending}
-                      aria-label="Link expiry"
-                    >
-                      <option value="7">7 days</option>
-                      <option value="30">30 days</option>
-                      <option value="90">90 days</option>
-                      <option value="0">Never</option>
-                    </select>
-                    <form action={createAction}>
-                      <input type="hidden" name="project_id" value={projectId} />
-                      <input
-                        type="hidden"
-                        name="expires_days"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
                         value={expiresDays}
-                      />
+                        onChange={(e) => setExpiresDays(e.target.value)}
+                        className="h-8 rounded-full border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none focus:border-stone-400"
+                        disabled={!hasPhotos || createPending}
+                        aria-label="Link expiry"
+                      >
+                        <option value="7">7 days</option>
+                        <option value="30">30 days</option>
+                        <option value="90">90 days</option>
+                        <option value="0">Never</option>
+                      </select>
                       <Button
                         type="submit"
                         size="sm"
@@ -199,8 +201,37 @@ export function ShareLinkPanel({
                         <Link2 className="mr-1.5 h-3.5 w-3.5" />
                         {createPending ? "Creating…" : "New link"}
                       </Button>
-                    </form>
-                  </div>
+                    </div>
+                    <div className="space-y-1.5 rounded-lg bg-stone-50/80 p-2 ring-1 ring-stone-100">
+                      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-stone-400">
+                        Optional password
+                      </p>
+                      <input
+                        type="password"
+                        name="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Password for client"
+                        autoComplete="new-password"
+                        disabled={!hasPhotos || createPending}
+                        className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
+                      />
+                      <input
+                        type="password"
+                        name="password_confirm"
+                        value={passwordConfirm}
+                        onChange={(e) => setPasswordConfirm(e.target.value)}
+                        placeholder="Confirm password"
+                        autoComplete="new-password"
+                        disabled={!hasPhotos || createPending}
+                        className="h-8 w-full rounded-lg border border-stone-200 bg-white px-2.5 text-xs text-stone-800 outline-none placeholder:text-stone-400 focus:border-stone-400"
+                      />
+                      <p className="text-[10px] leading-snug text-stone-400">
+                        Leave blank for open link. Share the password separately
+                        from the URL.
+                      </p>
+                    </div>
+                  </form>
 
                   {!hasPhotos ? (
                     <p className="text-xs text-stone-500">
@@ -271,7 +302,10 @@ export function ShareLinkPanel({
                               <p className="truncate font-mono text-[11px] text-stone-600">
                                 …/{link.token.slice(0, 14)}
                               </p>
-                              <p className="text-[10px] text-stone-400">{exp}</p>
+                              <p className="text-[10px] text-stone-400">
+                                {exp}
+                                {link.password_protected ? " · locked" : ""}
+                              </p>
                             </div>
                             <button
                               type="button"

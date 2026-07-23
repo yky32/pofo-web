@@ -87,7 +87,9 @@ export interface Shot {
 export interface ShareLink {
   id: string;
   project_id: string;
+  /** Unguessable URL token — not derived from password */
   token: string;
+  /** scrypt hash only; never send plain password or hash to the client UI */
   password_hash: string | null;
   expires_at: string | null;
   allow_download: boolean;

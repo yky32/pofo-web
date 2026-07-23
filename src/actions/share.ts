@@ -6,6 +6,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
+import {
+  hashSharePassword,
+  hasShareUnlock,
+  setShareUnlockCookie,
+  verifySharePassword,
+} from "@/lib/share-password";
 import type { ClientGalleryPayload, ShareLink } from "@/types/database";
 
 export type ShareActionState = {
@@ -14,9 +20,14 @@ export type ShareActionState = {
   token?: string;
 };
 
+/** Safe for photographer UI — never expose password_hash to the browser. */
+export type ShareLinkPublic = Omit<ShareLink, "password_hash"> & {
+  password_protected: boolean;
+};
+
 export async function listShareLinks(
   projectId: string
-): Promise<ShareLink[]> {
+): Promise<ShareLinkPublic[]> {
   if (!isSupabaseConfigured()) return [];
 
   const supabase = await createClient();
@@ -44,7 +55,13 @@ export async function listShareLinks(
     return [];
   }
 
-  return (data ?? []) as ShareLink[];
+  return (data ?? []).map((row) => {
+    const { password_hash, ...rest } = row as ShareLink;
+    return {
+      ...rest,
+      password_protected: Boolean(password_hash),
+    } as ShareLinkPublic;
+  });
 }
 
 export async function createShareLink(
@@ -57,6 +74,18 @@ export async function createShareLink(
 
   const projectId = String(formData.get("project_id") ?? "").trim();
   if (!projectId) return { error: "Missing project." };
+
+  const password = String(formData.get("password") ?? "");
+  const passwordConfirm = String(formData.get("password_confirm") ?? "");
+
+  if (password || passwordConfirm) {
+    if (password.length < 4) {
+      return { error: "Password must be at least 4 characters." };
+    }
+    if (password !== passwordConfirm) {
+      return { error: "Passwords do not match." };
+    }
+  }
 
   const supabase = await createClient();
   const {
@@ -77,15 +106,21 @@ export async function createShareLink(
   let expires_at: string | null = null;
   if (expiresDaysRaw && expiresDaysRaw !== "0") {
     const days = Math.min(365, Math.max(1, Number(expiresDaysRaw) || 30));
-    expires_at = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    expires_at = new Date(
+      Date.now() + days * 24 * 60 * 60 * 1000
+    ).toISOString();
   }
 
+  // URL token stays random & unguessable. Password is stored only as one-way hash.
   const token = createShareToken();
+  const password_hash = password ? hashSharePassword(password) : null;
+
   const { data: link, error } = await supabase
     .from("share_links")
     .insert({
       project_id: projectId,
       token,
+      password_hash,
       is_active: true,
       allow_download: true,
       expires_at,
@@ -97,7 +132,6 @@ export async function createShareLink(
     return { error: error?.message ?? "Could not create share link." };
   }
 
-  // Soft status: share → shared (unless already proofing/final)
   if (project.status === "draft") {
     await supabase
       .from("projects")
@@ -108,7 +142,9 @@ export async function createShareLink(
   revalidatePath(`/dashboard/galleries/${projectId}`);
   revalidatePath("/dashboard");
   return {
-    success: "Share link created.",
+    success: password
+      ? "Password-protected link created."
+      : "Share link created.",
     token: link.token,
   };
 }
@@ -151,13 +187,254 @@ export async function revokeShareLink(
   return { success: "Link revoked." };
 }
 
-/** Public client gallery via SECURITY DEFINER RPC (works with anon key). */
+export type ShareGateInfo =
+  | {
+      ok: true;
+      requires_password: boolean;
+      unlocked: boolean;
+      project_title: string | null;
+      studio_name: string | null;
+    }
+  | { ok: false; error: string };
+
+/** Lightweight gate check — no shots leaked. */
+export async function getShareGate(token: string): Promise<ShareGateInfo> {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: "not_configured" };
+  }
+  if (!token || token.length < 8) {
+    return { ok: false, error: "invalid_token" };
+  }
+
+  const admin = createAdminClient();
+  const supabase = admin ?? (await createClient());
+
+  const { data: link, error } = await supabase
+    .from("share_links")
+    .select("id, token, password_hash, is_active, expires_at, project_id")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (error || !link) return { ok: false, error: "not_found" };
+  if (!link.is_active) return { ok: false, error: "revoked" };
+  if (link.expires_at && new Date(link.expires_at as string) < new Date()) {
+    return { ok: false, error: "expired" };
+  }
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("title, owner_id")
+    .eq("id", link.project_id)
+    .maybeSingle();
+
+  let studio_name: string | null = null;
+  if (project?.owner_id) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("studio_name, display_name")
+      .eq("id", project.owner_id)
+      .maybeSingle();
+    studio_name = profile?.studio_name || profile?.display_name || null;
+  }
+
+  const requires = Boolean(link.password_hash);
+  // Without service role we cannot verify unlock for password links safely
+  if (requires && !admin) {
+    return {
+      ok: true,
+      requires_password: true,
+      unlocked: false,
+      project_title: project?.title ?? null,
+      studio_name,
+    };
+  }
+
+  const unlocked = requires ? await hasShareUnlock(token) : true;
+  return {
+    ok: true,
+    requires_password: requires,
+    unlocked,
+    project_title: project?.title ?? null,
+    studio_name,
+  };
+}
+
+/** Client submits password → set unlock cookie. */
+export async function unlockShareLink(
+  token: string,
+  password: string
+): Promise<{ ok?: boolean; error?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Gallery is not available." };
+  }
+  if (!token || !password.trim()) {
+    return { error: "Enter the password." };
+  }
+
+  const admin = createAdminClient();
+  if (!admin) {
+    return {
+      error:
+        "Password links need SUPABASE_SERVICE_ROLE_KEY on the server.",
+    };
+  }
+
+  const { data: link, error } = await admin
+    .from("share_links")
+    .select("password_hash, is_active, expires_at")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (error || !link) return { error: "Link not found." };
+  if (!link.is_active) return { error: "This link was revoked." };
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    return { error: "This link has expired." };
+  }
+  if (!link.password_hash) {
+    // No password — treat as open
+    await setShareUnlockCookie(token);
+    return { ok: true };
+  }
+
+  if (!verifySharePassword(password, link.password_hash)) {
+    return { error: "Incorrect password. Try again." };
+  }
+
+  await setShareUnlockCookie(token);
+  return { ok: true };
+}
+
+async function loadGalleryWithAdmin(
+  token: string
+): Promise<ClientGalleryPayload | { error: string }> {
+  const admin = createAdminClient();
+  if (!admin) return { error: "failed" };
+
+  const { data: link } = await admin
+    .from("share_links")
+    .select("*")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (!link) return { error: "not_found" };
+  if (!link.is_active) return { error: "revoked" };
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    return { error: "expired" };
+  }
+
+  const { data: project } = await admin
+    .from("projects")
+    .select("*")
+    .eq("id", link.project_id)
+    .maybeSingle();
+  if (!project) return { error: "not_found" };
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("slug, studio_name, display_name")
+    .eq("id", project.owner_id)
+    .maybeSingle();
+
+  const limit =
+    link.selection_limit_override ?? project.selection_limit ?? 40;
+
+  const { data: containers } = await admin
+    .from("containers")
+    .select("id")
+    .eq("project_id", project.id)
+    .eq("is_client_visible_default", true);
+
+  const visibleContainerIds = new Set(
+    (containers ?? []).map((c) => c.id as string)
+  );
+
+  const { data: shotsRaw } = await admin
+    .from("shots")
+    .select(
+      "id, storage_key, preview_url, filename, sort_order, width, height, created_at, container_id"
+    )
+    .eq("project_id", project.id)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  type ShotRow = {
+    id: string;
+    storage_key: string | null;
+    preview_url: string | null;
+    filename: string | null;
+    sort_order: number;
+    width: number | null;
+    height: number | null;
+    container_id: string;
+  };
+
+  const visible = ((shotsRaw ?? []) as ShotRow[]).filter(
+    (s) =>
+      visibleContainerIds.has(s.container_id) &&
+      (s.preview_url || s.storage_key)
+  );
+
+  const withUrls = await withDisplayUrls(admin, visible);
+
+  const { data: sels } = await admin
+    .from("shot_selections")
+    .select("shot_id")
+    .eq("share_link_id", link.id);
+
+  return {
+    token: link.token,
+    share_link_id: link.id,
+    project: {
+      id: project.id,
+      title: project.title,
+      client_name: project.client_name,
+      description: project.description,
+      status: project.status,
+      selection_limit: limit,
+    },
+    studio: {
+      slug: profile?.slug ?? null,
+      studio_name: profile?.studio_name ?? null,
+      display_name: profile?.display_name ?? null,
+    },
+    shots: withUrls.map((s) => ({
+      id: s.id,
+      storage_key: s.storage_key ?? null,
+      preview_url: s.preview_url ?? null,
+      display_url: s.display_url,
+      filename: s.filename ?? null,
+      sort_order: s.sort_order,
+      width: s.width ?? null,
+      height: s.height ?? null,
+    })),
+    selected_shot_ids: (sels ?? []).map((s) => s.shot_id as string),
+  };
+}
+
+/** Public client gallery — password links require unlock cookie first. */
 export async function getClientGalleryByToken(
   token: string,
   expectedSlug?: string | null
 ): Promise<ClientGalleryPayload | { error: string }> {
   if (!isSupabaseConfigured()) {
     return { error: "not_configured" };
+  }
+
+  const gate = await getShareGate(token);
+  if (!gate.ok) return { error: gate.error };
+  if (gate.requires_password && !gate.unlocked) {
+    return { error: "password_required" };
+  }
+
+  // Password-protected: only serve via service role after cookie unlock
+  // (anon RPC intentionally rejects passworded links — see schema).
+  if (gate.requires_password) {
+    const payload = await loadGalleryWithAdmin(token);
+    if ("error" in payload) return payload;
+    if (expectedSlug && payload.studio?.slug && payload.studio.slug !== expectedSlug) {
+      return { error: "wrong_studio" };
+    }
+    return payload;
   }
 
   const supabase = await createClient();
@@ -168,22 +445,34 @@ export async function getClientGalleryByToken(
 
   if (error) {
     console.error("getClientGalleryByToken", error.message);
-    // Likely schema not applied yet
     if (error.message.includes("function") || error.code === "PGRST202") {
       return { error: "schema_missing" };
     }
-    return { error: "failed" };
+    // Fallback single-arg RPC
+    const { data: data2, error: e2 } = await supabase.rpc("get_client_gallery", {
+      p_token: token,
+    });
+    if (e2 || !data2) return { error: "failed" };
+    return attachDisplayUrls(data2 as ClientGalleryPayload);
   }
 
   const payload = data as ClientGalleryPayload & { error?: string };
-  if (payload?.error) return { error: payload.error };
+  if (payload?.error) {
+    if (payload.error === "password_required") {
+      return { error: "password_required" };
+    }
+    return { error: payload.error };
+  }
 
-  // Token already validated by RPC. Sign private objects with service role
-  // (anon cannot createSignedUrls when the bucket is private). Falls back to
-  // user session client if service role is unset (demo / external preview_urls).
+  return attachDisplayUrls(payload);
+}
+
+async function attachDisplayUrls(
+  payload: ClientGalleryPayload
+): Promise<ClientGalleryPayload> {
+  const supabase = await createClient();
   const signer = createAdminClient() ?? supabase;
   const shots = await withDisplayUrls(signer, payload.shots ?? []);
-
   return {
     ...payload,
     shots: shots.map((s) => ({
@@ -211,6 +500,13 @@ export async function toggleClientSelection(
 }> {
   if (!isSupabaseConfigured()) {
     return { error: "not_configured" };
+  }
+
+  // Block proofing mutations until password unlock
+  const gate = await getShareGate(token);
+  if (!gate.ok) return { error: gate.error };
+  if (gate.requires_password && !gate.unlocked) {
+    return { error: "password_required" };
   }
 
   const supabase = await createClient();

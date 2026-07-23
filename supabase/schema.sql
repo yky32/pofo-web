@@ -310,6 +310,12 @@ begin
     return jsonb_build_object('error', 'expired');
   end if;
 
+  -- Password-protected links are never returned via public RPC.
+  -- App verifies scrypt hash + unlock cookie, then loads via service role.
+  if v_link.password_hash is not null and length(trim(v_link.password_hash)) > 0 then
+    return jsonb_build_object('error', 'password_required');
+  end if;
+
   select * into v_project from public.projects where id = v_link.project_id;
   if not found then
     return jsonb_build_object('error', 'not_found');
