@@ -82,16 +82,16 @@ function ProviderBadge({
       title={title}
       aria-label={title}
       className={cn(
-        "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-white shadow-sm",
+        "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-white",
         className
       )}
     >
       {provider === "google" ? (
-        <GoogleMark className="h-3 w-3" />
+        <GoogleMark className="h-2.5 w-2.5" />
       ) : provider === "apple" ? (
-        <AppleMark className="h-3 w-3 text-stone-900" />
+        <AppleMark className="h-2.5 w-2.5 text-stone-900" />
       ) : (
-        <Mail className="h-2.5 w-2.5 text-stone-500" strokeWidth={2} />
+        <Mail className="h-2 w-2 text-stone-500" strokeWidth={2.25} />
       )}
     </span>
   );
@@ -123,8 +123,8 @@ export function DashboardUserMenu({
       if (!el) return;
       const r = el.getBoundingClientRect();
       setPos({
-        bottom: Math.max(12, window.innerHeight - r.top + 8),
-        left: Math.max(12, r.left),
+        bottom: Math.max(8, window.innerHeight - r.top + 6),
+        left: Math.max(8, r.left),
       });
     }
 
@@ -207,33 +207,33 @@ export function DashboardUserMenu({
                 aria-label="Account"
                 style={{ bottom: pos.bottom, left: pos.left }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] w-[min(13.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl py-1",
+                  "dialog-glass-panel fixed z-[201] w-[min(11.5rem,calc(100vw-1rem))] overflow-hidden rounded-xl py-0.5",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
                 {(user?.displayName || user?.email) && (
-                  <div className="border-b border-stone-900/5 px-3 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-stone-900">
+                  <div className="border-b border-stone-900/5 px-2.5 py-2">
+                    <div className="flex items-center gap-1">
+                      <p className="min-w-0 flex-1 truncate text-xs font-medium text-stone-900">
                         {user.displayName || "Studio"}
                       </p>
                       <ProviderBadge provider={user.signInProvider} />
                     </div>
                     {user.email ? (
-                      <p className="mt-0.5 truncate text-[11px] text-stone-500">
+                      <p className="truncate text-[10px] leading-tight text-stone-500">
                         {user.email}
                       </p>
                     ) : null}
                   </div>
                 )}
 
-                <div className="p-1">
+                <div className="p-0.5">
                   <Link
                     href="/"
                     role="menuitem"
                     onClick={() => setOpen(false)}
                     className={cn(
-                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-stone-700 transition",
+                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
                       "hover:bg-stone-900/5 hover:text-stone-950"
                     )}
                   >
@@ -249,7 +249,7 @@ export function DashboardUserMenu({
                       type="submit"
                       role="menuitem"
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-stone-700 transition",
+                        "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
                         "hover:bg-stone-900/5 hover:text-stone-950"
                       )}
                     >
