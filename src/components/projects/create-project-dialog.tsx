@@ -23,7 +23,7 @@ const triggerStyles: Record<TriggerVariant, string> = {
 };
 
 /**
- * Create-project dialog — clean glass panel, no overflow footer glitch.
+ * Create-project dialog — wide glass panel using left/right space.
  */
 export function CreateProjectDialog({
   triggerLabel = "New",
@@ -56,24 +56,29 @@ export function CreateProjectDialog({
         overlayClassName="dialog-glass-overlay"
         className={cn(
           "dialog-glass-panel gap-0 overflow-hidden rounded-2xl p-0",
-          "w-[min(100vw-1.5rem,32rem)] max-w-lg",
+          /* Override default sm:max-w-sm — use horizontal room */
+          "w-[min(100vw-1.5rem,44rem)] max-w-[44rem] sm:max-w-[44rem]",
           "text-stone-900 ring-1 ring-white/60"
         )}
       >
-        <div className="flex max-h-[min(88vh,36rem)] flex-col overflow-hidden">
-          <DialogHeader className="shrink-0 gap-1 border-b border-stone-200/50 px-5 pb-3 pt-5 pr-12 sm:px-6 sm:pt-5">
-            <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-400">
-              Create
-            </p>
-            <DialogTitle className="font-heading text-xl font-medium tracking-tight text-stone-900">
-              New project
-            </DialogTitle>
-            <DialogDescription className="text-xs text-stone-500">
-              Name the job — upload photos after.
-            </DialogDescription>
+        <div className="flex max-h-[min(90vh,32rem)] flex-col overflow-hidden">
+          <DialogHeader className="shrink-0 gap-1 border-b border-stone-200/50 px-6 pb-3.5 pt-5 pr-12 sm:px-7 sm:pt-6">
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+              <div className="min-w-0 space-y-1">
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-400">
+                  Create
+                </p>
+                <DialogTitle className="font-heading text-xl font-medium tracking-tight text-stone-900 sm:text-2xl">
+                  New project
+                </DialogTitle>
+              </div>
+              <DialogDescription className="max-w-xs text-right text-xs text-stone-500 sm:text-sm">
+                Name the job — upload photos after.
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-7 sm:py-6">
             {!configured ? (
               <div className="mb-4 rounded-xl bg-amber-50/90 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/70">
                 Supabase is not configured. Add keys in{" "}
@@ -81,7 +86,7 @@ export function CreateProjectDialog({
               </div>
             ) : null}
 
-            <CreateProjectForm compact showCancel />
+            <CreateProjectForm compact showCancel wide />
           </div>
         </div>
       </DialogContent>

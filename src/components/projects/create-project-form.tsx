@@ -18,10 +18,12 @@ const initial: ProjectActionState = {};
 export function CreateProjectForm({
   compact = false,
   showCancel = true,
+  /** Two-column layout for wide dialogs */
+  wide = false,
 }: {
-  /** Inside a dialog — no outer paper shell */
   compact?: boolean;
   showCancel?: boolean;
+  wide?: boolean;
 }) {
   const [state, action, pending] = useActionState(createProject, initial);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
@@ -37,6 +39,7 @@ export function CreateProjectForm({
   const field = "space-y-1";
   const inputCls =
     "h-9 rounded-xl border-stone-200/90 bg-white shadow-none";
+  const labelCls = "text-xs font-medium text-stone-600";
 
   function validateTitle(value: string): string | null {
     const t = value.trim();
@@ -54,6 +57,126 @@ export function CreateProjectForm({
     }
     setTitleError(null);
   }
+
+  const titleField = (
+    <div className={field}>
+      <Label htmlFor="title" className={labelCls}>
+        Title
+      </Label>
+      <Input
+        id="title"
+        name="title"
+        value={title}
+        onChange={(e) => {
+          setTitle(e.target.value);
+          if (titleError) setTitleError(validateTitle(e.target.value));
+        }}
+        onBlur={() => {
+          if (title.trim() || titleError) {
+            setTitleError(validateTitle(title));
+          }
+        }}
+        autoFocus={compact}
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        data-form-type="other"
+        placeholder="Alicia & James — Wedding"
+        aria-invalid={Boolean(titleError)}
+        aria-describedby={titleError ? "title-error" : undefined}
+        className={cn(
+          inputCls,
+          titleError &&
+            "border-rose-300 bg-rose-50/30 focus-visible:border-rose-400 focus-visible:ring-rose-200/50"
+        )}
+      />
+      {titleError ? (
+        <p
+          id="title-error"
+          className="flex items-center gap-1 text-[11px] text-rose-600"
+        >
+          <AlertCircle className="h-3 w-3 shrink-0" strokeWidth={2} />
+          {titleError}
+        </p>
+      ) : null}
+    </div>
+  );
+
+  const clientField = (
+    <div className={field}>
+      <Label htmlFor="client" className={labelCls}>
+        Client
+      </Label>
+      <Input
+        id="client"
+        name="client"
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        placeholder="Alicia Chen"
+        className={inputCls}
+      />
+    </div>
+  );
+
+  const tagsField = (
+    <div className={field}>
+      <Label htmlFor="tags" className={labelCls}>
+        Tags
+      </Label>
+      <ProjectTagsField
+        id="tags"
+        name="tags"
+        hint=""
+        dense
+        className="space-y-1.5"
+      />
+    </div>
+  );
+
+  const dateField = (
+    <div className={field}>
+      <Label htmlFor="event_date" className={labelCls}>
+        Event date
+      </Label>
+      <DateField id="event_date" name="event_date" placeholder="Pick date" />
+    </div>
+  );
+
+  const limitField = (
+    <div className={field}>
+      <Label htmlFor="limit" className={labelCls}>
+        Proofing limit
+      </Label>
+      <Input
+        id="limit"
+        name="limit"
+        type="number"
+        defaultValue={40}
+        min={1}
+        max={200}
+        autoComplete="off"
+        className={inputCls}
+      />
+    </div>
+  );
+
+  const locationField = (
+    <div className={field}>
+      <Label htmlFor="location" className={labelCls}>
+        Location
+      </Label>
+      <Input
+        id="location"
+        name="location"
+        autoComplete="off"
+        data-1p-ignore
+        data-lpignore="true"
+        placeholder="Hong Kong · The Peninsula"
+        className={inputCls}
+      />
+    </div>
+  );
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
@@ -91,6 +214,20 @@ export function CreateProjectForm({
     </div>
   );
 
+  const serverError =
+    state.error && !state.error.startsWith("PROJECTS_LIMIT") ? (
+      <div
+        role="alert"
+        className="flex items-start gap-2 rounded-xl border border-rose-200/80 bg-rose-50/90 px-3 py-2 text-sm text-rose-800"
+      >
+        <AlertCircle
+          className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
+          strokeWidth={1.75}
+        />
+        <p className="leading-snug">{state.error}</p>
+      </div>
+    ) : null;
+
   return (
     <>
       <form
@@ -99,143 +236,58 @@ export function CreateProjectForm({
         autoComplete="off"
         onSubmit={onSubmit}
         className={cn(
-          compact ? "space-y-3.5" : "paper space-y-5 rounded-[5px] p-6"
+          !compact && "paper space-y-5 rounded-[5px] p-6",
+          compact && !wide && "space-y-3.5",
+          compact && wide && "space-y-5"
         )}
       >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className={field}>
-            <Label htmlFor="title" className="text-xs font-medium text-stone-600">
-              Title
-            </Label>
-            <Input
-              id="title"
-              name="title"
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                if (titleError) setTitleError(validateTitle(e.target.value));
-              }}
-              onBlur={() => {
-                if (title.trim() || titleError) {
-                  setTitleError(validateTitle(title));
-                }
-              }}
-              autoFocus={compact}
-              autoComplete="off"
-              data-1p-ignore
-              data-lpignore="true"
-              data-form-type="other"
-              placeholder="Alicia & James — Wedding"
-              aria-invalid={Boolean(titleError)}
-              aria-describedby={titleError ? "title-error" : undefined}
-              className={cn(
-                inputCls,
-                titleError &&
-                  "border-rose-300 bg-rose-50/30 focus-visible:border-rose-400 focus-visible:ring-rose-200/50"
-              )}
-            />
-            {titleError ? (
-              <p
-                id="title-error"
-                className="flex items-center gap-1 text-[11px] text-rose-600"
-              >
-                <AlertCircle className="h-3 w-3 shrink-0" strokeWidth={2} />
-                {titleError}
+        {wide ? (
+          <>
+            {/* Left: job identity · Right: when/where/limits */}
+            <div className="grid gap-6 md:grid-cols-2 md:gap-8">
+              <div className="space-y-3.5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-stone-400">
+                  Job
+                </p>
+                {titleField}
+                {clientField}
+                {tagsField}
+              </div>
+              <div className="space-y-3.5">
+                <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-stone-400">
+                  Details
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {dateField}
+                  {limitField}
+                </div>
+                {locationField}
+              </div>
+            </div>
+            {serverError}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/60 pt-4">
+              <p className="text-[11px] text-stone-400">
+                You can edit all of this later in Settings.
               </p>
-            ) : null}
-          </div>
-          <div className={field}>
-            <Label htmlFor="client" className="text-xs font-medium text-stone-600">
-              Client
-            </Label>
-            <Input
-              id="client"
-              name="client"
-              autoComplete="off"
-              data-1p-ignore
-              data-lpignore="true"
-              placeholder="Alicia Chen"
-              className={inputCls}
-            />
-          </div>
-        </div>
-
-        <div className={field}>
-          <Label htmlFor="tags" className="text-xs font-medium text-stone-600">
-            Tags
-          </Label>
-          <ProjectTagsField
-            id="tags"
-            name="tags"
-            hint=""
-            dense
-            className="space-y-1.5"
-          />
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className={field}>
-            <Label
-              htmlFor="event_date"
-              className="text-xs font-medium text-stone-600"
-            >
-              Event date
-            </Label>
-            <DateField
-              id="event_date"
-              name="event_date"
-              placeholder="Pick date"
-            />
-          </div>
-          <div className={field}>
-            <Label htmlFor="limit" className="text-xs font-medium text-stone-600">
-              Proofing limit
-            </Label>
-            <Input
-              id="limit"
-              name="limit"
-              type="number"
-              defaultValue={40}
-              min={1}
-              max={200}
-              autoComplete="off"
-              className={inputCls}
-            />
-          </div>
-          <div className={cn(field, "sm:col-span-2")}>
-            <Label
-              htmlFor="location"
-              className="text-xs font-medium text-stone-600"
-            >
-              Location
-            </Label>
-            <Input
-              id="location"
-              name="location"
-              autoComplete="off"
-              data-1p-ignore
-              data-lpignore="true"
-              placeholder="Hong Kong · The Peninsula"
-              className={inputCls}
-            />
-          </div>
-        </div>
-
-        {state.error && !state.error.startsWith("PROJECTS_LIMIT") ? (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-xl border border-rose-200/80 bg-rose-50/90 px-3 py-2 text-sm text-rose-800"
-          >
-            <AlertCircle
-              className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
-              strokeWidth={1.75}
-            />
-            <p className="leading-snug">{state.error}</p>
-          </div>
-        ) : null}
-
-        {/* In-dialog: actions sit in normal flow (no sticky overflow) */}
-        <div className={cn(compact ? "pt-1" : "pt-1")}>{actions}</div>
+              {actions}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {titleField}
+              {clientField}
+            </div>
+            {tagsField}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {dateField}
+              {limitField}
+              <div className="sm:col-span-2">{locationField}</div>
+            </div>
+            {serverError}
+            <div className="pt-1">{actions}</div>
+          </>
+        )}
       </form>
       <UpgradeModal
         open={upgradeOpen}
