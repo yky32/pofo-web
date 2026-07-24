@@ -128,8 +128,8 @@ export function CreateProjectForm({
         id="tags"
         name="tags"
         hint=""
-        dense
-        className="space-y-1.5"
+        dense={false}
+        className="space-y-2"
       />
     </div>
   );
@@ -251,7 +251,6 @@ export function CreateProjectForm({
                 </p>
                 {titleField}
                 {clientField}
-                {tagsField}
               </div>
               <div className="space-y-3.5">
                 <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-stone-400">
@@ -264,6 +263,8 @@ export function CreateProjectForm({
                 {locationField}
               </div>
             </div>
+            {/* Full width so suggestion chips aren’t clipped */}
+            {tagsField}
             {serverError}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/60 pt-4">
               <p className="text-[11px] text-stone-400">

@@ -109,22 +109,16 @@ export function ProjectTagsField({
         />
       </div>
       {unusedSuggestions.length ? (
-        <div
-          className={cn(
-            "flex gap-1",
-            dense
-              ? "flex-nowrap overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-              : "flex-wrap"
-          )}
-        >
+        <div className="flex flex-wrap gap-1.5">
           {unusedSuggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => addTag(s)}
               className={cn(
-                "shrink-0 rounded-full border border-stone-200/90 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition",
+                "rounded-full border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
                 "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
                 labelClassName
               )}
             >
