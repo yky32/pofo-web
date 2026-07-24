@@ -268,59 +268,48 @@ export default function HomePage() {
             </h2>
           </div>
 
-          {/* 1 → 2 → 3 → 4 stepper */}
+          {/* Single flow: 1 → 2 → 3 → 4 with detail (no duplicate stepper + cards) */}
           <ol
-            className="mx-auto mt-10 flex max-w-lg items-center justify-center sm:max-w-xl"
+            className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0"
             aria-label="Delivery workflow steps"
           >
-            {steps.map((step, i) => (
-              <li key={step.n} className="flex flex-1 items-center last:flex-none">
-                <div className="flex flex-col items-center gap-1.5">
-                  <span
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-[11px] font-semibold tabular-nums text-white sm:h-9 sm:w-9 sm:text-xs"
-                    aria-current={i === 0 ? "step" : undefined}
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="hidden text-[10px] font-medium text-stone-500 sm:block">
-                    {step.title}
-                  </span>
-                </div>
-                {i < steps.length - 1 ? (
-                  <span
-                    className="mx-1.5 mb-0 h-px min-w-[1.25rem] flex-1 bg-stone-300 sm:mx-2 sm:mb-5"
-                    aria-hidden
-                  />
-                ) : null}
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-10 grid gap-px overflow-hidden rounded-[5px] bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, i) => {
               const Icon = step.icon;
+              const last = i === steps.length - 1;
               return (
-                <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-mono text-xs tracking-widest text-stone-400">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
+                <li
+                  key={step.n}
+                  className="relative flex flex-col items-center px-4 text-center lg:px-6"
+                >
+                  {/* connector line → next (desktop) */}
+                  {!last ? (
+                    <span
+                      className="pointer-events-none absolute left-[calc(50%+1.25rem)] right-0 top-4 hidden h-px bg-stone-200 lg:block"
+                      aria-hidden
+                    />
+                  ) : null}
+
+                  <div className="relative z-[1] flex h-9 w-9 items-center justify-center rounded-full bg-stone-900 text-xs font-semibold tabular-nums text-white">
+                    {i + 1}
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-center gap-1.5">
                     <Icon
-                      className="h-4 w-4 shrink-0 text-stone-400"
+                      className="h-3.5 w-3.5 text-stone-400"
                       strokeWidth={1.5}
                       aria-hidden
                     />
+                    <h3 className="font-heading text-xl font-medium text-stone-900 sm:text-2xl">
+                      {step.title}
+                    </h3>
                   </div>
-                  <h3 className="mt-3 font-heading text-2xl font-medium text-stone-900">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                  <p className="mt-2 max-w-[14rem] text-sm leading-relaxed text-stone-500">
                     {step.body}
                   </p>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
         </div>
       </section>
 
