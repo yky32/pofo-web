@@ -7,6 +7,7 @@ import {
   listSelectedShots,
 } from "@/actions/shots";
 import { getProject } from "@/actions/projects";
+import { getMyProfile } from "@/actions/profile";
 import { listShareLinks } from "@/actions/share";
 import { GalleryStatusBadge } from "@/components/gallery-status-badge";
 import { PhotoImage } from "@/components/photo/photo-image";
@@ -25,6 +26,7 @@ import { ShareLinkPanel } from "@/components/projects/share-link-panel";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
+import { clientGalleryPublicUrl } from "@/lib/host";
 import { mockGalleries } from "@/lib/mock-data";
 import { contactSheet, galleryCovers, studioPhotos } from "@/lib/photos";
 import { shotDisplayUrl, type Shot } from "@/types/database";
@@ -42,9 +44,14 @@ export default async function GalleryDetailPage({
   let selectedShots: Awaited<ReturnType<typeof listSelectedShots>> = [];
   let selectionCount = 0;
   let shareLinks: Awaited<ReturnType<typeof listShareLinks>> = [];
+  let studioSlug: string | null = null;
 
   if (isSupabaseConfigured()) {
-    const real = await getProject(id);
+    const [real, profile] = await Promise.all([
+      getProject(id),
+      getMyProfile(),
+    ]);
+    studioSlug = profile?.slug ?? null;
     if (real) {
       gallery = real;
       isDemo = false;
@@ -113,10 +120,11 @@ export default async function GalleryDetailPage({
     : selectionCount;
 
   const activeLink = shareLinks.find((l) => l.is_active);
+  const appUrl = getAppUrl();
   const clientHref = isDemo
-    ? `/g/demo-${gallery.id}`
+    ? clientGalleryPublicUrl(`demo-${gallery.id}`, studioSlug ?? "demo", appUrl)
     : activeLink
-      ? `/g/${activeLink.token}`
+      ? clientGalleryPublicUrl(activeLink.token, studioSlug, appUrl)
       : null;
 
   return (
@@ -199,7 +207,8 @@ export default async function GalleryDetailPage({
               <ShareLinkPanel
                 projectId={gallery.id}
                 links={shareLinks}
-                appUrl={getAppUrl()}
+                appUrl={appUrl}
+                studioSlug={studioSlug}
                 hasPhotos={hasPhotos}
               />
               <ExportSelectionButton
@@ -219,9 +228,20 @@ export default async function GalleryDetailPage({
         {isDemo && hasPhotos ? (
           <div className="flex justify-end">
             <Button variant="secondary" size="sm" className="rounded-full" asChild>
-              <Link href={`/g/demo-${gallery.id}`} target="_blank">
+              <a
+                href={
+                  clientHref ??
+                  clientGalleryPublicUrl(
+                    `demo-${gallery.id}`,
+                    studioSlug ?? "demo",
+                    appUrl
+                  )
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+              >
                 Open client view
-              </Link>
+              </a>
             </Button>
           </div>
         ) : null}
@@ -269,6 +289,19 @@ export default async function GalleryDetailPage({
           </TabsList>
 
           <TabsContent value="photos" className="mt-5">
+            {sheetItems.length > 0 && !isDemo ? (
+              <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+                <PublishToPortfolioButton
+                  projectId={gallery.id}
+                  shotIds={shots.map((s) => s.id)}
+                  label={
+                    shots.length
+                      ? `Add all to portfolio (${shots.length})`
+                      : "Portfolio"
+                  }
+                />
+              </div>
+            ) : null}
             {sheetItems.length > 0 ? (
               isDemo ? (
                 <MosaicGrid items={sheetItems} density="studio" />
@@ -390,9 +423,13 @@ export default async function GalleryDetailPage({
                     variant="secondary"
                     asChild
                   >
-                    <Link href={clientHref} target="_blank">
+                    <a
+                      href={clientHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Preview client view
-                    </Link>
+                    </a>
                   </Button>
                 ) : null}
               </div>

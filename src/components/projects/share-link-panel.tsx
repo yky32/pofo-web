@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import {
   Check,
   Copy,
@@ -24,6 +23,7 @@ import {
   type ShareLinkPublic,
 } from "@/actions/share";
 import { Button } from "@/components/ui/button";
+import { clientGalleryPublicUrl } from "@/lib/host";
 import { cn } from "@/lib/utils";
 
 const initial: ShareActionState = {};
@@ -31,16 +31,20 @@ const initial: ShareActionState = {};
 /**
  * Client-link control: icon trigger (avatar-menu style).
  * After create / regenerate password → one-time secret reveal (Supabase-style).
+ * Links are scoped under the photographer’s studio host when slug is set.
  */
 export function ShareLinkPanel({
   projectId,
   links,
   appUrl,
+  studioSlug = null,
   hasPhotos,
 }: {
   projectId: string;
   links: ShareLinkPublic[];
   appUrl: string;
+  /** Studio slug → gallery URL under studio host (e.g. yky32is…/g/token) */
+  studioSlug?: string | null;
   hasPhotos: boolean;
   /** @deprecated unused — always menu */
   compact?: boolean;
@@ -198,8 +202,16 @@ export function ShareLinkPanel({
     }
   }
 
+  function galleryUrl(token: string) {
+    return clientGalleryPublicUrl(token, studioSlug, appUrl);
+  }
+
+  function galleryLabel(token: string) {
+    return galleryUrl(token).replace(/^https?:\/\//, "");
+  }
+
   function copyToken(token: string) {
-    return copyText(token, `${appUrl}/g/${token}`);
+    return copyText(token, galleryUrl(token));
   }
 
   function dismissSecret() {
@@ -378,8 +390,11 @@ export function ShareLinkPanel({
                           Gallery link
                         </p>
                         <div className="flex items-center gap-1 rounded-lg bg-stone-800/80 ring-1 ring-white/10">
-                          <p className="min-w-0 flex-1 truncate px-2.5 py-2 font-mono text-[11px] text-stone-200">
-                            {appUrl}/g/{secretReveal.token}
+                          <p
+                            className="min-w-0 flex-1 truncate px-2.5 py-2 font-mono text-[11px] text-stone-200"
+                            title={galleryUrl(secretReveal.token)}
+                          >
+                            {galleryLabel(secretReveal.token)}
                           </p>
                           <button
                             type="button"
@@ -742,14 +757,15 @@ export function ShareLinkPanel({
                         className="rounded-full"
                         asChild
                       >
-                        <Link
-                          href={`/g/${latestToken}`}
+                        <a
+                          href={galleryUrl(latestToken)}
                           target="_blank"
+                          rel="noopener noreferrer"
                           onClick={() => setOpen(false)}
                         >
                           <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                           Open
-                        </Link>
+                        </a>
                       </Button>
                     </div>
                   ) : null}
@@ -776,8 +792,11 @@ export function ShareLinkPanel({
                           >
                             <div className="flex items-center gap-1.5 px-2 py-1.5">
                               <div className="min-w-0 flex-1">
-                                <p className="truncate font-mono text-[11px] text-stone-600">
-                                  …/{link.token.slice(0, 14)}
+                                <p
+                                  className="truncate font-mono text-[11px] text-stone-600"
+                                  title={galleryUrl(link.token)}
+                                >
+                                  {galleryLabel(link.token)}
                                 </p>
                                 <p className="text-[10px] text-stone-400">
                                   {exp}

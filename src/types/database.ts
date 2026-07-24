@@ -34,6 +34,11 @@ export interface Profile {
    * Merged with system starters in create/edit UI.
    */
   custom_project_tags?: string[] | null;
+  /**
+   * Public studio page layout (theme + ordered sections).
+   * See lib/portfolio-page.ts — limited builder, not free-form HTML.
+   */
+  portfolio_page?: unknown | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +76,8 @@ export interface StudioPublic {
   studio_name: string | null;
   display_name: string | null;
   avatar_url?: string | null;
+  /** Public studio page layout (from get_studio_by_slug when applied) */
+  portfolio_page?: unknown | null;
 }
 
 export interface Project {

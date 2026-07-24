@@ -61,16 +61,86 @@ export function studioSlugFromHeaders(headers: Headers): string | null {
   return slug;
 }
 
-/** Public studio base URL when root domain is configured. */
+/**
+ * Public portfolio URL for a studio slug.
+ * Prefer subdomain: `{slug}.pofo.app` or `{slug}.localhost:port`.
+ * Path `/s/{slug}` is only a last-resort fallback (e.g. plain Vercel host).
+ */
 export function studioPublicBaseUrl(slug: string, appUrl?: string) {
+  const clean = slug.trim().toLowerCase();
+  if (!clean) return appUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
   const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN; // e.g. pofo.app
   if (root) {
-    return `https://${slug}.${root}`;
+    return `https://${clean}.${root}`;
   }
-  // Dev fallback: path-style until DNS exists
-  const base = (appUrl ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3002").replace(
-    /\/$/,
-    ""
-  );
-  return `${base}/s/${slug}`;
+
+  const base = (
+    appUrl ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+
+  try {
+    const u = new URL(base);
+    const host = u.hostname;
+    // Local: subdomain-style portfolio (middleware rewrites → /s/{slug})
+    if (host === "localhost" || host === "127.0.0.1") {
+      const port = u.port ? `:${u.port}` : "";
+      return `${u.protocol}//${clean}.localhost${port}`;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  // Hosted without custom apex (e.g. *.vercel.app) — no real studio DNS
+  return `${base}/s/${clean}`;
+}
+
+/**
+ * True when we can serve public surfaces on a real studio host
+ * (`{slug}.pofo.app` or `{slug}.localhost`), not path `/s/{slug}`.
+ */
+export function hasStudioSubdomainRouting(appUrl?: string): boolean {
+  if (process.env.NEXT_PUBLIC_ROOT_DOMAIN) return true;
+  const base = (
+    appUrl ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+  try {
+    const host = new URL(base).hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Client proofing gallery URL.
+ * Prefer studio host: `https://yky32is.pofo.app/g/{token}` or local `yky32is.localhost/g/{token}`.
+ * Never under `/s/{slug}` — that path is portfolio only.
+ * Without subdomain routing, app-host `/g/{token}` (token remains the secret).
+ */
+export function clientGalleryPublicUrl(
+  token: string,
+  studioSlug?: string | null,
+  appUrl?: string
+) {
+  const tok = token.trim();
+  const appBase = (
+    appUrl ??
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+
+  if (!tok) return appBase;
+
+  const slug = studioSlug?.trim().toLowerCase();
+  if (slug && hasStudioSubdomainRouting(appUrl)) {
+    // Studio host only — never `${app}/s/${slug}/g/…`
+    return `${studioPublicBaseUrl(slug, appUrl).replace(/\/$/, "")}/g/${tok}`;
+  }
+
+  return `${appBase}/g/${tok}`;
 }

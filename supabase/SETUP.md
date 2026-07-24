@@ -156,7 +156,7 @@ App env (optional):
 NEXT_PUBLIC_ROOT_DOMAIN=pofo.app
 ```
 
-Until DNS is live, studio pages use `/s/{slug}` and local `{slug}.localhost:3002`.
+Until DNS is live, studio pages use `/s/{slug}` and local `{slug}.localhost:3000`.
 
 ## 7. Social login (Google / Apple) — Triftly-style OAuth
 
@@ -176,13 +176,12 @@ Pofo uses the same Supabase OAuth pattern as Triftly (provider → redirect → 
 3. **Authentication → URL configuration → Redirect URLs** add:
 
 ```
-http://localhost:3002/auth/callback
 http://localhost:3000/auth/callback
 https://pofo-web.vercel.app/auth/callback
 https://YOUR_DOMAIN/auth/callback
 ```
 
-4. Site URL: `http://localhost:3002` (dev) or production app URL  
+4. Site URL: `http://localhost:3000` (dev) or production app URL  
 
 ### Google Cloud Console
 
@@ -204,7 +203,7 @@ Improves `handle_new_user` for OAuth `full_name` / `picture` → profile + slug.
 ### Env
 
 ```bash
-NEXT_PUBLIC_APP_URL=http://localhost:3002   # must match redirect host
+NEXT_PUBLIC_APP_URL=http://localhost:3000   # must match redirect host
 ```
 
 Production: set the same on Vercel (`https://pofo-web.vercel.app`).

@@ -29,11 +29,11 @@ export function PublishToPortfolioButton({
     const ok = await confirm({
       title:
         n === 1
-          ? "Publish this photo to your portfolio?"
-          : `Publish ${n} photos to your portfolio?`,
+          ? "Add this photo to your portfolio?"
+          : `Add ${n} photos to your portfolio?`,
       description:
-        "They appear on your public studio page. You can hide or remove them later from Portfolio. Optionally set the project to Final after publishing.",
-      confirmLabel: n === 1 ? "Publish photo" : `Publish ${n}`,
+        "They appear on your public studio page as showcase work. You can hide or remove them later from Portfolio. This does not change the job status.",
+      confirmLabel: n === 1 ? "Add to portfolio" : `Add ${n}`,
       cancelLabel: "Cancel",
     });
     if (!ok) return;
@@ -44,14 +44,15 @@ export function PublishToPortfolioButton({
       const res = await publishShotsToPortfolio({
         projectId,
         shotIds,
-        // Soft-complete the job when publishing client finals
-        markProjectFinal: true,
+        // Showcase only — do not force project final
+        markProjectFinal: false,
+        publishLive: true,
       });
       if (res.error) {
         setError(res.error);
         return;
       }
-      setSuccess(res.success ?? "Published.");
+      setSuccess(res.success ?? "Added to portfolio.");
       router.refresh();
     });
   }
@@ -76,7 +77,7 @@ export function PublishToPortfolioButton({
         ) : (
           <Images className="mr-1.5 h-3.5 w-3.5" />
         )}
-        {label ?? (n ? `Portfolio (${n})` : "Portfolio")}
+        {label ?? (n ? `Add to portfolio (${n})` : "Portfolio")}
       </Button>
       {error ? (
         <p className="max-w-[14rem] text-right text-[11px] text-rose-600">

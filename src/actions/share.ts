@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
+import { clientGalleryPublicUrl } from "@/lib/host";
 import {
   clientShareEmailContent,
   isResendConfigured,
@@ -323,11 +324,106 @@ export type ShareGateInfo =
       studio_name: string | null;
       display_name: string | null;
       avatar_url: string | null;
+      /** Owner studio slug — for host binding / redirects */
+      studio_slug: string | null;
     }
   | { ok: false; error: string };
 
-/** Lightweight gate check — no shots / no password_hash leaked. */
-export async function getShareGate(token: string): Promise<ShareGateInfo> {
+function normalizeStudioSlug(slug: string | null | undefined): string | null {
+  const s = slug?.trim().toLowerCase();
+  return s || null;
+}
+
+/** Studio host must match gallery owner when a host slug is present. */
+function assertStudioHost(
+  ownerSlug: string | null | undefined,
+  expectedSlug: string | null | undefined
+): "ok" | "wrong_studio" {
+  const expect = normalizeStudioSlug(expectedSlug);
+  if (!expect) return "ok";
+  const owner = normalizeStudioSlug(ownerSlug);
+  if (!owner || owner !== expect) return "wrong_studio";
+  return "ok";
+}
+
+/**
+ * Two checks for `/g/{token}` on a studio host:
+ * 1. Host studio exists (slug → real photographer)
+ * 2. This share token belongs to that studio
+ *
+ * On app host (`expectedSlug` empty), only token validity applies later.
+ */
+export async function verifyClientGalleryStudioAccess(
+  token: string,
+  expectedSlug: string | null | undefined
+): Promise<
+  | { ok: true; studioExists: boolean; studio_slug: string | null }
+  | { ok: false; error: string }
+> {
+  const expect = normalizeStudioSlug(expectedSlug);
+
+  // --- Check 1: studio host must be a real studio ---
+  if (expect) {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("get_studio_by_slug", {
+      p_slug: expect,
+    });
+    if (error) {
+      console.error("verifyClientGalleryStudioAccess studio", error.message);
+      return { ok: false, error: "unknown_studio" };
+    }
+    const studio = data as { error?: string; slug?: string } | null;
+    if (!studio || studio.error || !studio.slug) {
+      return { ok: false, error: "unknown_studio" };
+    }
+  }
+
+  // --- Check 2: this /g/token must belong to that studio ---
+  const gate = await getShareGate(token, expect);
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  return {
+    ok: true,
+    studioExists: Boolean(expect),
+    studio_slug: gate.studio_slug,
+  };
+}
+
+/** Resolve owner studio slug for a share token (service role preferred). */
+async function resolveShareOwnerSlug(token: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const db = admin ?? (await createClient());
+  const { data: link } = await db
+    .from("share_links")
+    .select("project_id")
+    .eq("token", token)
+    .maybeSingle();
+  if (!link?.project_id) return null;
+  const { data: project } = await db
+    .from("projects")
+    .select("owner_id")
+    .eq("id", link.project_id)
+    .maybeSingle();
+  if (!project?.owner_id) return null;
+  const { data: profile } = await db
+    .from("profiles")
+    .select("slug")
+    .eq("id", project.owner_id)
+    .maybeSingle();
+  return normalizeStudioSlug(
+    (profile as { slug?: string | null } | null)?.slug
+  );
+}
+
+/**
+ * Lightweight gate check — no shots / no password_hash leaked.
+ * Pass expectedSlug from the request host (`x-studio-slug`) so a gallery
+ * cannot be opened under another photographer’s studio subdomain.
+ */
+export async function getShareGate(
+  token: string,
+  expectedSlug?: string | null
+): Promise<ShareGateInfo> {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "not_configured" };
   }
@@ -352,8 +448,17 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
       studio_name?: string | null;
       display_name?: string | null;
       avatar_url?: string | null;
+      studio_slug?: string | null;
     };
     if (row.error) return { ok: false, error: row.error };
+
+    const studio_slug =
+      normalizeStudioSlug(row.studio_slug) ??
+      (await resolveShareOwnerSlug(token));
+
+    if (assertStudioHost(studio_slug, expectedSlug) === "wrong_studio") {
+      return { ok: false, error: "wrong_studio" };
+    }
 
     const requires = Boolean(row.requires_password);
     let unlocked = true;
@@ -378,6 +483,7 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
       studio_name: row.studio_name ?? null,
       display_name: row.display_name ?? null,
       avatar_url: row.avatar_url ?? null,
+      studio_slug,
     };
   }
 
@@ -406,15 +512,21 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
   let studio_name: string | null = null;
   let display_name: string | null = null;
   let avatar_url: string | null = null;
+  let studio_slug: string | null = null;
   if (project?.owner_id) {
     const { data: profile } = await db
       .from("profiles")
-      .select("studio_name, display_name, avatar_url")
+      .select("slug, studio_name, display_name, avatar_url")
       .eq("id", project.owner_id)
       .maybeSingle();
     studio_name = profile?.studio_name || profile?.display_name || null;
     display_name = profile?.display_name ?? null;
     avatar_url = profile?.avatar_url ?? null;
+    studio_slug = normalizeStudioSlug(profile?.slug);
+  }
+
+  if (assertStudioHost(studio_slug, expectedSlug) === "wrong_studio") {
+    return { ok: false, error: "wrong_studio" };
   }
 
   const requires = Boolean(link.password_hash);
@@ -430,6 +542,7 @@ export async function getShareGate(token: string): Promise<ShareGateInfo> {
     studio_name,
     display_name,
     avatar_url,
+    studio_slug,
   };
 }
 
@@ -641,7 +754,8 @@ export async function getClientGalleryByToken(
     return { error: "not_configured" };
   }
 
-  const gate = await getShareGate(token);
+  // Gate enforces host↔owner binding early (no metadata leak on wrong studio)
+  const gate = await getShareGate(token, expectedSlug);
   if (!gate.ok) return { error: gate.error };
   if (gate.requires_password && !gate.unlocked) {
     return { error: "password_required" };
@@ -652,7 +766,9 @@ export async function getClientGalleryByToken(
   if (gate.requires_password) {
     const payload = await loadGalleryWithAdmin(token);
     if ("error" in payload) return payload;
-    if (expectedSlug && payload.studio?.slug && payload.studio.slug !== expectedSlug) {
+    if (
+      assertStudioHost(payload.studio?.slug, expectedSlug) === "wrong_studio"
+    ) {
       return { error: "wrong_studio" };
     }
     void recordShareView(token);
@@ -670,13 +786,19 @@ export async function getClientGalleryByToken(
     if (error.message.includes("function") || error.code === "PGRST202") {
       return { error: "schema_missing" };
     }
-    // Fallback single-arg RPC
+    // Fallback single-arg RPC ONLY when no studio host is binding the request.
+    // Never drop expected_slug — that would allow cross-studio access.
+    if (normalizeStudioSlug(expectedSlug)) {
+      return { error: "failed" };
+    }
     const { data: data2, error: e2 } = await supabase.rpc("get_client_gallery", {
       p_token: token,
     });
     if (e2 || !data2) return { error: "failed" };
+    const loose = data2 as ClientGalleryPayload & { error?: string };
+    if (loose?.error) return { error: loose.error };
     void recordShareView(token);
-    const attached = await attachDisplayUrls(data2 as ClientGalleryPayload);
+    const attached = await attachDisplayUrls(loose);
     return withOriginalDownloadFlags(token, attached);
   }
 
@@ -686,6 +808,11 @@ export async function getClientGalleryByToken(
       return { error: "password_required" };
     }
     return { error: payload.error };
+  }
+
+  // Defense in depth (RPC + app-layer)
+  if (assertStudioHost(payload.studio?.slug, expectedSlug) === "wrong_studio") {
+    return { error: "wrong_studio" };
   }
 
   void recordShareView(token);
@@ -896,13 +1023,18 @@ export async function emailClientShare(input: {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("studio_name, display_name")
+    .select("slug, studio_name, display_name")
     .eq("id", user.id)
     .maybeSingle();
 
   const studioName =
     profile?.studio_name || profile?.display_name || "Your photographer";
-  const galleryUrl = `${getAppUrl()}/g/${link.token}`;
+  // Client delivery lives on the studio host, not the app host
+  const galleryUrl = clientGalleryPublicUrl(
+    link.token as string,
+    (profile as { slug?: string | null } | null)?.slug,
+    getAppUrl()
+  );
   const expiresLabel = link.expires_at
     ? new Date(link.expires_at as string).toLocaleDateString()
     : null;

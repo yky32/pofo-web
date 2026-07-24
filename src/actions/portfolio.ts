@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/env";
+import {
+  parsePortfolioPage,
+  type PortfolioPageConfig,
+} from "@/lib/portfolio-page";
 import { withDisplayUrls } from "@/lib/storage";
 import type { StudioPublic } from "@/types/database";
 
@@ -132,12 +136,16 @@ export async function listMyPortfolio(): Promise<PortfolioItemRow[]> {
 }
 
 /**
- * Publish proofed (or any) shots to the photographer's public portfolio.
+ * Add any owned project shots to the public portfolio (not only client picks).
+ * Showcase frames that represent the photographer’s work.
  */
 export async function publishShotsToPortfolio(input: {
   projectId: string;
   shotIds: string[];
+  /** When true (proofing finish flow): mark shots final + project final */
   markProjectFinal?: boolean;
+  /** Default true — live on public page immediately */
+  publishLive?: boolean;
 }): Promise<PortfolioActionState> {
   if (!isSupabaseConfigured()) {
     return { error: "Supabase is not configured." };
@@ -145,7 +153,7 @@ export async function publishShotsToPortfolio(input: {
 
   const ids = [...new Set(input.shotIds.filter(Boolean))];
   if (!ids.length) return { error: "Select at least one photo." };
-  if (ids.length > 100) return { error: "Publish at most 100 photos at a time." };
+  if (ids.length > 100) return { error: "Add at most 100 photos at a time." };
 
   const supabase = await createClient();
   const {
@@ -163,7 +171,7 @@ export async function publishShotsToPortfolio(input: {
 
   const { data: shots, error: sErr } = await supabase
     .from("shots")
-    .select("id, filename")
+    .select("id, filename, kind")
     .eq("project_id", input.projectId)
     .eq("owner_id", user.id)
     .in("id", ids);
@@ -178,18 +186,26 @@ export async function publishShotsToPortfolio(input: {
   }
   if (!shots?.length) return { error: "No matching photos." };
 
+  // Prefer displayable frames — skip pure RAW without preview when possible
+  const usable = shots.filter((s) => {
+    const kind = (s as { kind?: string | null }).kind;
+    return kind !== "raw";
+  });
+  const toAdd = usable.length ? usable : shots;
+
   const { count } = await supabase
     .from("portfolio_items")
     .select("id", { count: "exact", head: true })
     .eq("owner_id", user.id);
 
   const sortBase = count ?? 0;
-  const rows = shots.map((s, i) => ({
+  const live = input.publishLive !== false;
+  const rows = toAdd.map((s, i) => ({
     owner_id: user.id,
     shot_id: s.id as string,
     project_id: input.projectId,
-    title: (s.filename as string) || project.title,
-    is_published: true,
+    title: (s.filename as string) || (project.title as string),
+    is_published: live,
     sort_order: sortBase + i,
   }));
 
@@ -211,18 +227,18 @@ export async function publishShotsToPortfolio(input: {
     return { error: error.message };
   }
 
-  // Soft mark as final kind for delivered selection
-  await supabase
-    .from("shots")
-    .update({ kind: "final" })
-    .eq("project_id", input.projectId)
-    .eq("owner_id", user.id)
-    .in(
-      "id",
-      shots.map((s) => s.id as string)
-    );
-
+  // Only when finishing a delivery — not for general showcase adds
   if (input.markProjectFinal) {
+    await supabase
+      .from("shots")
+      .update({ kind: "final" })
+      .eq("project_id", input.projectId)
+      .eq("owner_id", user.id)
+      .in(
+        "id",
+        toAdd.map((s) => s.id as string)
+      );
+
     await supabase
       .from("projects")
       .update({ status: "final", updated_at: new Date().toISOString() })
@@ -234,9 +250,130 @@ export async function publishShotsToPortfolio(input: {
   revalidatePath(`/dashboard/galleries/${input.projectId}`);
   revalidatePath("/dashboard");
   revalidatePath("/s");
+  revalidatePath("/s", "layout");
   return {
-    success: `Published ${shots.length} photo${shots.length === 1 ? "" : "s"} to portfolio.`,
-    published: shots.length,
+    success: `Added ${toAdd.length} photo${toAdd.length === 1 ? "" : "s"} to portfolio.`,
+    published: toAdd.length,
+  };
+}
+
+export type PortfolioCandidateShot = {
+  id: string;
+  project_id: string;
+  project_title: string;
+  filename: string | null;
+  display_url: string | null;
+  in_portfolio: boolean;
+};
+
+/** Projects with displayable shots for portfolio picker. */
+export async function listPortfolioCandidates(): Promise<{
+  projects: { id: string; title: string; shot_count: number }[];
+  shots: PortfolioCandidateShot[];
+  portfolio_shot_ids: string[];
+}> {
+  const empty = {
+    projects: [] as { id: string; title: string; shot_count: number }[],
+    shots: [] as PortfolioCandidateShot[],
+    portfolio_shot_ids: [] as string[],
+  };
+  if (!isSupabaseConfigured()) return empty;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return empty;
+
+  const { data: projects } = await supabase
+    .from("projects")
+    .select("id, title")
+    .eq("owner_id", user.id)
+    .order("updated_at", { ascending: false })
+    .limit(40);
+
+  if (!projects?.length) return empty;
+
+  const projectIds = projects.map((p) => p.id as string);
+  const titleById = new Map(
+    projects.map((p) => [p.id as string, p.title as string])
+  );
+
+  const { data: shots } = await supabase
+    .from("shots")
+    .select(
+      "id, project_id, filename, storage_key, preview_url, preview_key, thumbnail_key, kind"
+    )
+    .eq("owner_id", user.id)
+    .in("project_id", projectIds)
+    .order("sort_order", { ascending: true })
+    .limit(500);
+
+  const { data: existing } = await supabase
+    .from("portfolio_items")
+    .select("shot_id")
+    .eq("owner_id", user.id);
+
+  const inPortfolio = new Set(
+    (existing ?? []).map((r) => r.shot_id as string)
+  );
+
+  const rows = (shots ?? []).filter((s) => {
+    const kind = (s as { kind?: string | null }).kind;
+    if (kind === "raw") return false;
+    return Boolean(
+      s.preview_url ||
+        s.storage_key ||
+        (s as { preview_key?: string | null }).preview_key ||
+        (s as { thumbnail_key?: string | null }).thumbnail_key
+    );
+  });
+
+  const withUrls = await withDisplayUrls(
+    supabase,
+    rows.map((s) => ({
+      id: s.id as string,
+      storage_key: (s.storage_key as string | null) ?? null,
+      preview_url: (s.preview_url as string | null) ?? null,
+      preview_key:
+        ((s as { preview_key?: string | null }).preview_key as
+          | string
+          | null) ?? null,
+      thumbnail_key:
+        ((s as { thumbnail_key?: string | null }).thumbnail_key as
+          | string
+          | null) ?? null,
+    }))
+  );
+  const urlById = new Map(withUrls.map((s) => [s.id, s.display_url]));
+
+  const candidates: PortfolioCandidateShot[] = rows.map((s) => ({
+    id: s.id as string,
+    project_id: s.project_id as string,
+    project_title: titleById.get(s.project_id as string) ?? "Project",
+    filename: (s.filename as string | null) ?? null,
+    display_url: urlById.get(s.id as string) ?? null,
+    in_portfolio: inPortfolio.has(s.id as string),
+  }));
+
+  const countByProject = new Map<string, number>();
+  for (const c of candidates) {
+    countByProject.set(
+      c.project_id,
+      (countByProject.get(c.project_id) ?? 0) + 1
+    );
+  }
+
+  return {
+    projects: projects
+      .map((p) => ({
+        id: p.id as string,
+        title: p.title as string,
+        shot_count: countByProject.get(p.id as string) ?? 0,
+      }))
+      .filter((p) => p.shot_count > 0),
+    shots: candidates,
+    portfolio_shot_ids: [...inPortfolio],
   };
 }
 
@@ -263,6 +400,7 @@ export async function setPortfolioItemPublished(input: {
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/portfolio");
+  revalidatePath("/s", "layout");
   return {
     success: input.published ? "Published." : "Hidden from public portfolio.",
   };
@@ -288,6 +426,7 @@ export async function removePortfolioItem(itemId: string): Promise<PortfolioActi
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/portfolio");
+  revalidatePath("/s", "layout");
   return { success: "Removed from portfolio." };
 }
 
@@ -307,6 +446,85 @@ export type PublicPortfolio = {
   studio: StudioPublic;
   items: PublicPortfolioItem[];
 };
+
+/** Load layout for the logged-in photographer (defaults if unset). */
+export async function getMyPortfolioPage(): Promise<PortfolioPageConfig> {
+  if (!isSupabaseConfigured()) {
+    return parsePortfolioPage(null);
+  }
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return parsePortfolioPage(null);
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("studio_name, display_name, portfolio_page")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const name =
+    (data as { studio_name?: string | null; display_name?: string | null } | null)
+      ?.studio_name ||
+    (data as { display_name?: string | null } | null)?.display_name;
+
+  return parsePortfolioPage(
+    (data as { portfolio_page?: unknown } | null)?.portfolio_page,
+    name
+  );
+}
+
+/** Persist limited page layout (theme + ordered sections). */
+export async function savePortfolioPage(
+  config: PortfolioPageConfig
+): Promise<PortfolioActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("studio_name, display_name, slug")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const name =
+    profile?.studio_name || profile?.display_name || profile?.slug || null;
+  const clean = parsePortfolioPage(config, name);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ portfolio_page: clean })
+    .eq("id", user.id);
+
+  if (error) {
+    if (
+      error.message.includes("portfolio_page") ||
+      error.code === "42703" ||
+      error.code === "PGRST204"
+    ) {
+      return {
+        error:
+          "Run supabase/features-portfolio-page.sql in the SQL Editor first.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath("/dashboard/portfolio");
+  revalidatePath("/s", "layout");
+  if (profile?.slug) {
+    revalidatePath(`/s/${profile.slug}`);
+  }
+  return { success: "Page design saved." };
+}
 
 export async function getPublicPortfolio(
   slug: string

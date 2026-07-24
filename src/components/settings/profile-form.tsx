@@ -29,9 +29,8 @@ export function ProfileForm({
   const slugPreview = profile.slug || "your-studio";
   const hasSlug = Boolean(profile.slug?.trim());
 
-  const publicUrl = rootDomain
-    ? `https://${slugPreview}.${rootDomain}`
-    : studioPublicBaseUrl(slugPreview, appUrl);
+  // Always subdomain-first (root domain, local *.localhost, else rare path fallback)
+  const publicUrl = studioPublicBaseUrl(slugPreview, appUrl);
 
   async function copyPublicUrl() {
     try {

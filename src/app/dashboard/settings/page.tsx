@@ -172,7 +172,7 @@ export default async function SettingsPage({
                             {t.name}
                           </p>
                           <p className="font-mono text-[11px] text-stone-400">
-                            /s/{t.slug}
+                            {t.slug}
                             {t.my_role ? ` · ${t.my_role}` : ""}
                           </p>
                         </div>

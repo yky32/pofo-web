@@ -151,6 +151,7 @@ export async function getStudioBySlug(slug: string) {
     display_name?: string | null;
     studio_name?: string | null;
     avatar_url?: string | null;
+    portfolio_page?: unknown | null;
   };
 
   if (!payload || payload.error || !payload.slug) return null;
