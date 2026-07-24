@@ -389,11 +389,8 @@ export function ClientGallery({
             onItemClick={(item) => {
               if (!pending) onToggle(item.id);
             }}
-            itemClassName={({ item }) =>
-              cn(
-                pending && "pointer-events-none opacity-80",
-                bulkMode && selected.has(item.id) && "ring-2 ring-white ring-offset-2 ring-offset-[oklch(0.12_0.01_50)]"
-              )
+            itemClassName={() =>
+              cn(pending && "pointer-events-none opacity-80")
             }
             renderTile={({ item, image }) => {
               const isOn = selected.has(item.id);

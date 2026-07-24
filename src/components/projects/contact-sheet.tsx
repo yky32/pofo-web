@@ -202,15 +202,7 @@ export function ContactSheet({
           }
           setMetaShotId(item.id);
         }}
-        itemClassName={({ item }) => {
-          const isOn = selected.has(item.id);
-          return cn(
-            "cursor-pointer",
-            selectMode && "ring-offset-2",
-            selectMode && isOn && "ring-2 ring-stone-900",
-            selectMode && !isOn && "hover:ring-2 hover:ring-stone-300"
-          );
-        }}
+        itemClassName={() => "cursor-pointer"}
         renderTile={({ item, image }) => {
           const isOn = selected.has(item.id);
           const full = items.find((i) => i.id === item.id);
@@ -219,14 +211,7 @@ export function ContactSheet({
           const label = flagShortLabel(flag);
           return (
             <>
-              <div
-                className={cn(
-                  "absolute inset-0",
-                  selectMode && isOn && "opacity-90"
-                )}
-              >
-                {image}
-              </div>
+              <div className="absolute inset-0">{image}</div>
               {selectMode ? (
                 <span
                   className={cn(

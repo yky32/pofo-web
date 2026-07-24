@@ -91,7 +91,7 @@ export function MosaicGrid({
 
         const interactive = Boolean(onItemClick);
         const classNames = cn(
-          "group relative overflow-hidden rounded-[6px] bg-stone-100",
+          "group relative overflow-hidden rounded-[6px] bg-transparent",
           mosaicSpanClass(cell),
           interactive && "cursor-pointer text-left",
           itemClassName?.(ctx)

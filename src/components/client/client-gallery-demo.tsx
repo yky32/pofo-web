@@ -216,12 +216,7 @@ export function ClientGalleryDemo({
                 key={shot.id}
                 type="button"
                 onClick={() => onToggle(shot.id)}
-                className={cn(
-                  "group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3",
-                  bulkMode &&
-                    isOn &&
-                    "ring-2 ring-white ring-offset-2 ring-offset-[oklch(0.12_0.01_50)]"
-                )}
+                className="group relative mb-2 w-full break-inside-avoid overflow-hidden sm:mb-3"
               >
                 <div
                   className={
