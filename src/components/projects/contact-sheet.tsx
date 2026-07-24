@@ -26,6 +26,10 @@ import {
   type ContactViewLayout,
 } from "@/components/photo/mosaic-grid";
 import {
+  HotkeysHelpButton,
+  HotkeysHelpDialog,
+} from "@/components/projects/hotkeys-help-dialog";
+import {
   ShotStudioMetaPanel,
   flagBadgeClass,
   flagShortLabel,
@@ -142,6 +146,9 @@ export function ContactSheet({
     bottom?: number;
     right: number;
   } | null>(null);
+  const [hotkeysOpen, setHotkeysOpen] = useState(false);
+  /** Last opened shot — for Space toggle in select mode */
+  const lastShotIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setItems(initialItems);
@@ -226,6 +233,7 @@ export function ContactSheet({
   }, []);
 
   function toggle(id: string) {
+    lastShotIdRef.current = id;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -241,6 +249,90 @@ export function ContactSheet({
       setSelected(new Set(allIds));
     }
   }
+
+  function navigateMeta(dir: -1 | 1) {
+    if (!metaShotId) return;
+    const idx = items.findIndex((i) => i.id === metaShotId);
+    if (idx < 0) return;
+    const next = items[idx + dir];
+    if (next) {
+      setMetaShotId(next.id);
+      lastShotIdRef.current = next.id;
+    }
+  }
+
+  // Global shortcuts when not typing in an input
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      const inField =
+        t &&
+        (t.tagName === "TEXTAREA" ||
+          t.tagName === "INPUT" ||
+          t.isContentEditable);
+
+      // ? always opens help (shift+/ on many layouts is also "?")
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        if (inField) return;
+        e.preventDefault();
+        setHotkeysOpen(true);
+        setViewOpen(false);
+        return;
+      }
+
+      if (hotkeysOpen) return; // dialog handles Esc
+      if (inField) return;
+      if (metaShotId) return; // studio panel owns keys while open
+
+      if (e.key === "s" || e.key === "S") {
+        e.preventDefault();
+        if (selectMode) exitSelect();
+        else {
+          setSelectMode(true);
+          setMessage(null);
+          setError(null);
+          setMetaShotId(null);
+        }
+        return;
+      }
+
+      if (!selectMode) return;
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        exitSelect();
+        return;
+      }
+      if (e.key === "a" || e.key === "A") {
+        e.preventDefault();
+        toggleAll();
+        return;
+      }
+      if (e.key === " " || e.code === "Space") {
+        e.preventDefault();
+        const id = lastShotIdRef.current ?? items[0]?.id;
+        if (id) toggle(id);
+        return;
+      }
+      if (e.key === "Delete" || e.key === "Backspace" || e.key === "d" || e.key === "D") {
+        if (!selected.size) return;
+        e.preventDefault();
+        void onDelete();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectMode,
+    hotkeysOpen,
+    metaShotId,
+    selected,
+    items,
+    exitSelect,
+    allSelected,
+    allIds,
+  ]);
 
   async function onDelete() {
     if (!count) return;
@@ -292,6 +384,8 @@ export function ContactSheet({
           )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
+          <HotkeysHelpButton onClick={() => setHotkeysOpen(true)} />
+
           {/* View layout */}
           <button
             ref={viewTriggerRef}
@@ -444,12 +538,18 @@ export function ContactSheet({
         <p className="text-xs text-emerald-700">{message}</p>
       ) : null}
 
+      <HotkeysHelpDialog
+        open={hotkeysOpen}
+        onClose={() => setHotkeysOpen(false)}
+      />
+
       <MosaicGrid
         items={items}
         density="studio"
         layout={viewLayout}
         onItemClick={(item) => {
           if (pending) return;
+          lastShotIdRef.current = item.id;
           if (selectMode) {
             toggle(item.id);
             return;
@@ -525,6 +625,8 @@ export function ContactSheet({
           filename={metaShot.alt}
           initialNote={metaShot.studio_note}
           initialFlag={metaShot.studio_flag}
+          positionLabel={`${items.findIndex((i) => i.id === metaShot.id) + 1} / ${items.length}`}
+          onNavigate={navigateMeta}
           onClose={() => setMetaShotId(null)}
           onSaved={({ note, flag }) => {
             setItems((prev) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Flag, Loader2, StickyNote, X } from "lucide-react";
 import { updateShotStudioMeta } from "@/actions/shots";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,8 @@ export function ShotStudioMetaPanel({
   initialFlag,
   onClose,
   onSaved,
+  onNavigate,
+  positionLabel,
 }: {
   projectId: string;
   shotId: string;
@@ -51,6 +53,10 @@ export function ShotStudioMetaPanel({
   initialFlag?: string | null;
   onClose: () => void;
   onSaved?: (next: { note: string | null; flag: string | null }) => void;
+  /** ← / → without closing — parent swaps shot */
+  onNavigate?: (dir: -1 | 1) => void;
+  /** e.g. "3 / 16" */
+  positionLabel?: string | null;
 }) {
   const [note, setNote] = useState(initialNote ?? "");
   const [flag, setFlag] = useState<StudioFlag>(
@@ -58,6 +64,7 @@ export function ShotStudioMetaPanel({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setNote(initialNote ?? "");
@@ -65,18 +72,85 @@ export function ShotStudioMetaPanel({
     setError(null);
   }, [shotId, initialNote, initialFlag]);
 
-  // Esc closes without saving
+  function applyFlag(next: StudioFlag) {
+    setFlag(next);
+    // Instant save flag for cull speed (note still needs Save / ⌘Enter)
+    startTransition(async () => {
+      const res = await updateShotStudioMeta({
+        projectId,
+        shotId,
+        studioNote: note,
+        studioFlag: next,
+      });
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      onSaved?.({
+        note: note.trim() || null,
+        flag: next === "none" ? null : next,
+      });
+    });
+  }
+
+  // Esc, arrows, 1–5, N, ⌘Enter
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null;
+      const inField =
+        t &&
+        (t.tagName === "TEXTAREA" ||
+          t.tagName === "INPUT" ||
+          t.isContentEditable);
+
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         onClose();
+        return;
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        save();
+        return;
+      }
+
+      if (e.key === "ArrowLeft" && !inField) {
+        e.preventDefault();
+        onNavigate?.(-1);
+        return;
+      }
+      if (e.key === "ArrowRight" && !inField) {
+        e.preventDefault();
+        onNavigate?.(1);
+        return;
+      }
+
+      if (inField) return;
+
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        noteRef.current?.focus();
+        return;
+      }
+
+      const flagMap: Record<string, StudioFlag> = {
+        "1": "none",
+        "2": "print",
+        "3": "retouch",
+        "4": "hero",
+        "5": "reject",
+      };
+      if (flagMap[e.key]) {
+        e.preventDefault();
+        applyFlag(flagMap[e.key]);
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- save/applyFlag use latest state via closures on each open
+  }, [onClose, onNavigate, projectId, shotId, note]);
 
   function save() {
     setError(null);
@@ -115,7 +189,15 @@ export function ShotStudioMetaPanel({
             <p className="text-xs font-medium text-stone-900">Studio mark</p>
             <p className="truncate text-[11px] text-stone-500">
               {filename || "Photo"} · private to you
+              {positionLabel ? (
+                <span className="text-stone-400"> · {positionLabel}</span>
+              ) : null}
             </p>
+            {onNavigate ? (
+              <p className="mt-0.5 text-[10px] text-stone-400">
+                ← → browse · 1–5 flag · N note · Esc close
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -134,11 +216,12 @@ export function ShotStudioMetaPanel({
               Flag
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {FLAGS.map((f) => (
+              {FLAGS.map((f, i) => (
                 <button
                   key={f.value}
                   type="button"
-                  onClick={() => setFlag(f.value)}
+                  onClick={() => applyFlag(f.value)}
+                  title={`Shortcut ${i + 1}`}
                   className={cn(
                     "rounded-full px-2.5 py-1 text-[11px] font-medium transition",
                     flag === f.value
@@ -161,6 +244,7 @@ export function ShotStudioMetaPanel({
               Note
             </p>
             <textarea
+              ref={noteRef}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
