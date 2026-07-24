@@ -419,3 +419,74 @@ export async function updateProjectMemory(
   revalidatePath("/dashboard");
   return { success: "Saved event details." };
 }
+
+/**
+ * Update core project settings (title, client, proofing limit).
+ */
+export async function updateProjectSettings(
+  _prev: ProjectActionState,
+  formData: FormData
+): Promise<ProjectActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const projectId = String(formData.get("project_id") ?? "").trim();
+  if (!projectId) return { error: "Missing project." };
+
+  const title = String(formData.get("title") ?? "").trim();
+  const clientName = String(formData.get("client") ?? "").trim();
+  const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
+  const eventDateRaw = String(formData.get("event_date") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const eventDate = parseEventDate(eventDateRaw);
+
+  if (!title) return { error: "Title is required." };
+  if (eventDateRaw && !eventDate) return { error: "Use a valid event date." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const patch: Record<string, unknown> = {
+    title,
+    client_name: clientName || null,
+    selection_limit: Math.min(200, Math.max(1, selectionLimit)),
+    event_date: eventDate,
+    location: location || null,
+  };
+
+  let { error } = await supabase
+    .from("projects")
+    .update(patch)
+    .eq("id", projectId)
+    .eq("owner_id", user.id);
+
+  // Pre-migration: strip memory columns
+  if (
+    error &&
+    (error.message.includes("event_date") ||
+      error.message.includes("location") ||
+      error.code === "42703")
+  ) {
+    const retry = await supabase
+      .from("projects")
+      .update({
+        title,
+        client_name: clientName || null,
+        selection_limit: Math.min(200, Math.max(1, selectionLimit)),
+      })
+      .eq("id", projectId)
+      .eq("owner_id", user.id);
+    error = retry.error;
+  }
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/galleries/${projectId}`);
+  revalidatePath("/dashboard/galleries");
+  revalidatePath("/dashboard");
+  return { success: "Settings saved." };
+}

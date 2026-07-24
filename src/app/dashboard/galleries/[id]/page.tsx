@@ -16,6 +16,7 @@ import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
 import { ProjectMemoryMeta } from "@/components/projects/project-memory-meta";
+import { ProjectSettingsPanel } from "@/components/projects/project-settings-panel";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
 import { PublishToPortfolioButton } from "@/components/projects/publish-to-portfolio-button";
 import { SeedPhotosButton } from "@/components/projects/seed-photos-button";
@@ -361,46 +362,16 @@ export default async function GalleryDetailPage({
           </TabsContent>
 
           <TabsContent value="settings" className="mt-5">
-            <div className="max-w-lg space-y-5 rounded-[8px] border border-stone-200/70 bg-white/40 p-6 sm:p-8">
-              <div>
-                <p className="font-heading text-xl text-stone-900">
-                  Project settings
-                </p>
-                <dl className="mt-4 space-y-2 text-sm">
-                  <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-                    <dt className="text-stone-400">Title</dt>
-                    <dd className="text-right text-stone-800">
-                      {gallery.title}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-                    <dt className="text-stone-400">Client</dt>
-                    <dd className="text-right text-stone-800">
-                      {gallery.client_name ?? "—"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-                    <dt className="text-stone-400">Proofing limit</dt>
-                    <dd className="text-right text-stone-800">
-                      {gallery.selection_limit}
-                    </dd>
-                  </div>
-                  <div className="flex items-center justify-between gap-4 py-2">
-                    <dt className="text-stone-400">Status</dt>
-                    <dd className="text-right">
-                      {!isDemo ? (
-                        <ProjectStatusControl
-                          projectId={gallery.id}
-                          status={gallery.status}
-                        />
-                      ) : (
-                        <span className="text-stone-800">{gallery.status}</span>
-                      )}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
+            <ProjectSettingsPanel
+              projectId={gallery.id}
+              title={gallery.title}
+              clientName={gallery.client_name}
+              selectionLimit={gallery.selection_limit}
+              status={gallery.status}
+              eventDate={gallery.event_date}
+              location={gallery.location}
+              isDemo={isDemo}
+            />
           </TabsContent>
         </Tabs>
       </div>
