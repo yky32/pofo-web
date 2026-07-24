@@ -342,6 +342,45 @@ export function CinemaReview({
           <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
         </div>
 
+        {/* Hotkey tooltip — bottom-left, above filmstrip (photo-first glass) */}
+        <div
+          className="pointer-events-none absolute bottom-[3.5rem] left-3 z-30 sm:bottom-14 sm:left-4"
+          aria-hidden
+        >
+          <div className="rounded-xl border border-white/12 bg-black/55 px-2.5 py-2 shadow-xl backdrop-blur-xl">
+            <p className="mb-1.5 text-[9px] font-medium uppercase tracking-wider text-white/40">
+              Shortcuts
+            </p>
+            <ul className="space-y-1">
+              {(
+                [
+                  { keys: ["←", "→"], label: "Browse" },
+                  { keys: ["1–5"], label: "Flag" },
+                  { keys: ["N"], label: "Note" },
+                  { keys: ["Esc"], label: "Exit" },
+                ] as const
+              ).map((row) => (
+                <li
+                  key={row.label}
+                  className="flex items-center gap-2 text-[11px] leading-none"
+                >
+                  <span className="flex min-w-[2.75rem] items-center gap-0.5">
+                    {row.keys.map((k) => (
+                      <kbd
+                        key={k}
+                        className="inline-flex min-w-[1.25rem] items-center justify-center rounded-md border border-white/15 bg-white/10 px-1 py-0.5 font-mono text-[10px] font-medium text-white/90"
+                      >
+                        {k}
+                      </kbd>
+                    ))}
+                  </span>
+                  <span className="text-white/55">{row.label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
         {/* Bottom dock: compact flags + filmstrip — one thin band */}
         <div
           className={cn(
