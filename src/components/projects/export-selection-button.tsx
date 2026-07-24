@@ -90,7 +90,7 @@ export function ExportSelectionButton({
     : "Download";
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-start gap-1 sm:items-end">
       <DropdownMenu>
         <DropdownMenuTrigger
           disabled={!hasAny || isBusy}

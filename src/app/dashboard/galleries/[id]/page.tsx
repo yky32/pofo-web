@@ -171,11 +171,11 @@ export default async function GalleryDetailPage({
 
       <div className="w-full min-w-0 space-y-5">
         {!isDemo && hasPhotos ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-[8px] border border-stone-200/80 bg-white/60 px-3 py-2.5 backdrop-blur-sm">
-            <div className="min-w-0 flex-1 sm:max-w-md">
+          <div className="flex min-w-0 flex-col gap-3 rounded-[8px] border border-stone-200/80 bg-white/60 px-3 py-2.5 backdrop-blur-sm sm:flex-row sm:items-center sm:gap-3">
+            <div className="min-w-0 w-full sm:max-w-md sm:flex-1">
               <PhotoUpload projectId={gallery.id} variant="compact" />
             </div>
-            <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:justify-end">
               <ShareLinkPanel
                 projectId={gallery.id}
                 links={shareLinks}

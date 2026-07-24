@@ -119,9 +119,9 @@ export function DeliveryStepper({
   const allDone = percent >= 100 || steps.every((s) => s.state === "complete");
 
   return (
-    <div className={cn("w-full", className)}>
-      <div className="flex items-baseline justify-between gap-4">
-        <ol className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-sm">
+    <div className={cn("w-full min-w-0", className)}>
+      <div className="flex min-w-0 items-baseline justify-between gap-2 sm:gap-4">
+        <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-0.5 gap-y-1 text-xs sm:gap-x-1 sm:text-sm">
           {steps.map((s, i) => {
             const prev = i > 0 ? steps[i - 1] : null;
             // Connector green when the previous step is already past
@@ -129,12 +129,12 @@ export function DeliveryStepper({
               prev?.state === "complete" ||
               (prev?.state === "current" && s.state !== "upcoming");
             return (
-              <li key={s.id} className="flex items-center gap-1">
+              <li key={s.id} className="flex items-center gap-0.5 sm:gap-1">
                 {i > 0 ? (
                   <span
                     aria-hidden
                     className={cn(
-                      "mx-1 h-px w-4 sm:w-6 transition-colors",
+                      "mx-0.5 h-px w-2.5 shrink-0 transition-colors sm:mx-1 sm:w-6",
                       lineDone || prev?.state === "complete"
                         ? "bg-emerald-500"
                         : "bg-stone-200"
@@ -160,14 +160,14 @@ export function DeliveryStepper({
         </ol>
         <p
           className={cn(
-            "shrink-0 font-heading text-lg tabular-nums sm:text-xl transition-colors",
+            "shrink-0 font-heading text-base tabular-nums sm:text-xl transition-colors",
             allDone ? "text-emerald-700" : "text-stone-900"
           )}
         >
           {percent}
           <span
             className={cn(
-              "text-sm",
+              "text-xs sm:text-sm",
               allDone ? "text-emerald-600/70" : "text-stone-400"
             )}
           >

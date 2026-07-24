@@ -368,7 +368,7 @@ export function PhotoUpload({
         }}
         className={cn(
           "rounded-[8px] border border-dashed transition-colors",
-          isHero ? "px-6 py-14 sm:py-16" : "px-4 py-4",
+          isHero ? "px-6 py-14 sm:py-16" : "px-3 py-3 sm:px-4 sm:py-4",
           dragOver
             ? "border-stone-400 bg-stone-100/90"
             : isHero
@@ -381,7 +381,7 @@ export function PhotoUpload({
             "flex gap-3",
             isHero
               ? "flex-col items-center text-center"
-              : "flex-wrap items-center"
+              : "flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center"
           )}
         >
           {isHero ? (
@@ -412,14 +412,14 @@ export function PhotoUpload({
               <Button
                 type="button"
                 size="sm"
-                className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+                className="w-full shrink-0 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 sm:w-auto"
                 disabled={busy}
                 onClick={() => inputRef.current?.click()}
               >
                 <Upload className="mr-2 h-4 w-4" />
                 {busy ? "Uploading…" : "Upload photos"}
               </Button>
-              <p className="text-xs text-stone-500">
+              <p className="hidden min-w-0 text-xs leading-snug text-stone-500 sm:block">
                 Drop files here · JPEG / PNG · max 30MB
               </p>
             </>
