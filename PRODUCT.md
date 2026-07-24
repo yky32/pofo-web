@@ -6,7 +6,7 @@
 | **Repo** | https://github.com/yky32/pofo-web |
 | **Status** | MVP1 shipped in app · MVP2 defined |
 | **Sources** | DESIGN archive (merged), MVP2 checklist PDF, README, setup docs |
-| **Last updated** | 2026-07-24 |
+| **Last updated** | 2026-07-24 (URL naming `/g` `/s` documented) |
 
 This is the **single product source of truth**: vision, domain language, MVP1 shipped status, MVP2 scope, and engineering guardrails. Day-to-day setup stays in `README.md` / `supabase/SETUP.md`.
 
@@ -187,8 +187,56 @@ Shared Project access without sharing login passwords.
 | `/dashboard/galleries/[id]` | Project hub |
 | `/dashboard/portfolio` | Portfolio manager |
 | `/dashboard/settings` | Studio profile / slug |
-| `/g/[token]` | Client gallery |
-| `/s/[slug]` | Public studio + portfolio grid |
+| `/g/[token]` | **G**allery — private client share (see below) |
+| `/s/[slug]` | **S**tudio — public brand / portfolio (see below) |
+
+### Public URL naming: `/g/` vs `/s/`
+
+Short path prefixes keep share links clean and memorable. Letters are **product mnemonics**, not random.
+
+| Prefix | Stands for | Who uses it | What the segment is |
+|--------|------------|-------------|---------------------|
+| **`/g/`** | **G**allery (client **g**allery / private **g**allery delivery) | **Client** (and photographer previewing the client view) | **`token`** — long unguessable share-link secret (not a brand name) |
+| **`/s/`** | **S**tudio (public **s**tudio brand page) | **Anyone** (marketing / discovery) | **`slug`** — human-readable studio handle from `profiles.slug` or (later) `teams.slug` |
+
+#### `/g/{token}` — private client gallery
+
+```
+https://app.example/g/xK9mQ2…   ← only people with this link (+ password if set)
+```
+
+- **Why `g`:** “Gallery” is the client-facing product surface — browse, proof, optional download. Keeps the URL short when pasted into WhatsApp / email.
+- **Why a token, not a slug:** Access is **capability-based** (secret URL), not public SEO. Revoke / expire / password without changing brand identity.
+- **Never** put human-readable project titles alone in this path (guessable / leaky).
+
+#### `/s/{slug}` — public studio page
+
+```
+https://app.example/s/northlight   ← public brand presence
+```
+
+- **Why `s`:** “Studio” — the photographer’s (or company team’s) **public** face: name, portfolio grid, how clients find them.
+- **Why a slug:** Readable, brandable, stable (`profiles.slug` personal; `teams.slug` company). Safe to print on cards / bio links.
+- **Not** a private delivery channel — no proofing, no share-token secrets here.
+
+#### Quick contrast
+
+| | `/g/…` | `/s/…` |
+|--|--------|--------|
+| **Meaning** | Gallery (private job delivery) | Studio (public brand) |
+| **Audience** | Specific client | Public / prospects |
+| **Identifier** | Random **token** | Chosen **slug** |
+| **Auth** | Token (+ optional password cookie) | None (published portfolio only) |
+| **Example job** | “Here’s your wedding gallery” | “Visit our studio page” |
+
+#### Related forms (same idea)
+
+| Form | Meaning |
+|------|---------|
+| `{slug}.pofo.app` (subdomain) | Same public **studio** brand as `/s/{slug}` when root domain is configured |
+| `/dashboard/*` | Photographer **app** (authenticated) — not public |
+
+**Product rule:** Private delivery always goes through **`/g/`**. Public marketing / portfolio always through **`/s/`** (or studio subdomain). Do not conflate them in copy or support docs.
 
 ---
 
