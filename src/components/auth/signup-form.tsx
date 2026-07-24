@@ -40,21 +40,31 @@ export function SignupForm() {
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* Intent pill: Personal | Team */}
+        {/* Intent pill: Personal | Team — sliding thumb */}
         <div
-          className="mx-auto flex w-fit items-center gap-0.5 rounded-full border border-stone-200 bg-stone-100/80 p-1"
+          className="relative mx-auto grid w-full max-w-[17rem] grid-cols-2 rounded-full border border-stone-200 bg-stone-100/80 p-1"
           role="group"
           aria-label="Account type"
         >
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-stone-900 shadow-sm",
+              "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+              "motion-reduce:transition-none",
+              intent === "team" ? "translate-x-full" : "translate-x-0"
+            )}
+          />
           <button
             type="button"
             onClick={() => setIntent("personal")}
             aria-pressed={intent === "personal"}
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              "relative z-10 inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors duration-300",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 focus-visible:ring-offset-1",
+              "motion-reduce:transition-none",
               intent === "personal"
-                ? "bg-stone-900 text-white shadow-sm"
+                ? "text-white"
                 : "text-stone-500 hover:text-stone-800"
             )}
           >
@@ -66,10 +76,11 @@ export function SignupForm() {
             onClick={() => setIntent("team")}
             aria-pressed={intent === "team"}
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              "relative z-10 inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors duration-300",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 focus-visible:ring-offset-1",
+              "motion-reduce:transition-none",
               intent === "team"
-                ? "bg-stone-900 text-white shadow-sm"
+                ? "text-white"
                 : "text-stone-500 hover:text-stone-800"
             )}
           >
