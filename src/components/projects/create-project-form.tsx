@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { AlertCircle } from "lucide-react";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { ProjectTagsField } from "@/components/projects/project-tags-field";
@@ -24,6 +25,8 @@ export function CreateProjectForm({
 }) {
   const [state, action, pending] = useActionState(createProject, initial);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [titleError, setTitleError] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.error?.startsWith("PROJECTS_LIMIT")) {
@@ -34,26 +37,75 @@ export function CreateProjectForm({
   const field = "space-y-1.5";
   const inputCls = "h-9 rounded-xl bg-white/90";
 
+  function validateTitle(value: string): string | null {
+    const t = value.trim();
+    if (!t) return "Add a project title to continue";
+    if (t.length < 2) return "Title is too short";
+    return null;
+  }
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    const err = validateTitle(title);
+    if (err) {
+      e.preventDefault();
+      setTitleError(err);
+      return;
+    }
+    setTitleError(null);
+  }
+
   return (
     <>
       <form
         action={action}
-        className={cn(compact ? "space-y-4" : "paper space-y-5 rounded-[5px] p-6")}
+        noValidate
+        onSubmit={onSubmit}
+        className={cn(
+          compact ? "space-y-4" : "paper space-y-5 rounded-[5px] p-6"
+        )}
       >
         {/* Title + client side by side */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className={field}>
             <Label htmlFor="title" className="text-xs text-stone-600">
               Title
+              <span className="ml-0.5 text-rose-500/80">*</span>
             </Label>
             <Input
               id="title"
               name="title"
-              required
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (titleError) setTitleError(validateTitle(e.target.value));
+              }}
+              onBlur={() => {
+                if (title.trim() || titleError) {
+                  setTitleError(validateTitle(title));
+                }
+              }}
               autoFocus={compact}
               placeholder="Alicia & James — Wedding"
-              className={inputCls}
+              aria-invalid={Boolean(titleError)}
+              aria-describedby={titleError ? "title-error" : undefined}
+              className={cn(
+                inputCls,
+                titleError &&
+                  "border-rose-300 bg-rose-50/40 focus-visible:border-rose-400 focus-visible:ring-rose-200/60"
+              )}
             />
+            {titleError ? (
+              <p
+                id="title-error"
+                className="flex items-start gap-1.5 text-[11px] leading-snug text-rose-600"
+              >
+                <AlertCircle
+                  className="mt-px h-3 w-3 shrink-0"
+                  strokeWidth={2}
+                />
+                <span>{titleError}</span>
+              </p>
+            ) : null}
           </div>
           <div className={field}>
             <Label htmlFor="client" className="text-xs text-stone-600">
@@ -122,9 +174,16 @@ export function CreateProjectForm({
         </div>
 
         {state.error && !state.error.startsWith("PROJECTS_LIMIT") ? (
-          <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100">
-            {state.error}
-          </p>
+          <div
+            role="alert"
+            className="flex items-start gap-2.5 rounded-xl border border-rose-200/80 bg-rose-50/90 px-3 py-2.5 text-sm text-rose-800"
+          >
+            <AlertCircle
+              className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
+              strokeWidth={1.75}
+            />
+            <p className="min-w-0 leading-snug">{state.error}</p>
+          </div>
         ) : null}
 
         <div
