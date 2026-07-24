@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Upload } from "lucide-react";
+import { CheckCircle2, ImagePlus, Loader2, Upload } from "lucide-react";
 import { registerUploadedShots } from "@/actions/shots";
 import {
   prepareBatchUpload,
@@ -25,6 +32,9 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { chunkArray, runPool, withRetry } from "@/lib/upload-pool";
 import { cn } from "@/lib/utils";
+
+/** After files hit storage: save rows → refresh gallery UI */
+type FinishPhase = null | "saving" | "refreshing" | "done";
 
 const MAX_FILES_PER_PICK = 800;
 const CONCURRENCY = 5;
@@ -129,6 +139,24 @@ export function PhotoUpload({
   const [bytesTotal, setBytesTotal] = useState(0);
   const speedStartedAt = useRef<number | null>(null);
   const [speedBps, setSpeedBps] = useState<number | null>(null);
+  const [finishPhase, setFinishPhase] = useState<FinishPhase>(null);
+  const [finishLabel, setFinishLabel] = useState("");
+  const [refreshPending, startRefresh] = useTransition();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  // Clear finish overlay after refresh settles
+  useEffect(() => {
+    if (finishPhase !== "refreshing") return;
+    if (refreshPending) return;
+    setFinishPhase("done");
+    const t = window.setTimeout(() => {
+      setFinishPhase(null);
+      setFinishLabel("");
+    }, 700);
+    return () => window.clearTimeout(t);
+  }, [finishPhase, refreshPending]);
 
   const patchItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setItems((prev) =>
@@ -136,16 +164,18 @@ export function PhotoUpload({
     );
   }, []);
 
-  // Warn before leaving mid-upload
+  // Warn before leaving mid-upload or mid-refresh
   useEffect(() => {
-    if (!busy) return;
+    const block =
+      busy || finishPhase === "saving" || finishPhase === "refreshing";
+    if (!block) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [busy]);
+  }, [busy, finishPhase]);
 
   async function putFile(slot: UploadSlot, file: File, backend: UploadBackend) {
     if (backend === "r2") await putToR2(slot, file);
@@ -426,6 +456,14 @@ export function PhotoUpload({
         }
       }
 
+      // Files are up — soft handoff so the grid doesn't pop in glitchily
+      setFinishPhase("saving");
+      setFinishLabel(
+        registerRows.length === 1
+          ? "Saving photo to gallery…"
+          : `Saving ${registerRows.length} photos to gallery…`
+      );
+
       let registered = 0;
       let sortStart: number | undefined;
       for (const chunk of chunkArray(registerRows, REGISTER_CHUNK)) {
@@ -435,6 +473,8 @@ export function PhotoUpload({
           sortOrderStart: sortStart,
         });
         if (result.error) {
+          setFinishPhase(null);
+          setFinishLabel("");
           if (result.error.startsWith("STORAGE_LIMIT")) {
             setStorageUpgradeOpen(true);
             setError(null);
@@ -451,17 +491,24 @@ export function PhotoUpload({
 
       const failedFiles = queue.length - uploadedById.size;
       if (registered > 0) {
-        setSuccess(
+        const okMsg =
           failedFiles > 0
             ? `${registered} shot${registered === 1 ? "" : "s"} added · ${failedFiles} file(s) failed`
-            : `${registered} shot${registered === 1 ? "" : "s"} added`
-        );
-        // Soft refresh — don't surface RSC errors as "Upload failed"
-        try {
-          router.refresh();
-        } catch {
-          /* ignore */
-        }
+            : `${registered} shot${registered === 1 ? "" : "s"} added`;
+        setSuccess(okMsg);
+        setFinishPhase("refreshing");
+        setFinishLabel("Loading previews…");
+        setBusy(false);
+        startRefresh(() => {
+          try {
+            router.refresh();
+          } catch {
+            /* ignore */
+          }
+        });
+      } else {
+        setFinishPhase(null);
+        setFinishLabel("");
       }
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
@@ -473,6 +520,8 @@ export function PhotoUpload({
             : "Upload failed.";
       console.error("runUpload", e);
       setError(friendlyUploadError(msg));
+      setFinishPhase(null);
+      setFinishLabel("");
     } finally {
       setBusy(false);
     }
@@ -492,8 +541,14 @@ export function PhotoUpload({
 
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const failedCount = items.filter((i) => i.status === "failed").length;
+  const finishing =
+    finishPhase === "saving" ||
+    finishPhase === "refreshing" ||
+    finishPhase === "done";
   const showProgress =
-    busy || (total > 0 && (busy || failedCount > 0 || success));
+    busy ||
+    finishing ||
+    (total > 0 && (busy || failedCount > 0 || success));
   const isHero = variant === "hero";
   const speedLabel =
     speedBps && speedBps > 0
@@ -502,8 +557,106 @@ export function PhotoUpload({
         : `${Math.round(speedBps / 1024)} KB/s`
       : null;
 
+  const barPct =
+    finishPhase === "saving"
+      ? 100
+      : finishPhase === "refreshing" || finishPhase === "done"
+        ? 100
+        : pct;
+
+  const progressCaption = finishing
+    ? finishLabel || "Finishing…"
+    : busy
+      ? `${done} / ${total}${failedCount > 0 ? ` · ${failedCount} failed` : ""}${speedLabel ? ` · ${speedLabel}` : ""}`
+      : null;
+
   return (
     <div className={cn("w-full", className)}>
+      {/* Full-viewport soft curtain while gallery reloads after 100% */}
+      {mounted && finishing
+        ? createPortal(
+            <div
+              className={cn(
+                "pointer-events-none fixed inset-0 z-[240] flex items-end justify-center p-6 sm:items-center",
+                "bg-stone-950/25 backdrop-blur-[2px] transition-opacity duration-300",
+                finishPhase === "done" ? "opacity-0" : "opacity-100"
+              )}
+              aria-live="polite"
+              aria-busy={finishPhase !== "done"}
+            >
+              <div
+                className={cn(
+                  "pointer-events-auto w-full max-w-sm rounded-2xl border border-white/60 bg-white/95 p-5 shadow-2xl shadow-stone-900/15 backdrop-blur-xl",
+                  "animate-in fade-in-0 zoom-in-95 duration-200"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                      finishPhase === "done"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-stone-100 text-stone-800"
+                    )}
+                  >
+                    {finishPhase === "done" ? (
+                      <CheckCircle2 className="h-5 w-5" strokeWidth={1.75} />
+                    ) : (
+                      <Loader2
+                        className="h-5 w-5 animate-spin"
+                        strokeWidth={1.75}
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-sm font-medium text-stone-900">
+                      {finishPhase === "done"
+                        ? success || "Added to gallery"
+                        : finishPhase === "saving"
+                          ? "Upload complete"
+                          : "Almost there"}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
+                      {finishPhase === "done"
+                        ? "Gallery updated"
+                        : finishLabel || "Preparing contact sheet…"}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                  <div
+                    className={cn(
+                      "h-full rounded-full bg-stone-900 transition-[width] duration-500 ease-out",
+                      finishPhase === "refreshing" &&
+                        "animate-pulse bg-stone-800",
+                      finishPhase === "done" && "bg-emerald-600"
+                    )}
+                    style={{
+                      width:
+                        finishPhase === "saving"
+                          ? "92%"
+                          : finishPhase === "refreshing"
+                            ? "97%"
+                            : "100%",
+                    }}
+                  />
+                </div>
+                {finishPhase === "refreshing" ? (
+                  <div className="mt-4 grid grid-cols-4 gap-1.5">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="aspect-square animate-pulse rounded-md bg-stone-100"
+                        style={{ animationDelay: `${i * 90}ms` }}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
       <input
         ref={inputRef}
         type="file"
@@ -529,7 +682,7 @@ export function PhotoUpload({
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          if (busy) return;
+          if (busy || finishing) return;
           void runUpload(Array.from(e.dataTransfer.files));
         }}
         className={cn(
@@ -566,11 +719,19 @@ export function PhotoUpload({
                 type="button"
                 size="sm"
                 className="mt-3 rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
-                disabled={busy}
+                disabled={busy || finishing}
                 onClick={() => inputRef.current?.click()}
               >
-                <Upload className="mr-2 h-4 w-4" />
-                {busy ? "Uploading…" : "Choose photos"}
+                {busy || finishing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {finishing
+                  ? "Finishing…"
+                  : busy
+                    ? "Uploading…"
+                    : "Choose photos"}
               </Button>
             </>
           ) : (
@@ -579,11 +740,19 @@ export function PhotoUpload({
                 type="button"
                 size="sm"
                 className="w-full shrink-0 rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800 sm:w-auto"
-                disabled={busy}
+                disabled={busy || finishing}
                 onClick={() => inputRef.current?.click()}
               >
-                <Upload className="mr-2 h-4 w-4" />
-                {busy ? "Uploading…" : "Upload photos"}
+                {busy || finishing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                {finishing
+                  ? "Finishing…"
+                  : busy
+                    ? "Uploading…"
+                    : "Upload photos"}
               </Button>
               <p className="hidden min-w-0 text-xs leading-snug text-stone-500 sm:block">
                 JPEG + RAW · same name pairs · 30MB / 100MB
@@ -592,25 +761,45 @@ export function PhotoUpload({
           )}
         </div>
 
-        {showProgress && busy ? (
-          <div className={cn("space-y-1.5", isHero ? "mx-auto mt-8 max-w-sm" : "mt-4")}>
-            <div className="flex justify-between text-[11px] text-stone-500">
-              <span>
-                {done} / {total}
-                {failedCount > 0 ? ` · ${failedCount} failed` : ""}
-                {speedLabel ? ` · ${speedLabel}` : ""}
+        {showProgress && (busy || finishing) ? (
+          <div
+            className={cn(
+              "space-y-1.5",
+              isHero ? "mx-auto mt-8 max-w-sm" : "mt-4"
+            )}
+          >
+            <div className="flex justify-between gap-2 text-[11px] text-stone-500">
+              <span className="min-w-0 truncate">
+                {progressCaption}
               </span>
-              <span>
-                {pct}%
-                {bytesTotal > 0
-                  ? ` · ${Math.min(100, Math.round((bytesDone / bytesTotal) * 100))}% data`
-                  : ""}
+              <span className="shrink-0 tabular-nums">
+                {finishing ? (
+                  finishPhase === "done" ? (
+                    "Done"
+                  ) : (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      {finishPhase === "saving" ? "Saving" : "Loading"}
+                    </span>
+                  )
+                ) : (
+                  <>
+                    {barPct}%
+                    {bytesTotal > 0
+                      ? ` · ${Math.min(100, Math.round((bytesDone / bytesTotal) * 100))}% data`
+                      : ""}
+                  </>
+                )}
               </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-stone-200/80">
               <div
-                className="h-full rounded-full bg-stone-900 transition-[width] duration-200"
-                style={{ width: `${pct}%` }}
+                className={cn(
+                  "h-full rounded-full bg-stone-900 transition-[width] duration-300 ease-out",
+                  finishPhase === "refreshing" && "animate-pulse",
+                  finishPhase === "done" && "bg-emerald-600"
+                )}
+                style={{ width: `${barPct}%` }}
               />
             </div>
           </div>
