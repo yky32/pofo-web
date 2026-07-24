@@ -2,6 +2,8 @@
 
 Use this for a wedding-scale dry run before production delivery.
 
+For the first **3–5 photographers**, also follow [DESIGN_PARTNER.md](./DESIGN_PARTNER.md).
+
 ## Prerequisites
 
 1. Apply SQL (idempotent): `./scripts/supabase-apply-schema.sh all`  

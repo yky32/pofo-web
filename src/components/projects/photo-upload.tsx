@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ImagePlus, Loader2, Upload } from "lucide-react";
+import { processProjectPreviews } from "@/actions/previews";
 import { registerUploadedShots } from "@/actions/shots";
 import {
   prepareBatchUpload,
@@ -499,6 +500,10 @@ export function PhotoUpload({
         setFinishPhase("refreshing");
         setFinishLabel("Loading previews…");
         setBusy(false);
+        // Best-effort server derivatives for any pending JPEG rows (non-blocking)
+        void processProjectPreviews({ projectId, limit: 40 }).catch(() => {
+          /* cron / manual Build previews is the fallback */
+        });
         startRefresh(() => {
           try {
             router.refresh();

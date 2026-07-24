@@ -35,6 +35,7 @@ DEFAULT_SQLS=(
   supabase/storage.sql
   supabase/profiles-providers.sql
   supabase/share-gate.sql
+  supabase/slug.sql
   supabase/features-p1-p2.sql
   supabase/features-p3.sql
   supabase/features-teams.sql
@@ -44,6 +45,7 @@ DEFAULT_SQLS=(
   supabase/features-project-tags.sql
   supabase/features-proofing-complete.sql
   supabase/features-custom-tags.sql
+  supabase/features-portfolio-page.sql
 )
 
 SQLS=()

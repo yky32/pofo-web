@@ -101,6 +101,8 @@ Push to `main` → GitHub Actions verify + Vercel deploy. See [docs/CI.md](docs/
 | [supabase/SETUP.md](./supabase/SETUP.md) | Database setup |
 | [docs/CI.md](./docs/CI.md) | CI / deploy secrets |
 | [docs/BATCH_UPLOAD.md](./docs/BATCH_UPLOAD.md) | Large-batch upload engineering |
+| [docs/DESIGN_PARTNER.md](./docs/DESIGN_PARTNER.md) | Onboard 3–5 design partners |
+| [docs/TEST.md](./docs/TEST.md) | Wedding-scale QA checklist |
 
 ## Goal
 
