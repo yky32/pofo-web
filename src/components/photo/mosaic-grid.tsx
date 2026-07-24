@@ -106,7 +106,7 @@ export function MosaicGrid({
     >
       {items.map((item, index) => {
         const cell = layout.get(item.id)!;
-        const image = (
+        const image = item.src ? (
           <PhotoImage
             src={item.src}
             alt={item.alt}
@@ -119,6 +119,13 @@ export function MosaicGrid({
             }
             className="transition duration-500 group-hover:scale-[1.04]"
           />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center bg-stone-200/80 text-[11px] text-stone-500"
+            aria-hidden
+          >
+            Pending
+          </div>
         );
 
         const ctx: RenderCtx = { item, cell, index };

@@ -96,6 +96,10 @@ export interface Project {
   tags?: string[] | null;
   status: ProjectStatus;
   selection_limit: number;
+  /** Client marked proofing complete (or hit limit) */
+  proofing_completed_at?: string | null;
+  proofing_completed_count?: number | null;
+  proofing_completed_via?: "client" | "limit" | null;
   created_at: string;
   updated_at: string;
   /** Optional UI denorms */
@@ -218,6 +222,7 @@ export interface ClientGalleryPayload {
     description: string | null;
     status: ProjectStatus;
     selection_limit: number;
+    proofing_completed_at?: string | null;
   };
   studio?: StudioPublic;
   shots: ClientGalleryShot[];

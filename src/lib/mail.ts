@@ -107,6 +107,53 @@ export function clientShareEmailContent(input: {
   };
 }
 
+/** Notify photographer that client finished (or hit limit) proofing. */
+export function photographerProofingCompleteEmail(input: {
+  photographerName?: string | null;
+  projectTitle: string;
+  clientName?: string | null;
+  selectedCount: number;
+  selectionLimit: number;
+  via: "client" | "limit";
+  dashboardUrl: string;
+}) {
+  const who = input.clientName?.trim() || "Your client";
+  const viaLine =
+    input.via === "limit"
+      ? `${who} reached the selection limit (${input.selectedCount}/${input.selectionLimit}).`
+      : `${who} marked proofing complete (${input.selectedCount} selected).`;
+
+  const text = [
+    `Hi${input.photographerName ? ` ${input.photographerName}` : ""},`,
+    ``,
+    viaLine,
+    ``,
+    `Project: ${input.projectTitle}`,
+    input.dashboardUrl,
+    ``,
+    `Open the Proofing tab to export their picks.`,
+    ``,
+    `— Pofo`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:system-ui,sans-serif;line-height:1.5;color:#292524">
+      <p>Hi${input.photographerName ? ` ${escapeHtml(input.photographerName)}` : ""},</p>
+      <p>${escapeHtml(viaLine)}</p>
+      <p style="font-size:18px;margin:16px 0 8px"><strong>${escapeHtml(input.projectTitle)}</strong></p>
+      <p><a href="${escapeAttr(input.dashboardUrl)}" style="display:inline-block;background:#1c1917;color:#fafaf9;padding:10px 18px;border-radius:999px;text-decoration:none;font-size:14px">Open project</a></p>
+      <p style="margin-top:16px;color:#78716c;font-size:13px">Proofing tab → export their finished picks.</p>
+      <p style="margin-top:24px;color:#a8a29e;font-size:12px">— Pofo</p>
+    </div>
+  `.trim();
+
+  return {
+    subject: `Proofing complete · ${input.projectTitle}`,
+    text,
+    html,
+  };
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")

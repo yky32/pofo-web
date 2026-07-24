@@ -86,9 +86,12 @@ Push to `main` → GitHub Actions verify + Vercel deploy. See [docs/CI.md](docs/
 - [x] Original download window
 - [x] Share analytics
 - [x] R2 switchable storage (optional)
-- [ ] True RAW asset pipeline (separate files)
-- [ ] Background Sharp thumbnails worker
-- [ ] Billing
+- [x] RAW + JPEG pairing (basename) + download split
+- [x] Preview worker (Sharp on JPEG; cron + manual)
+- [x] Client “I’m done selecting” + photographer notify
+- [x] Project tags + library filter
+- [ ] Live Stripe billing (Free-first plans in app)
+- [ ] Full team invites
 
 ## Product docs
 

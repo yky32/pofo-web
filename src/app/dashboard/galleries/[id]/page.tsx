@@ -15,6 +15,7 @@ import { ContactSheet } from "@/components/projects/contact-sheet";
 import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
+import { ProcessPreviewsButton } from "@/components/projects/process-previews-button";
 import { ProjectMemoryMeta } from "@/components/projects/project-memory-meta";
 import { ProjectSettingsPanel } from "@/components/projects/project-settings-panel";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
@@ -194,6 +195,7 @@ export default async function GalleryDetailPage({
               <PhotoUpload projectId={gallery.id} variant="compact" />
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:ml-auto sm:justify-end">
+              <ProcessPreviewsButton projectId={gallery.id} />
               <ShareLinkPanel
                 projectId={gallery.id}
                 links={shareLinks}
@@ -232,6 +234,17 @@ export default async function GalleryDetailPage({
             <span className="font-medium text-stone-800">{selectedCount}</span>
             <span className="text-stone-400">/{gallery.selection_limit}</span>{" "}
             proofed
+            {gallery.proofing_completed_at ? (
+              <>
+                <span className="mx-2 text-stone-300">·</span>
+                <span className="font-medium text-emerald-700">
+                  Client finished
+                  {gallery.proofing_completed_via === "limit"
+                    ? " (at limit)"
+                    : ""}
+                </span>
+              </>
+            ) : null}
             {activeLink || isDemo ? (
               <>
                 <span className="mx-2 text-stone-300">·</span>
@@ -248,6 +261,7 @@ export default async function GalleryDetailPage({
             </TabsTrigger>
             <TabsTrigger value="selections" className="rounded-full">
               Proofing ({selectedCount})
+              {gallery.proofing_completed_at ? " · done" : ""}
             </TabsTrigger>
             <TabsTrigger value="settings" className="rounded-full">
               Settings
@@ -303,6 +317,22 @@ export default async function GalleryDetailPage({
               </div>
             ) : selectedShots.length > 0 ? (
               <div className="space-y-5">
+                {gallery.proofing_completed_at ? (
+                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+                    <p className="font-medium">Client finished selecting</p>
+                    <p className="mt-0.5 text-xs text-emerald-800/80">
+                      {new Date(
+                        gallery.proofing_completed_at
+                      ).toLocaleString()}
+                      {gallery.proofing_completed_via === "limit"
+                        ? " · reached selection limit"
+                        : " · marked done"}
+                      {gallery.proofing_completed_count != null
+                        ? ` · ${gallery.proofing_completed_count} picks`
+                        : ""}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-stone-500">
                     {selectedShots.length} of {gallery.selection_limit} proofed

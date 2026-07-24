@@ -115,6 +115,11 @@ export function PhotoUpload({
   const [dragOver, setDragOver] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [storageUpgradeOpen, setStorageUpgradeOpen] = useState(false);
+  /** bytes uploaded this batch · for speed */
+  const [bytesDone, setBytesDone] = useState(0);
+  const [bytesTotal, setBytesTotal] = useState(0);
+  const speedStartedAt = useRef<number | null>(null);
+  const [speedBps, setSpeedBps] = useState<number | null>(null);
 
   const patchItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setItems((prev) =>
@@ -236,6 +241,12 @@ export function PhotoUpload({
     setBusy(true);
     setDone(0);
     setTotal(queue.length);
+    setBytesDone(0);
+    setBytesTotal(queue.reduce((s, i) => s + i.file.size, 0));
+    setSpeedBps(null);
+    speedStartedAt.current = Date.now();
+    setError(null);
+    setSuccess(null);
 
     try {
       const slotByClientId = new Map<string, UploadSlot>();
@@ -283,6 +294,8 @@ export function PhotoUpload({
         processingStatus?: "ready" | "pending";
       };
 
+      let uploadedBytes = 0;
+
       // Upload each physical file
       const tasks = queue.map((item) => async () => {
         const slot = slotByClientId.get(item.id);
@@ -293,6 +306,11 @@ export function PhotoUpload({
           3
         );
         patchItem(item.id, { status: "done" });
+        uploadedBytes += item.file.size;
+        setBytesDone(uploadedBytes);
+        const started = speedStartedAt.current ?? Date.now();
+        const elapsed = Math.max(0.5, (Date.now() - started) / 1000);
+        setSpeedBps(uploadedBytes / elapsed);
         return { item, slot };
       });
 
@@ -446,10 +464,24 @@ export function PhotoUpload({
     void runUpload(Array.from(list));
   }
 
+  /** Re-upload only failed files from the last batch */
+  function retryFailed() {
+    const failed = items.filter((i) => i.status === "failed");
+    if (!failed.length || busy) return;
+    void runUpload(failed.map((i) => i.file));
+  }
+
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const failedCount = items.filter((i) => i.status === "failed").length;
-  const showProgress = busy || (total > 0 && (busy || failedCount > 0 || success));
+  const showProgress =
+    busy || (total > 0 && (busy || failedCount > 0 || success));
   const isHero = variant === "hero";
+  const speedLabel =
+    speedBps && speedBps > 0
+      ? speedBps > 1024 * 1024
+        ? `${(speedBps / (1024 * 1024)).toFixed(1)} MB/s`
+        : `${Math.round(speedBps / 1024)} KB/s`
+      : null;
 
   return (
     <div className={cn("w-full", className)}>
@@ -547,8 +579,14 @@ export function PhotoUpload({
               <span>
                 {done} / {total}
                 {failedCount > 0 ? ` · ${failedCount} failed` : ""}
+                {speedLabel ? ` · ${speedLabel}` : ""}
               </span>
-              <span>{pct}%</span>
+              <span>
+                {pct}%
+                {bytesTotal > 0
+                  ? ` · ${Math.min(100, Math.round((bytesDone / bytesTotal) * 100))}% data`
+                  : ""}
+              </span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-stone-200/80">
               <div
@@ -573,15 +611,26 @@ export function PhotoUpload({
               : "Upload failed"}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-rose-800/90">{error}</p>
-          {items.some((i) => i.status === "failed") ? (
-            <button
-              type="button"
-              className="mt-2 text-[11px] font-medium text-rose-700 underline-offset-2 hover:underline"
-              onClick={() => setShowDetails((v) => !v)}
-            >
-              {showDetails ? "Hide details" : "Show file details"}
-            </button>
-          ) : null}
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            {failedCount > 0 && !busy ? (
+              <button
+                type="button"
+                className="rounded-full bg-rose-900 px-3 py-1 text-[11px] font-medium text-white hover:bg-rose-800"
+                onClick={retryFailed}
+              >
+                Retry failed ({failedCount})
+              </button>
+            ) : null}
+            {items.some((i) => i.status === "failed") ? (
+              <button
+                type="button"
+                className="text-[11px] font-medium text-rose-700 underline-offset-2 hover:underline"
+                onClick={() => setShowDetails((v) => !v)}
+              >
+                {showDetails ? "Hide details" : "Show file details"}
+              </button>
+            ) : null}
+          </div>
           {showDetails ? (
             <ul className="mt-2 max-h-28 space-y-0.5 overflow-y-auto text-[11px] text-rose-700/80">
               {items

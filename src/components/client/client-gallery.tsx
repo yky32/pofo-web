@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   Check,
+  CheckCircle2,
   Download,
   Heart,
   Loader2,
@@ -11,7 +12,9 @@ import {
   SquaresSubtract,
 } from "lucide-react";
 import {
+  getClientDownloadFiles,
   setClientSelections,
+  submitClientProofing,
   toggleClientSelection,
 } from "@/actions/share";
 import { Logo } from "@/components/brand/logo";
@@ -33,9 +36,12 @@ export function ClientGallery({
   const [limit] = useState(initial.project.selection_limit);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  /** Multi-select mode: checkmarks always visible, bulk toolbar active */
   const [bulkMode, setBulkMode] = useState(false);
   const [zipBusy, setZipBusy] = useState(false);
+  const [completeBusy, setCompleteBusy] = useState(false);
+  const [completedAt, setCompletedAt] = useState<string | null>(
+    initial.project.proofing_completed_at ?? null
+  );
 
   const canDownloadOriginals = Boolean(initial.allow_original_download);
   const originalExpiresLabel = initial.original_expires_at
@@ -45,12 +51,20 @@ export function ClientGallery({
   const shotSrc = (s: (typeof initial.shots)[number]) =>
     s.display_url ?? s.preview_url ?? null;
 
-  const visibleIds = useMemo(
+  // Include pending/raw-only shots (empty src → placeholder tile)
+  const gridItems = useMemo(
     () =>
-      initial.shots
-        .filter((s) => Boolean(shotSrc(s)))
-        .map((s) => s.id),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- shotSrc is pure over shot fields
+      initial.shots.map((s) => ({
+        id: s.id,
+        src: shotSrc(s) || "",
+        alt: s.filename ?? "Photo",
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initial.shots]
+  );
+
+  const visibleIds = useMemo(
+    () => initial.shots.map((s) => s.id),
     [initial.shots]
   );
 
@@ -63,13 +77,16 @@ export function ClientGallery({
     initial.shots.map(shotSrc).find(Boolean) ?? null;
 
   const count = selected.size;
-  const atLimit = count >= limit;
   const remaining = Math.max(0, limit - count);
   const allMaxed =
     count >= limit ||
     (visibleIds.length > 0 &&
       visibleIds.every((id) => selected.has(id)) &&
       count === Math.min(limit, visibleIds.length));
+
+  const proofLocked =
+    initial.project.status === "final" ||
+    initial.project.status === "archived";
 
   const subtitle = useMemo(() => {
     const parts = [initial.project.client_name, initial.project.description]
@@ -91,6 +108,8 @@ export function ClientGallery({
         `You can proof up to ${res.selection_limit ?? limit} photos.`
       );
       if (rollback) setSelected(rollback);
+      // Auto-complete when at limit
+      void maybeAutoComplete(limit);
       return;
     }
     if (res.error === "locked") {
@@ -112,12 +131,34 @@ export function ClientGallery({
       if (rollback) setSelected(rollback);
       return;
     }
-    setSelected(new Set(res.selected_shot_ids ?? []));
+    const ids = res.selected_shot_ids ?? [];
+    setSelected(new Set(ids));
+    if (ids.length >= limit && limit > 0) {
+      void maybeAutoComplete(limit);
+    }
   }
 
-  const proofLocked =
-    initial.project.status === "final" ||
-    initial.project.status === "archived";
+  async function maybeAutoComplete(lim: number) {
+    if (completedAt || proofLocked) return;
+    // Re-read selection size from latest state is racy; submit with via=limit when at cap
+    setCompleteBusy(true);
+    try {
+      const res = await submitClientProofing({
+        token: initial.token,
+        via: "limit",
+      });
+      if (res.ok) {
+        setCompletedAt(new Date().toISOString());
+        setMessage(
+          lim
+            ? `You’ve reached your limit of ${lim}. Your photographer has been notified.`
+            : "Selection submitted."
+        );
+      }
+    } finally {
+      setCompleteBusy(false);
+    }
+  }
 
   function onToggle(shotId: string) {
     setMessage(null);
@@ -126,6 +167,13 @@ export function ClientGallery({
         "Selections are locked — your photographer finalized this gallery."
       );
       return;
+    }
+    if (completedAt) {
+      setMessage(
+        "You’ve submitted your selection. Contact your photographer to change picks."
+      );
+      // Still allow toggles until final lock — product choice: allow edits after complete
+      // until project is final. Soft message only.
     }
     const prev = new Set(selected);
     const next = new Set(selected);
@@ -138,7 +186,6 @@ export function ClientGallery({
       }
       next.add(shotId);
     }
-    // Optimistic
     setSelected(next);
     startTransition(async () => {
       const res = await toggleClientSelection(initial.token, shotId);
@@ -148,6 +195,7 @@ export function ClientGallery({
 
   function selectUpToLimit() {
     setMessage(null);
+    if (proofLocked) return;
     const prev = new Set(selected);
     const next = new Set(selected);
     for (const id of visibleIds) {
@@ -170,7 +218,7 @@ export function ClientGallery({
   }
 
   function clearAll() {
-    if (!selected.size) return;
+    if (!selected.size || proofLocked) return;
     setMessage(null);
     const prev = new Set(selected);
     setSelected(new Set());
@@ -185,23 +233,28 @@ export function ClientGallery({
     setMessage(null);
     setZipBusy(true);
     try {
-      const files = initial.shots
-        .filter((s) => selected.has(s.id))
-        .map((s) => {
-          const url = shotSrc(s);
-          if (!url) return null;
-          return {
-            filename: s.filename ?? `${s.id}.jpg`,
-            url,
-          };
-        })
-        .filter((f): f is { filename: string; url: string } => Boolean(f));
-
-      if (!files.length) {
-        setMessage("No downloadable photos. Try again later.");
+      const res = await getClientDownloadFiles({
+        token: initial.token,
+        shotIds: [...selected],
+        kind: "jpeg_and_raw",
+      });
+      if (res.error === "originals_closed") {
+        setMessage("Original download window is closed or not enabled.");
         return;
       }
-      await downloadPhotosZip(initial.project.title, files, {
+      if (res.error === "expired") {
+        setMessage("This link has expired.");
+        return;
+      }
+      if (res.error || !res.files.length) {
+        setMessage(
+          res.error === "no_selection"
+            ? "Select photos first, then download."
+            : "No downloadable originals for your selection."
+        );
+        return;
+      }
+      await downloadPhotosZip(initial.project.title, res.files, {
         kind: "proofing",
       });
     } catch (e) {
@@ -210,6 +263,44 @@ export function ClientGallery({
       );
     } finally {
       setZipBusy(false);
+    }
+  }
+
+  async function onMarkComplete() {
+    if (!count || proofLocked) return;
+    setCompleteBusy(true);
+    setMessage(null);
+    try {
+      const res = await submitClientProofing({
+        token: initial.token,
+        via: "client",
+      });
+      if (res.error === "empty") {
+        setMessage("Select at least one photo before finishing.");
+        return;
+      }
+      if (res.error === "locked") {
+        setMessage("Selections are locked.");
+        return;
+      }
+      if (res.error === "schema_missing") {
+        setMessage(
+          "Almost there — ask your photographer to enable proofing complete."
+        );
+        return;
+      }
+      if (res.error) {
+        setMessage("Could not submit. Try again.");
+        return;
+      }
+      setCompletedAt(new Date().toISOString());
+      setMessage(
+        res.already
+          ? "Already submitted — your photographer has your picks."
+          : `Done — ${res.selected_count ?? count} photos sent to your photographer.`
+      );
+    } finally {
+      setCompleteBusy(false);
     }
   }
 
@@ -246,6 +337,12 @@ export function ClientGallery({
               {initial.project.title}
             </h1>
             <p className="mt-1 text-sm text-white/60">{subtitle}</p>
+            {completedAt ? (
+              <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-100">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Selection submitted
+              </p>
+            ) : null}
           </div>
         </div>
       </header>
@@ -258,9 +355,7 @@ export function ClientGallery({
               <span className="ml-2 text-stone-500">· saving…</span>
             ) : null}
             {bulkMode && remaining > 0 ? (
-              <span className="ml-2 text-stone-500">
-                · {remaining} left
-              </span>
+              <span className="ml-2 text-stone-500">· {remaining} left</span>
             ) : null}
           </p>
           <div className="flex flex-wrap items-center gap-2">
@@ -271,7 +366,7 @@ export function ClientGallery({
                   size="sm"
                   variant="ghost"
                   className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
-                  disabled={pending || allMaxed}
+                  disabled={pending || allMaxed || proofLocked}
                   onClick={selectUpToLimit}
                   title={`Select up to ${limit} photos`}
                 >
@@ -283,7 +378,7 @@ export function ClientGallery({
                   size="sm"
                   variant="ghost"
                   className="rounded-full text-stone-300 hover:bg-white/10 hover:text-white"
-                  disabled={pending || count === 0}
+                  disabled={pending || count === 0 || proofLocked}
                   onClick={clearAll}
                 >
                   <SquaresSubtract className="mr-1.5 h-3.5 w-3.5" />
@@ -306,7 +401,7 @@ export function ClientGallery({
                 size="sm"
                 variant="outline"
                 className="rounded-full border-white/20 bg-transparent text-stone-200 hover:bg-white/10"
-                disabled={pending || visibleIds.length === 0}
+                disabled={pending || visibleIds.length === 0 || proofLocked}
                 onClick={() => {
                   setBulkMode(true);
                   setMessage(null);
@@ -326,8 +421,8 @@ export function ClientGallery({
                 onClick={() => void downloadMyProof()}
                 title={
                   originalExpiresLabel
-                    ? `Download your proofed photos (until ${originalExpiresLabel})`
-                    : "Download your proofed photos"
+                    ? `Download originals / RAW (until ${originalExpiresLabel})`
+                    : "Download JPEG + RAW for your picks"
                 }
               >
                 {zipBusy ? (
@@ -338,14 +433,39 @@ export function ClientGallery({
                 Download
               </Button>
             ) : null}
+            {!proofLocked ? (
+              <Button
+                type="button"
+                size="sm"
+                className={cn(
+                  "rounded-full",
+                  completedAt
+                    ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                    : "bg-white text-stone-900 hover:bg-stone-200"
+                )}
+                disabled={
+                  completeBusy || pending || count === 0 || Boolean(completedAt)
+                }
+                onClick={() => void onMarkComplete()}
+              >
+                {completeBusy ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : completedAt ? (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {completedAt ? "Submitted" : "I’m done selecting"}
+              </Button>
+            ) : null}
             <Button
               size="sm"
-              className="rounded-full bg-white text-stone-900 hover:bg-stone-200"
+              className="rounded-full bg-white/10 text-white hover:bg-white/15"
             >
               <Heart
                 className={cn(
                   "mr-1.5 h-3.5 w-3.5",
-                  count > 0 && "fill-stone-900"
+                  count > 0 && "fill-white"
                 )}
               />
               {count} / {limit}
@@ -357,90 +477,58 @@ export function ClientGallery({
             {message}
           </p>
         ) : null}
-        {bulkMode ? (
-          <p className="border-t border-white/5 px-4 py-2 text-center text-[11px] text-stone-500 sm:px-8">
-            Tap photos to add or remove · Select all fills up to your limit
-            {atLimit ? " · limit reached" : ""}
-          </p>
-        ) : null}
       </div>
 
-      <main className="mx-auto max-w-6xl px-2 py-6 sm:px-4 sm:py-8">
-        {initial.shots.length === 0 ? (
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
+        {gridItems.length === 0 ? (
           <p className="py-16 text-center text-sm text-stone-500">
             No photos in this gallery yet.
           </p>
         ) : (
           <MosaicGrid
+            items={gridItems}
             density="client"
-            items={initial.shots
-              .map((shot, i) => {
-                const src = shotSrc(shot);
-                if (!src) return null;
-                return {
-                  id: shot.id,
-                  src,
-                  alt: shot.filename ?? `Photo ${i + 1}`,
-                };
-              })
-              .filter((x): x is { id: string; src: string; alt: string } =>
-                Boolean(x)
-              )}
-            onItemClick={(item) => {
-              if (!pending) onToggle(item.id);
-            }}
-            itemClassName={() =>
-              cn(pending && "pointer-events-none opacity-80")
-            }
+            onItemClick={(item) => onToggle(item.id)}
             renderTile={({ item, image }) => {
               const isOn = selected.has(item.id);
+              const hasSrc = Boolean(item.src);
               return (
-                <>
-                  <div className="client-preview-watermark absolute inset-0">
-                    {image}
-                  </div>
-                  <div
-                    className={cn(
-                      "absolute inset-0 transition",
-                      isOn
-                        ? "bg-black/25"
-                        : "bg-black/0 group-hover:bg-black/15"
-                    )}
-                  />
-                  {bulkMode ? (
-                    <span
-                      className={cn(
-                        "absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow transition",
-                        isOn
-                          ? "border-white bg-white text-rose-600"
-                          : "border-white/70 bg-black/35 text-transparent backdrop-blur-sm"
-                      )}
-                    >
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                  ) : null}
+                <button
+                  type="button"
+                  onClick={() => onToggle(item.id)}
+                  className={cn(
+                    "group relative h-full w-full overflow-hidden rounded-md bg-stone-900 text-left",
+                    isOn && "ring-2 ring-white ring-offset-2 ring-offset-[oklch(0.12_0.01_50)]"
+                  )}
+                >
+                  {hasSrc ? (
+                    <div className="client-preview-watermark h-full w-full">
+                      {image}
+                    </div>
+                  ) : (
+                    <div className="flex h-full min-h-[8rem] items-center justify-center bg-stone-800/80 px-2 text-center text-[11px] text-stone-400">
+                      Preview pending
+                    </div>
+                  )}
                   <span
                     className={cn(
-                      "absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
+                      "absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow transition",
                       isOn
-                        ? "bg-white text-rose-600 opacity-100"
-                        : bulkMode
-                          ? "bg-white/80 text-stone-800 opacity-70"
-                          : "bg-white/90 text-stone-800 opacity-0 group-hover:opacity-100"
+                        ? "bg-white text-rose-600"
+                        : "bg-black/40 text-white/90 opacity-0 group-hover:opacity-100"
                     )}
                   >
                     <Heart
                       className={cn("h-3.5 w-3.5", isOn && "fill-rose-600")}
                     />
                   </span>
-                </>
+                </button>
               );
             }}
           />
         )}
-
         <p className="mt-10 text-center text-xs text-stone-600">
-          Preview for proofing · delivered by {studioLabel} · Pofo
+          Shared by {studioLabel} · Pofo
         </p>
       </main>
     </div>

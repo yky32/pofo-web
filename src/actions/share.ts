@@ -7,9 +7,10 @@ import { getAppUrl, isSupabaseConfigured } from "@/lib/env";
 import {
   clientShareEmailContent,
   isResendConfigured,
+  photographerProofingCompleteEmail,
   sendEmail,
 } from "@/lib/mail";
-import { withDisplayUrls } from "@/lib/storage";
+import { signReadUrls, withDisplayUrls } from "@/lib/storage";
 import { createShareToken } from "@/lib/tokens";
 import {
   hashSharePassword,
@@ -523,7 +524,7 @@ async function loadGalleryWithAdmin(
   const { data: shotsRaw } = await admin
     .from("shots")
     .select(
-      "id, storage_key, preview_url, filename, sort_order, width, height, created_at, container_id"
+      "id, storage_key, preview_url, preview_key, thumbnail_key, mime_type, kind, processing_status, filename, sort_order, width, height, created_at, container_id"
     )
     .eq("project_id", project.id)
     .order("sort_order", { ascending: true })
@@ -533,6 +534,11 @@ async function loadGalleryWithAdmin(
     id: string;
     storage_key: string | null;
     preview_url: string | null;
+    preview_key?: string | null;
+    thumbnail_key?: string | null;
+    mime_type?: string | null;
+    kind?: string | null;
+    processing_status?: string | null;
     filename: string | null;
     sort_order: number;
     width: number | null;
@@ -540,10 +546,11 @@ async function loadGalleryWithAdmin(
     container_id: string;
   };
 
+  // Include RAW-only / pending — client shows placeholder when no display_url
   const visible = ((shotsRaw ?? []) as ShotRow[]).filter(
     (s) =>
       visibleContainerIds.has(s.container_id) &&
-      (s.preview_url || s.storage_key)
+      (s.preview_url || s.storage_key || s.preview_key)
   );
 
   const withUrls = await withDisplayUrls(admin, visible);
@@ -571,6 +578,8 @@ async function loadGalleryWithAdmin(
       description: project.description,
       status: project.status,
       selection_limit: limit,
+      proofing_completed_at:
+        (project.proofing_completed_at as string | null) ?? null,
     },
     studio: {
       slug: profile?.slug ?? null,
@@ -690,8 +699,30 @@ async function attachDisplayUrls(
   const supabase = await createClient();
   const signer = createAdminClient() ?? supabase;
   const shots = await withDisplayUrls(signer, payload.shots ?? []);
+  // Enrich project with proofing complete if RPC omitted it
+  let project = payload.project;
+  try {
+    const admin = createAdminClient();
+    if (admin && project?.id) {
+      const { data: p } = await admin
+        .from("projects")
+        .select("proofing_completed_at")
+        .eq("id", project.id)
+        .maybeSingle();
+      if (p) {
+        project = {
+          ...project,
+          proofing_completed_at:
+            (p.proofing_completed_at as string | null) ?? null,
+        };
+      }
+    }
+  } catch {
+    /* optional column */
+  }
   return {
     ...payload,
+    project,
     shots: shots.map((s) => ({
       id: s.id,
       storage_key: s.storage_key ?? null,
@@ -933,4 +964,336 @@ export async function emailClientShare(input: {
 
   revalidatePath(`/dashboard/galleries/${projectId}`);
   return { ok: true, sent_via: "mailto", mailto };
+}
+
+export type ClientDownloadKind = "jpeg" | "raw" | "jpeg_and_raw";
+
+/**
+ * Short-lived signed download URLs for the client (token-gated).
+ * Re-checks allow_original_download + original_expires_at + link active/expiry.
+ * Never returns RAW when only preview is allowed.
+ */
+export async function getClientDownloadFiles(input: {
+  token: string;
+  shotIds: string[];
+  kind?: ClientDownloadKind;
+}): Promise<{ files: { filename: string; url: string }[]; error?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { files: [], error: "not_configured" };
+  }
+
+  const gate = await getShareGate(input.token);
+  if (!gate.ok) return { files: [], error: gate.error };
+  if (gate.requires_password && !gate.unlocked) {
+    return { files: [], error: "password_required" };
+  }
+
+  const admin = createAdminClient();
+  if (!admin) {
+    return {
+      files: [],
+      error: "Download requires server signing. Ask your photographer to retry later.",
+    };
+  }
+
+  const { data: link } = await admin
+    .from("share_links")
+    .select(
+      "id, project_id, is_active, expires_at, allow_original_download, original_expires_at"
+    )
+    .eq("token", input.token)
+    .maybeSingle();
+
+  if (!link || !link.is_active) {
+    return { files: [], error: "not_found" };
+  }
+  if (link.expires_at && new Date(link.expires_at as string) < new Date()) {
+    return { files: [], error: "expired" };
+  }
+
+  const allow = Boolean(link.allow_original_download);
+  const origExp = (link.original_expires_at as string | null) ?? null;
+  if (!allow || !originalWindowOpen(origExp)) {
+    return {
+      files: [],
+      error: "originals_closed",
+    };
+  }
+
+  const ids = [...new Set(input.shotIds.filter(Boolean))];
+  if (!ids.length) return { files: [], error: "no_selection" };
+
+  // Only allow selected proofing shots for this link
+  const { data: sels } = await admin
+    .from("shot_selections")
+    .select("shot_id")
+    .eq("share_link_id", link.id)
+    .in("shot_id", ids);
+
+  const allowed = new Set((sels ?? []).map((s) => s.shot_id as string));
+  const filteredIds = ids.filter((id) => allowed.has(id));
+  if (!filteredIds.length) {
+    return { files: [], error: "no_selection" };
+  }
+
+  const { data: rows, error } = await admin
+    .from("shots")
+    .select("id, filename, storage_key, raw_key, mime_type, kind")
+    .eq("project_id", link.project_id)
+    .in("id", filteredIds);
+
+  if (error) return { files: [], error: error.message };
+  if (!rows?.length) return { files: [], error: "no_files" };
+
+  type Row = {
+    id: string;
+    filename: string | null;
+    storage_key: string | null;
+    raw_key?: string | null;
+    mime_type?: string | null;
+    kind?: string | null;
+  };
+
+  const shots = rows as Row[];
+  const kind: ClientDownloadKind = input.kind ?? "jpeg_and_raw";
+  const keys: string[] = [];
+
+  for (const s of shots) {
+    if (kind === "jpeg" || kind === "jpeg_and_raw") {
+      const sk = s.storage_key?.trim();
+      if (sk && s.kind !== "raw") keys.push(sk);
+    }
+    if (kind === "raw" || kind === "jpeg_and_raw") {
+      const rk = s.raw_key?.trim();
+      if (rk) keys.push(rk);
+      else if (s.kind === "raw" && s.storage_key?.trim()) {
+        keys.push(s.storage_key.trim());
+      }
+    }
+  }
+
+  const signed = await signReadUrls(admin, keys, 60 * 30);
+  const files: { filename: string; url: string }[] = [];
+  const used = new Set<string>();
+
+  function push(filename: string, url: string) {
+    let final = filename || "file";
+    let n = 1;
+    while (used.has(final.toLowerCase())) {
+      const dot = final.lastIndexOf(".");
+      final =
+        dot > 0
+          ? `${filename.slice(0, dot)}_${n}${filename.slice(dot)}`
+          : `${filename}_${n}`;
+      n += 1;
+    }
+    used.add(final.toLowerCase());
+    files.push({ filename: final, url });
+  }
+
+  for (const s of shots) {
+    const base =
+      (s.filename || "photo").replace(/\.[^.]+$/, "") || s.id.slice(0, 8);
+
+    if (kind === "jpeg" || kind === "jpeg_and_raw") {
+      const sk = s.storage_key?.trim();
+      if (sk && s.kind !== "raw" && signed.has(sk)) {
+        push(s.filename || `${base}.jpg`, signed.get(sk)!);
+      }
+    }
+    if (kind === "raw" || kind === "jpeg_and_raw") {
+      const rk = s.raw_key?.trim();
+      if (rk && signed.has(rk)) {
+        const rawName =
+          s.filename &&
+          /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef|srw)$/i.test(s.filename)
+            ? s.filename
+            : `${base}${rk.match(/(\.[a-z0-9]{2,5})$/i)?.[1] ?? ".raw"}`;
+        push(rawName, signed.get(rk)!);
+      } else if (
+        s.kind === "raw" &&
+        s.storage_key?.trim() &&
+        signed.has(s.storage_key.trim())
+      ) {
+        push(
+          s.filename ||
+            `${base}${s.storage_key.match(/(\.[a-z0-9]{2,5})$/i)?.[1] ?? ".raw"}`,
+          signed.get(s.storage_key.trim())!
+        );
+      }
+    }
+  }
+
+  if (!files.length) {
+    return {
+      files: [],
+      error:
+        kind === "raw"
+          ? "No RAW files available for your selection."
+          : "No original files available for download.",
+    };
+  }
+
+  return { files };
+}
+
+/**
+ * Client marks proofing complete (or auto when at limit).
+ * Notifies photographer by email when Resend is configured (never blocks on mail failure).
+ */
+export async function submitClientProofing(input: {
+  token: string;
+  /** client = manual button · limit = hit selection cap */
+  via?: "client" | "limit";
+}): Promise<{
+  ok?: boolean;
+  error?: string;
+  already?: boolean;
+  selected_count?: number;
+}> {
+  if (!isSupabaseConfigured()) return { error: "not_configured" };
+
+  const gate = await getShareGate(input.token);
+  if (!gate.ok) return { error: gate.error };
+  if (gate.requires_password && !gate.unlocked) {
+    return { error: "password_required" };
+  }
+
+  const admin = createAdminClient();
+  const db = admin ?? (await createClient());
+
+  const { data: link } = await db
+    .from("share_links")
+    .select("id, project_id, is_active, expires_at")
+    .eq("token", input.token)
+    .maybeSingle();
+
+  if (!link || !link.is_active) return { error: "not_found" };
+  if (link.expires_at && new Date(link.expires_at as string) < new Date()) {
+    return { error: "expired" };
+  }
+
+  const { data: project } = await db
+    .from("projects")
+    .select(
+      "id, title, client_name, owner_id, selection_limit, status, proofing_completed_at"
+    )
+    .eq("id", link.project_id)
+    .maybeSingle();
+
+  if (!project) return { error: "not_found" };
+  if (project.status === "final" || project.status === "archived") {
+    return { error: "locked" };
+  }
+
+  const { count } = await db
+    .from("shot_selections")
+    .select("id", { count: "exact", head: true })
+    .eq("share_link_id", link.id);
+
+  const selectedCount = count ?? 0;
+  if (selectedCount === 0) {
+    return { error: "empty" };
+  }
+
+  if (project.proofing_completed_at) {
+    return {
+      ok: true,
+      already: true,
+      selected_count: selectedCount,
+    };
+  }
+
+  const via = input.via ?? "client";
+  const now = new Date().toISOString();
+
+  const { error: upErr } = await db
+    .from("projects")
+    .update({
+      proofing_completed_at: now,
+      proofing_completed_count: selectedCount,
+      proofing_completed_via: via,
+      status:
+        project.status === "draft" || project.status === "shared"
+          ? "proofing"
+          : project.status,
+      updated_at: now,
+    })
+    .eq("id", project.id);
+
+  if (upErr) {
+    // Column missing — still OK for UX; surface soft error for photographer SQL
+    if (upErr.message.includes("proofing_completed") || upErr.code === "42703") {
+      return {
+        error: "schema_missing",
+      };
+    }
+    return { error: upErr.message };
+  }
+
+  // Best-effort email — never fail the client action
+  void notifyPhotographerProofingComplete({
+    projectId: project.id as string,
+    ownerId: project.owner_id as string,
+    title: project.title as string,
+    clientName: (project.client_name as string | null) ?? null,
+    selectedCount,
+    selectionLimit: (project.selection_limit as number) ?? 40,
+    via,
+  });
+
+  revalidatePath(`/dashboard/galleries/${project.id}`);
+  revalidatePath("/dashboard/galleries");
+  revalidatePath("/dashboard");
+
+  return { ok: true, selected_count: selectedCount };
+}
+
+async function notifyPhotographerProofingComplete(input: {
+  projectId: string;
+  ownerId: string;
+  title: string;
+  clientName: string | null;
+  selectedCount: number;
+  selectionLimit: number;
+  via: "client" | "limit";
+}) {
+  try {
+    if (!isResendConfigured()) return;
+    const admin = createAdminClient();
+    if (!admin) return;
+
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name, studio_name")
+      .eq("id", input.ownerId)
+      .maybeSingle();
+
+    // Auth admin API for email
+    const { data: userData } = await admin.auth.admin.getUserById(
+      input.ownerId
+    );
+    const email = userData.user?.email;
+    if (!email) return;
+
+    const content = photographerProofingCompleteEmail({
+      photographerName:
+        profile?.display_name || profile?.studio_name || null,
+      projectTitle: input.title,
+      clientName: input.clientName,
+      selectedCount: input.selectedCount,
+      selectionLimit: input.selectionLimit,
+      via: input.via,
+      dashboardUrl: `${getAppUrl()}/dashboard/galleries/${input.projectId}`,
+    });
+
+    await sendEmail({
+      to: email,
+      subject: content.subject,
+      html: content.html,
+      text: content.text,
+    });
+  } catch (e) {
+    console.error("notifyPhotographerProofingComplete", e);
+  }
 }
