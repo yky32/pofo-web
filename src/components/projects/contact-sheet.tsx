@@ -26,7 +26,40 @@ export type ContactSheetItem = {
   alt: string;
   studio_note?: string | null;
   studio_flag?: string | null;
+  /** jpeg | raw | paired | final | preview */
+  kind?: string | null;
+  /** companion RAW present */
+  has_raw?: boolean;
+  processing_status?: string | null;
 };
+
+/** Media type chip for photographer contact sheet */
+function mediaBadge(
+  kind?: string | null,
+  hasRaw?: boolean,
+  processing?: string | null
+): { label: string; className: string } | null {
+  if (kind === "paired" || (hasRaw && kind !== "raw")) {
+    return {
+      label: "JPEG+RAW",
+      className: "bg-amber-500/95 text-amber-950",
+    };
+  }
+  if (kind === "raw") {
+    return {
+      label: processing === "pending" ? "RAW · …" : "RAW",
+      className: "bg-orange-600/95 text-white",
+    };
+  }
+  // Normal / jpeg / final with web preview
+  if (kind === "jpeg" || kind === "final" || kind === "preview" || !kind) {
+    return {
+      label: "JPEG",
+      className: "bg-black/50 text-white backdrop-blur-sm",
+    };
+  }
+  return null;
+}
 
 export function ContactSheet({
   projectId,
@@ -209,6 +242,11 @@ export function ContactSheet({
           const flag = full?.studio_flag;
           const hasNote = Boolean(full?.studio_note?.trim());
           const label = flagShortLabel(flag);
+          const media = mediaBadge(
+            full?.kind,
+            full?.has_raw,
+            full?.processing_status
+          );
           return (
             <>
               <div className="absolute inset-0">{image}</div>
@@ -224,23 +262,35 @@ export function ContactSheet({
                   <Check className="h-3 w-3" strokeWidth={3} />
                 </span>
               ) : (
-                <div className="absolute left-1.5 top-1.5 z-10 flex max-w-[calc(100%-0.75rem)] flex-wrap gap-1">
-                  {label ? (
+                <>
+                  <div className="absolute left-1.5 top-1.5 z-10 flex max-w-[calc(100%-0.75rem)] flex-wrap gap-1">
+                    {label ? (
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow",
+                          flagBadgeClass(flag)
+                        )}
+                      >
+                        {label}
+                      </span>
+                    ) : null}
+                    {hasNote ? (
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/45 text-white shadow backdrop-blur-sm">
+                        <StickyNote className="h-2.5 w-2.5" />
+                      </span>
+                    ) : null}
+                  </div>
+                  {media ? (
                     <span
                       className={cn(
-                        "rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow",
-                        flagBadgeClass(flag)
+                        "absolute bottom-1.5 left-1.5 z-10 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow",
+                        media.className
                       )}
                     >
-                      {label}
+                      {media.label}
                     </span>
                   ) : null}
-                  {hasNote ? (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/45 text-white shadow backdrop-blur-sm">
-                      <StickyNote className="h-2.5 w-2.5" />
-                    </span>
-                  ) : null}
-                </div>
+                </>
               )}
             </>
           );

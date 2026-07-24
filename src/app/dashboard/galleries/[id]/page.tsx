@@ -75,6 +75,9 @@ export default async function GalleryDetailPage({
     alt: string;
     studio_note?: string | null;
     studio_flag?: string | null;
+    kind?: string | null;
+    has_raw?: boolean;
+    processing_status?: string | null;
   };
 
   const sheetItems: SheetItem[] = isDemo
@@ -82,19 +85,24 @@ export default async function GalleryDetailPage({
         id: `d-${i}`,
         src,
         alt: `Frame ${i + 1}`,
+        kind: "jpeg",
       }))
     : (shots
         .map((s) => {
           // Prefer web thumbnail when available (faster contact sheet)
           const thumb = s.thumb_url || null;
           const src = thumb || shotDisplayUrl(s);
-          if (!src) return null;
+          // RAW pending may have no display URL — still list with placeholder later
+          if (!src && s.kind !== "raw") return null;
           return {
             id: s.id,
-            src,
+            src: src || "", // empty → mosaic shows empty tile until preview ready
             alt: s.filename ?? "Photo",
             studio_note: s.studio_note ?? null,
             studio_flag: s.studio_flag ?? null,
+            kind: s.kind ?? "jpeg",
+            has_raw: Boolean(s.raw_key) || s.kind === "paired" || s.kind === "raw",
+            processing_status: s.processing_status ?? null,
           } satisfies SheetItem;
         })
         .filter(Boolean) as SheetItem[]);
