@@ -3,9 +3,11 @@ import {
   ArrowRight,
   Heart,
   Link2,
+  Package,
   Shield,
   Timer,
   Upload,
+  type LucideIcon,
 } from "lucide-react";
 import { PricingWall } from "@/components/billing/pricing-wall";
 import { Button } from "@/components/ui/button";
@@ -37,11 +39,36 @@ const features = [
   },
 ];
 
-const steps = [
-  { n: "01", title: "Upload", body: "Drop the set after your offline edit." },
-  { n: "02", title: "Share", body: "Send a private gallery link." },
-  { n: "03", title: "Proofing", body: "Client marks favorites in minutes." },
-  { n: "04", title: "Deliver", body: "Upload finals. Optional portfolio." },
+const steps: {
+  n: string;
+  title: string;
+  body: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    n: "01",
+    title: "Upload",
+    body: "Drop the set after your offline edit.",
+    icon: Upload,
+  },
+  {
+    n: "02",
+    title: "Share",
+    body: "Send a private gallery link.",
+    icon: Link2,
+  },
+  {
+    n: "03",
+    title: "Proofing",
+    body: "Client marks favorites in minutes.",
+    icon: Heart,
+  },
+  {
+    n: "04",
+    title: "Deliver",
+    body: "Upload finals. Optional portfolio.",
+    icon: Package,
+  },
 ];
 
 export default function HomePage() {
@@ -242,19 +269,29 @@ export default function HomePage() {
           </div>
 
           <div className="mt-14 grid gap-px overflow-hidden rounded-[5px] bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step) => (
-              <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
-                <span className="font-mono text-xs tracking-widest text-stone-400">
-                  {step.n}
-                </span>
-                <h3 className="mt-3 font-heading text-2xl font-medium text-stone-900">
-                  {step.title}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-stone-500">
-                  {step.body}
-                </p>
-              </div>
-            ))}
+            {steps.map((step) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-mono text-xs tracking-widest text-stone-400">
+                      {step.n}
+                    </span>
+                    <Icon
+                      className="h-4 w-4 shrink-0 text-stone-400"
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                  </div>
+                  <h3 className="mt-3 font-heading text-2xl font-medium text-stone-900">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-stone-500">
+                    {step.body}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
