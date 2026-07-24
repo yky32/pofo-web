@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { splitTwoLocations } from "@/lib/project-locations";
 import type { ProjectStatus } from "@/types/database";
 import { cn } from "@/lib/utils";
 
@@ -137,14 +138,40 @@ export function ProjectSettingsPanel({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="settings-location">Location(s)</Label>
-              <Input
-                id="settings-location"
-                name="location"
-                defaultValue={location ?? ""}
-                placeholder="Hong Kong · The Peninsula"
-                className="rounded-xl"
-              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(() => {
+                  const [a, b] = splitTwoLocations(location);
+                  return (
+                    <>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="settings-location-1">Address 1</Label>
+                        <Input
+                          id="settings-location-1"
+                          name="location_1"
+                          defaultValue={a}
+                          placeholder="Ceremony venue"
+                          className="rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="settings-location-2">
+                          Address 2{" "}
+                          <span className="font-normal text-stone-400">
+                            (optional)
+                          </span>
+                        </Label>
+                        <Input
+                          id="settings-location-2"
+                          name="location_2"
+                          defaultValue={b}
+                          placeholder="Reception venue"
+                          className="rounded-xl"
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
 
@@ -210,9 +237,21 @@ export function ProjectSettingsPanel({
             </dd>
           </div>
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-            <dt className="text-stone-400">Location(s)</dt>
-            <dd className="max-w-[60%] text-right text-stone-800">
-              {location?.trim() || "—"}
+            <dt className="text-stone-400">Locations</dt>
+            <dd className="max-w-[65%] text-right text-stone-800">
+              {location?.trim() ? (
+                <span className="inline-flex flex-col items-end gap-0.5">
+                  {splitTwoLocations(location)
+                    .filter(Boolean)
+                    .map((line) => (
+                      <span key={line} className="block">
+                        {line}
+                      </span>
+                    ))}
+                </span>
+              ) : (
+                "—"
+              )}
             </dd>
           </div>
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">

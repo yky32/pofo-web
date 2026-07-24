@@ -161,20 +161,37 @@ export function CreateProjectForm({
     </div>
   );
 
-  const locationField = (
-    <div className={field}>
-      <Label htmlFor="location" className={labelCls}>
-        Location
-      </Label>
-      <Input
-        id="location"
-        name="location"
-        autoComplete="off"
-        data-1p-ignore
-        data-lpignore="true"
-        placeholder="Hong Kong · The Peninsula"
-        className={inputCls}
-      />
+  const locationFields = (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <div className={field}>
+        <Label htmlFor="location_1" className={labelCls}>
+          Address 1
+        </Label>
+        <Input
+          id="location_1"
+          name="location_1"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          placeholder="Ceremony — St. John’s Cathedral"
+          className={inputCls}
+        />
+      </div>
+      <div className={field}>
+        <Label htmlFor="location_2" className={labelCls}>
+          Address 2
+          <span className="ml-1 font-normal text-stone-400">(optional)</span>
+        </Label>
+        <Input
+          id="location_2"
+          name="location_2"
+          autoComplete="off"
+          data-1p-ignore
+          data-lpignore="true"
+          placeholder="Reception — The Peninsula"
+          className={inputCls}
+        />
+      </div>
     </div>
   );
 
@@ -260,11 +277,10 @@ export function CreateProjectForm({
                   {dateField}
                   {limitField}
                 </div>
-                {locationField}
               </div>
             </div>
-            {/* Full width so suggestion chips aren’t clipped */}
             {tagsField}
+            {locationFields}
             {serverError}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/60 pt-4">
               <p className="text-[11px] text-stone-400">
@@ -283,8 +299,8 @@ export function CreateProjectForm({
             <div className="grid gap-3 sm:grid-cols-2">
               {dateField}
               {limitField}
-              <div className="sm:col-span-2">{locationField}</div>
             </div>
+            {locationFields}
             {serverError}
             <div className="pt-1">{actions}</div>
           </>
