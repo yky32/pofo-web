@@ -19,11 +19,18 @@ import { cn } from "@/lib/utils";
 
 const initial: AuthState = {};
 
+/** Team signup pill is UI-visible but disabled until studio workspaces ship. */
+const TEAM_SIGNUP_ENABLED = false;
+
 export function SignupForm() {
   const [state, action, pending] = useActionState(signUp, initial);
   const [intent, setIntent] = useState<SignupIntent>("personal");
   const [teamName, setTeamName] = useState("");
   const [teamSlug, setTeamSlug] = useState("");
+
+  // Force personal while team signup is gated
+  const activeIntent: SignupIntent =
+    TEAM_SIGNUP_ENABLED && intent === "team" ? "team" : "personal";
 
   const passwordError = state.fields?.password;
 
@@ -36,11 +43,11 @@ export function SignupForm() {
         Create your account
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        One login for personal and studio work.
+        Start free as a personal studio. Team workspaces come later.
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* Intent pill: Personal | Team — sliding thumb */}
+        {/* Intent pill: Personal active | Team dimmed (not yet) */}
         <div
           className="relative mx-auto grid w-full max-w-[17rem] grid-cols-2 rounded-full border border-stone-200 bg-stone-100/80 p-1"
           role="group"
@@ -52,7 +59,7 @@ export function SignupForm() {
               "pointer-events-none absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-stone-900 shadow-sm",
               "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
               "motion-reduce:transition-none",
-              intent === "team" ? "translate-x-full" : "translate-x-0"
+              "translate-x-0"
             )}
           />
           <button
@@ -63,9 +70,7 @@ export function SignupForm() {
               "relative z-10 inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors duration-300",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 focus-visible:ring-offset-1",
               "motion-reduce:transition-none",
-              intent === "personal"
-                ? "text-white"
-                : "text-stone-500 hover:text-stone-800"
+              "text-white"
             )}
           >
             <User className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
@@ -73,26 +78,24 @@ export function SignupForm() {
           </button>
           <button
             type="button"
-            onClick={() => setIntent("team")}
-            aria-pressed={intent === "team"}
+            disabled
+            aria-disabled="true"
+            title="Team workspaces coming soon"
             className={cn(
-              "relative z-10 inline-flex h-9 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors duration-300",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300 focus-visible:ring-offset-1",
-              "motion-reduce:transition-none",
-              intent === "team"
-                ? "text-white"
-                : "text-stone-500 hover:text-stone-800"
+              "relative z-10 inline-flex h-9 cursor-not-allowed items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium",
+              "text-stone-400/70 opacity-55"
             )}
           >
             <Building2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
             Team
+            <span className="sr-only"> (coming soon)</span>
           </button>
         </div>
 
         <SocialAuthButtons
-          accountIntent={intent}
+          accountIntent={activeIntent}
           next={
-            intent === "team"
+            activeIntent === "team"
               ? "/dashboard/onboarding/studio"
               : "/dashboard"
           }
@@ -101,9 +104,9 @@ export function SignupForm() {
 
         {/* 3) Email path */}
         <form action={action} noValidate className="space-y-4">
-          <input type="hidden" name="account_intent" value={intent} />
+          <input type="hidden" name="account_intent" value={activeIntent} />
 
-          {intent === "personal" ? (
+          {activeIntent === "personal" ? (
             <div className="space-y-2">
               <Label htmlFor="studio" className="text-stone-700">
                 Studio name
@@ -213,7 +216,7 @@ export function SignupForm() {
           >
             {pending
               ? "Creating…"
-              : intent === "team"
+              : activeIntent === "team"
                 ? "Create studio account"
                 : "Create account"}
           </Button>
