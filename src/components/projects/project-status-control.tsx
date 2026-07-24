@@ -66,7 +66,12 @@ export function ProjectStatusControl({
   const panelRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const [pos, setPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+    maxHeight: number;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -81,13 +86,38 @@ export function ProjectStatusControl({
       const el = triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setPos({
-        top: r.bottom + 8,
-        right: Math.max(8, window.innerWidth - r.right),
-      });
+      const gap = 8;
+      const margin = 8;
+      // ~5 rows × ~44px
+      const menuH = 240;
+      const right = Math.max(margin, window.innerWidth - r.right);
+      const spaceBelow = window.innerHeight - r.bottom - gap - margin;
+      const spaceAbove = r.top - gap - margin;
+      const openBelow =
+        spaceBelow >= menuH || spaceBelow >= spaceAbove || spaceAbove < 120;
+
+      if (openBelow) {
+        setPos({
+          top: r.bottom + gap,
+          bottom: undefined,
+          right,
+          maxHeight: Math.max(160, Math.min(spaceBelow, window.innerHeight * 0.7)),
+        });
+      } else {
+        setPos({
+          top: undefined,
+          bottom: window.innerHeight - r.top + gap,
+          right,
+          maxHeight: Math.max(160, Math.min(spaceAbove, window.innerHeight * 0.7)),
+        });
+      }
     }
 
     place();
+    const raf = requestAnimationFrame(() => {
+      place();
+      requestAnimationFrame(place);
+    });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
@@ -95,6 +125,7 @@ export function ProjectStatusControl({
     window.addEventListener("scroll", place, true);
     window.addEventListener("keydown", onKey);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("keydown", onKey);
@@ -181,9 +212,14 @@ export function ProjectStatusControl({
                 id={`${menuId}-list`}
                 role="listbox"
                 aria-labelledby={menuId}
-                style={{ top: pos.top, right: pos.right }}
+                style={{
+                  top: pos.top,
+                  bottom: pos.bottom,
+                  right: pos.right,
+                  maxHeight: pos.maxHeight,
+                }}
                 className={cn(
-                  "fixed z-[201] w-56 overflow-hidden rounded-xl border border-stone-200/90 bg-white py-1 shadow-xl",
+                  "fixed z-[201] w-56 overflow-y-auto overscroll-contain rounded-xl border border-stone-200/90 bg-white py-1 shadow-xl",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
