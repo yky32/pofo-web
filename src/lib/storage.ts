@@ -144,15 +144,27 @@ export async function signReadUrls(
   return map;
 }
 
+function isLikelyRawKey(key: string, mime?: string | null): boolean {
+  if (mime && /raw|x-canon|x-nikon|x-sony|x-adobe-dng/i.test(mime)) return true;
+  return /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef|srw|3fr|fff|iiq)(\?|$)/i.test(
+    key
+  );
+}
+
 /**
- * Attach `display_url` for UI: external samples unchanged, storage keys signed.
- * When `thumbnail_key` is present, `thumb_url` is also signed for grid previews.
+ * Attach `display_url` for UI.
+ * Priority: external sample → preview_key → jpeg storage_key → never RAW.
+ * When `thumbnail_key` is present, `thumb_url` is signed for grid previews.
  */
 export async function withDisplayUrls<
   T extends {
     storage_key?: string | null;
     preview_url?: string | null;
+    preview_key?: string | null;
     thumbnail_key?: string | null;
+    mime_type?: string | null;
+    kind?: string | null;
+    processing_status?: string | null;
   },
 >(
   supabase: SupabaseClient,
@@ -160,14 +172,26 @@ export async function withDisplayUrls<
   expiresIn = READ_URL_TTL_SEC
 ): Promise<(T & { display_url: string | null; thumb_url?: string | null })[]> {
   const keys: string[] = [];
+
   for (const s of shots) {
+    const thumb = s.thumbnail_key?.trim();
+    if (thumb && !isExternalHttpUrl(thumb)) keys.push(thumb);
+
+    const previewKey = s.preview_key?.trim();
+    if (previewKey && !isExternalHttpUrl(previewKey)) keys.push(previewKey);
+
     const ext = externalDisplayUrl(s);
     if (!ext) {
       const key = resolveObjectKey(s);
-      if (key) keys.push(key);
+      // Never sign RAW for display
+      if (
+        key &&
+        s.kind !== "raw" &&
+        !isLikelyRawKey(key, s.mime_type)
+      ) {
+        keys.push(key);
+      }
     }
-    const thumb = s.thumbnail_key?.trim();
-    if (thumb && !isExternalHttpUrl(thumb)) keys.push(thumb);
   }
 
   const signed = await signReadUrls(supabase, keys, expiresIn);
@@ -178,19 +202,32 @@ export async function withDisplayUrls<
     if (ext) {
       display_url = ext;
     } else {
-      const key = resolveObjectKey(s);
-      if (key && signed.has(key)) {
-        display_url = signed.get(key)!;
-      } else if (s.preview_url && isExternalHttpUrl(s.preview_url)) {
-        display_url = s.preview_url;
+      const previewKey = s.preview_key?.trim();
+      if (previewKey && signed.has(previewKey)) {
+        display_url = signed.get(previewKey)!;
+      } else {
+        const key = resolveObjectKey(s);
+        if (
+          key &&
+          s.kind !== "raw" &&
+          !isLikelyRawKey(key, s.mime_type) &&
+          signed.has(key)
+        ) {
+          display_url = signed.get(key)!;
+        } else if (s.preview_url && isExternalHttpUrl(s.preview_url)) {
+          display_url = s.preview_url;
+        }
+        // raw-only / pending → display_url stays null (placeholder UI)
       }
     }
 
     const thumbKey = s.thumbnail_key?.trim();
-    const thumb_url =
+    let thumb_url: string | null =
       thumbKey && !isExternalHttpUrl(thumbKey) && signed.has(thumbKey)
         ? signed.get(thumbKey)!
         : null;
+    // Fall back grid to display when no thumb
+    if (!thumb_url && display_url) thumb_url = display_url;
 
     return { ...s, display_url, thumb_url };
   });

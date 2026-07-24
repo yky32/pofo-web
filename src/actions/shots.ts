@@ -140,6 +140,12 @@ export async function registerUploadedShots(input: {
     sizeBytes: number;
     /** Optional web-friendly derivative object key */
     thumbnailKey?: string | null;
+    /** Companion RAW path when kind = paired */
+    rawPath?: string | null;
+    /** Client-made web preview path */
+    previewPath?: string | null;
+    kind?: "jpeg" | "raw" | "paired";
+    processingStatus?: "ready" | "pending" | "failed";
   }[];
   /** Continue sort_order from client when uploading multi-chunk batches */
   sortOrderStart?: number;
@@ -212,14 +218,20 @@ export async function registerUploadedShots(input: {
 
   const rows = input.files.map((f, i) => {
     // Prefer storage_key only; never persist permanent public URLs for private buckets.
-    // Empty/placeholder previewUrl → null (signed display_url at read time).
     const preview = f.previewUrl?.trim() || null;
     const thumb = f.thumbnailKey?.trim() || null;
+    const rawPath = f.rawPath?.trim() || null;
+    const previewPath = f.previewPath?.trim() || null;
+    const kind = f.kind ?? (rawPath ? "paired" : "jpeg");
+    const processingStatus =
+      f.processingStatus ??
+      (kind === "raw" && !previewPath && !thumb ? "pending" : "ready");
+
     return {
       project_id: input.projectId,
       container_id: container!.id,
       owner_id: user.id,
-      kind: "jpeg" as const,
+      kind,
       storage_key: f.storagePath,
       preview_url: preview,
       filename: f.filename,
@@ -227,14 +239,53 @@ export async function registerUploadedShots(input: {
       size_bytes: f.sizeBytes,
       sort_order: baseOrder! + i,
       ...(thumb ? { thumbnail_key: thumb } : {}),
+      ...(rawPath ? { raw_key: rawPath } : {}),
+      ...(previewPath ? { preview_key: previewPath } : {}),
+      processing_status: processingStatus,
     };
   });
 
   // Chunk inserts for safety even within one action call
   for (let i = 0; i < rows.length; i += REGISTER_CHUNK) {
     const slice = rows.slice(i, i + REGISTER_CHUNK);
-    const { error } = await supabase.from("shots").insert(slice);
-    if (error) return { error: error.message, registered: i };
+    let { error } = await supabase.from("shots").insert(slice);
+    // Pre-migration fallback: strip RAW columns if SQL not applied yet
+    if (
+      error &&
+      (error.message.includes("raw_key") ||
+        error.message.includes("preview_key") ||
+        error.message.includes("processing_status") ||
+        error.message.includes("paired") ||
+        error.code === "42703" ||
+        error.code === "23514")
+    ) {
+      const legacy = slice.map((r) => ({
+        project_id: r.project_id,
+        container_id: r.container_id,
+        owner_id: r.owner_id,
+        kind: r.kind === "paired" || r.kind === "raw" ? "jpeg" : r.kind,
+        storage_key: r.storage_key,
+        preview_url: r.preview_url,
+        filename: r.filename,
+        mime_type: r.mime_type,
+        size_bytes: r.size_bytes,
+        sort_order: r.sort_order,
+        ...("thumbnail_key" in r && r.thumbnail_key
+          ? { thumbnail_key: r.thumbnail_key }
+          : {}),
+      }));
+      const retry = await supabase.from("shots").insert(legacy);
+      error = retry.error;
+      if (error) {
+        return {
+          error:
+            "Upload columns missing or outdated. Run supabase/features-raw-pipeline.sql in the SQL Editor, then retry.",
+          registered: i,
+        };
+      }
+    } else if (error) {
+      return { error: error.message, registered: i };
+    }
   }
 
   revalidatePath(`/dashboard/galleries/${input.projectId}`);

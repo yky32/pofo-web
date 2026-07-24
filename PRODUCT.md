@@ -304,16 +304,16 @@ https://app.example/s/northlight   ← public brand presence
 
 #### RAW + preview pipeline
 
-- [ ] Accept RAW uploads (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2, PEF, SRW, …)
-- [ ] Raise size limit for RAW (e.g. **100MB**; JPEG stays ~30MB)
-- [ ] Pair JPEG + RAW by basename → one logical Shot
-- [ ] Store `storage_key` / `raw_key` / `preview_key` / `thumbnail_key`
-- [ ] Client gallery **never** renders RAW directly
-- [ ] Display priority: `thumbnail` → `preview` → JPEG original
-- [ ] Download split: JPEG vs RAW (permission-gated)
-- [ ] Share link: allow original download + expiry window (exists; extend for true RAW)
-- [ ] Placeholder UI when preview pending
-- [ ] SQL migration for new columns + indexes
+- [x] Accept RAW uploads (CR2, CR3, NEF, ARW, DNG, RAF, ORF, RW2, PEF, SRW, …)
+- [x] Raise size limit for RAW (e.g. **100MB**; JPEG stays ~30MB)
+- [x] Pair JPEG + RAW by basename → one logical Shot
+- [x] Store `storage_key` / `raw_key` / `preview_key` / `thumbnail_key`
+- [x] Client gallery **never** renders RAW directly
+- [x] Display priority: `thumbnail` → `preview` → JPEG original
+- [ ] Download split: JPEG vs RAW (permission-gated) — partial (original window exists)
+- [x] Share link: allow original download + expiry window (exists; extend for true RAW)
+- [x] Placeholder UI when preview pending (`display_url` null for raw-only)
+- [x] SQL migration for new columns + indexes (`features-raw-pipeline.sql`)
 
 #### Proofing made real
 
@@ -322,9 +322,9 @@ https://app.example/s/northlight   ← public brand presence
 - [x] Photographer selection list
 - [x] Selection count badge
 - [x] Export selected ZIP
-- [ ] Export selected filename list (txt/csv) — restore as secondary action under Download
+- [x] Export selected filename list (txt) — under Download menu
 - [ ] “Client finished selecting” signal (manual submit and/or auto at limit)
-- [ ] Lock selections when status = `final`
+- [x] Lock selections when status = `final` (RPC + client UI)
 
 #### Upload reliability
 
@@ -334,14 +334,14 @@ https://app.example/s/northlight   ← public brand presence
 - [ ] Retry failed only (UI)
 - [ ] Progress: `done / total · failed · speed`
 - [x] Chunked DB register (50–100)
-- [ ] `beforeunload` warning while uploading
+- [x] `beforeunload` warning while uploading
 
 #### Delivery status machine
 
 - [x] `draft → shared → proofing → final → archived`
 - [x] One-click status control
 - [x] Status on project card
-- [ ] Final **locks** client selection edits
+- [x] Final **locks** client selection edits
 
 ### P1 — Should ship in MVP2
 

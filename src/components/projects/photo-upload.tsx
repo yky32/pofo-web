@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Upload } from "lucide-react";
 import { registerUploadedShots } from "@/actions/shots";
@@ -12,20 +12,26 @@ import {
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { Button } from "@/components/ui/button";
 import {
+  makeClientPreview,
   makeClientThumbnail,
+  previewObjectKey,
   thumbnailObjectKey,
 } from "@/lib/client-thumb";
+import {
+  groupFilesByBasename,
+  isRawFile,
+  maxBytesForFile,
+} from "@/lib/media";
 import { createClient } from "@/lib/supabase/client";
 import { chunkArray, runPool, withRetry } from "@/lib/upload-pool";
 import { cn } from "@/lib/utils";
 
-const MAX_BYTES = 30 * 1024 * 1024;
 const MAX_FILES_PER_PICK = 800;
 const CONCURRENCY = 5;
 const PREPARE_CHUNK = 100;
 const REGISTER_CHUNK = 50;
 const ACCEPT =
-  "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg";
+  "image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.cr2,.cr3,.nef,.arw,.dng,.raf,.orf,.rw2,.pef,.srw";
 
 type FileStatus = "queued" | "uploading" | "done" | "failed";
 
@@ -51,7 +57,7 @@ function friendlyUploadError(raw: string): string {
     return "Photo storage isn’t set up yet. Run supabase/storage.sql in the Supabase SQL Editor.";
   }
   if (m.includes("payload too large") || m.includes("maximum allowed")) {
-    return "File is too large (max 30MB).";
+    return "File is too large (JPEG 30MB · RAW 100MB).";
   }
   if (m.includes("network") || m.includes("fetch")) {
     return "Network error — check your connection and retry.";
@@ -116,6 +122,42 @@ export function PhotoUpload({
     );
   }, []);
 
+  // Warn before leaving mid-upload
+  useEffect(() => {
+    if (!busy) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [busy]);
+
+  async function putFile(slot: UploadSlot, file: File, backend: UploadBackend) {
+    if (backend === "r2") await putToR2(slot, file);
+    else await putToSupabase(slot, file);
+  }
+
+  async function putDerivative(
+    baseSlot: UploadSlot,
+    path: string,
+    blob: Blob,
+    backend: UploadBackend
+  ): Promise<string | null> {
+    if (backend === "r2") return null; // needs separate presign — skip Phase A
+    const file = new File([blob], path.split("/").pop() || "deriv.jpg", {
+      type: "image/jpeg",
+    });
+    const slot: UploadSlot = {
+      ...baseSlot,
+      storagePath: path,
+      contentType: "image/jpeg",
+      uploadUrl: null,
+    };
+    await putToSupabase(slot, file);
+    return path;
+  }
+
   async function runUpload(fileList: File[]) {
     setError(null);
     setSuccess(null);
@@ -124,32 +166,71 @@ export function PhotoUpload({
     if (!fileList.length) return;
 
     if (fileList.length > MAX_FILES_PER_PICK) {
-      setError(`Select at most ${MAX_FILES_PER_PICK} photos at a time.`);
+      setError(`Select at most ${MAX_FILES_PER_PICK} files at a time.`);
       return;
     }
 
-    const tooBig = fileList.find((f) => f.size > MAX_BYTES);
-    if (tooBig) {
+    for (const f of fileList) {
+      const max = maxBytesForFile(f.name, f.type);
+      if (f.size > max) {
+        const label = isRawFile(f.name, f.type) ? "100MB" : "30MB";
+        setError(`"${f.name}" is over ${label}.`);
+        return;
+      }
+    }
+
+    const allowed = fileList.filter((f) => {
+      if (isRawFile(f.name, f.type)) return true;
+      if (f.type?.startsWith("image/")) return true;
+      if (/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)) return true;
+      return false;
+    });
+    if (!allowed.length) {
       setError(
-        `"${tooBig.name}" is over 30MB. Compress or use RAW delivery later.`
+        "Only JPEG / PNG / WebP / HEIC / RAW (CR2, NEF, ARW, DNG…) are supported."
       );
       return;
     }
 
-    const nonImage = fileList.find(
-      (f) =>
-        f.type && !f.type.startsWith("image/") && !/\.jpe?g$/i.test(f.name)
-    );
-    if (nonImage) {
-      setError("Only image files are supported (JPEG / PNG / WebP / HEIC).");
-      return;
+    // Pair JPEG+RAW by basename → one logical shot each
+    const groups = groupFilesByBasename(allowed);
+    type Logical = {
+      id: string;
+      displayName: string;
+      jpeg?: File;
+      raw?: File;
+      extras: File[];
+    };
+    const logical: Logical[] = [];
+    for (const g of groups) {
+      if (g.jpeg || g.raw) {
+        logical.push({
+          id: `${Date.now()}-${g.key}-${Math.random().toString(36).slice(2, 7)}`,
+          displayName: g.jpeg?.name || g.raw?.name || g.key,
+          jpeg: g.jpeg as File | undefined,
+          raw: g.raw as File | undefined,
+          extras: (g.others as File[]) ?? [],
+        });
+      }
+      for (const o of g.others) {
+        logical.push({
+          id: `${Date.now()}-x-${Math.random().toString(36).slice(2, 7)}`,
+          displayName: o.name,
+          jpeg: isRawFile(o.name, o.type) ? undefined : o,
+          raw: isRawFile(o.name, o.type) ? o : undefined,
+          extras: [],
+        });
+      }
     }
 
-    const queue: FileItem[] = fileList.map((file, i) => ({
-      id: `${Date.now()}-${i}-${file.name}`,
-      file,
-      status: "queued",
-    }));
+    // Flat queue for progress UI
+    const queue: FileItem[] = [];
+    for (const L of logical) {
+      if (L.jpeg)
+        queue.push({ id: `${L.id}-jpg`, file: L.jpeg, status: "queued" });
+      if (L.raw)
+        queue.push({ id: `${L.id}-raw`, file: L.raw, status: "queued" });
+    }
 
     setItems(queue);
     setBusy(true);
@@ -166,8 +247,15 @@ export function PhotoUpload({
           files: group.map((item) => ({
             clientId: item.id,
             filename: item.file.name,
-            contentType: item.file.type || "image/jpeg",
+            contentType:
+              item.file.type ||
+              (isRawFile(item.file.name, item.file.type)
+                ? "application/octet-stream"
+                : "image/jpeg"),
             sizeBytes: item.file.size,
+            assetRole: isRawFile(item.file.name, item.file.type)
+              ? "raw"
+              : "original",
           })),
         });
 
@@ -189,59 +277,23 @@ export function PhotoUpload({
         mimeType: string;
         sizeBytes: number;
         thumbnailKey?: string | null;
+        rawPath?: string | null;
+        previewPath?: string | null;
+        kind?: "jpeg" | "raw" | "paired";
+        processingStatus?: "ready" | "pending";
       };
 
-      const tasks = queue.map((item) => async (): Promise<Meta> => {
+      // Upload each physical file
+      const tasks = queue.map((item) => async () => {
         const slot = slotByClientId.get(item.id);
         if (!slot) throw new Error("Missing upload slot");
-
         patchItem(item.id, { status: "uploading", error: undefined });
-
-        await withRetry(async () => {
-          if (activeBackend === "r2") {
-            await putToR2(slot, item.file);
-          } else {
-            await putToSupabase(slot, item.file);
-          }
-        }, 3);
-
-        // Best-effort web thumbnail (does not fail the upload)
-        let thumbnailKey: string | null = null;
-        try {
-          const thumbBlob = await makeClientThumbnail(item.file);
-          if (thumbBlob) {
-            const thumbPath = thumbnailObjectKey(slot.storagePath);
-            const thumbFile = new File(
-              [thumbBlob],
-              `thumb-${item.file.name.replace(/\.[^.]+$/, "")}.jpg`,
-              { type: "image/jpeg" }
-            );
-            const thumbSlot: UploadSlot = {
-              ...slot,
-              storagePath: thumbPath,
-              contentType: "image/jpeg",
-              uploadUrl: null, // R2 needs a separate prepare — use Supabase path for thumbs when possible
-            };
-            if (activeBackend === "r2") {
-              // Skip R2 thumb without presign; full res is enough
-            } else {
-              await putToSupabase(thumbSlot, thumbFile);
-              thumbnailKey = thumbPath;
-            }
-          }
-        } catch {
-          /* ignore thumb failures */
-        }
-
+        await withRetry(
+          () => putFile(slot, item.file, activeBackend),
+          3
+        );
         patchItem(item.id, { status: "done" });
-        return {
-          storagePath: slot.storagePath,
-          previewUrl: slot.previewUrl,
-          filename: item.file.name,
-          mimeType: item.file.type || "image/jpeg",
-          sizeBytes: item.file.size,
-          thumbnailKey,
-        };
+        return { item, slot };
       });
 
       const settled = await runPool(tasks, CONCURRENCY, (d, t) => {
@@ -249,10 +301,13 @@ export function PhotoUpload({
         setTotal(t);
       });
 
-      const uploaded: Meta[] = [];
+      const uploadedById = new Map<
+        string,
+        { item: FileItem; slot: UploadSlot }
+      >();
       settled.forEach((result, i) => {
         if (result.status === "fulfilled") {
-          uploaded.push(result.value);
+          uploadedById.set(queue[i].id, result.value);
         } else {
           const msg =
             result.reason instanceof Error
@@ -265,35 +320,88 @@ export function PhotoUpload({
         }
       });
 
-      if (uploaded.length === 0) {
-        const firstFail = items.find((i) => i.status === "failed")?.error;
-        // items state may be stale; pull from settled
-        const reason =
-          settled.find((r) => r.status === "rejected") &&
-          settled.find((r): r is PromiseRejectedResult => r.status === "rejected")
-            ? friendlyUploadError(
-                settled.find((r): r is PromiseRejectedResult => r.status === "rejected")!
-                  .reason instanceof Error
-                  ? (
-                      settled.find(
-                        (r): r is PromiseRejectedResult => r.status === "rejected"
-                      )!.reason as Error
-                    ).message
-                  : "Upload failed"
-              )
-            : null;
-        setError(
-          reason
-            ? `Couldn’t upload any photos. ${reason}`
-            : "Couldn’t upload any photos. Check connection and try again."
-        );
-        void firstFail;
+      if (uploadedById.size === 0) {
+        setError("Couldn’t upload any files. Check connection and try again.");
         return;
+      }
+
+      // Build register rows (logical shots)
+      const registerRows: Meta[] = [];
+      for (const L of logical) {
+        const jpgUp = L.jpeg ? uploadedById.get(`${L.id}-jpg`) : undefined;
+        const rawUp = L.raw ? uploadedById.get(`${L.id}-raw`) : undefined;
+        if (!jpgUp && !rawUp) continue;
+
+        let thumbnailKey: string | null = null;
+        let previewPath: string | null = null;
+        if (jpgUp && activeBackend !== "r2") {
+          try {
+            const [thumbBlob, prevBlob] = await Promise.all([
+              makeClientThumbnail(jpgUp.item.file),
+              makeClientPreview(jpgUp.item.file),
+            ]);
+            if (thumbBlob) {
+              thumbnailKey = await putDerivative(
+                jpgUp.slot,
+                thumbnailObjectKey(jpgUp.slot.storagePath),
+                thumbBlob,
+                activeBackend
+              );
+            }
+            if (prevBlob) {
+              previewPath = await putDerivative(
+                jpgUp.slot,
+                previewObjectKey(jpgUp.slot.storagePath),
+                prevBlob,
+                activeBackend
+              );
+            }
+          } catch {
+            /* derivatives best-effort */
+          }
+        }
+
+        if (jpgUp && rawUp) {
+          registerRows.push({
+            storagePath: jpgUp.slot.storagePath,
+            rawPath: rawUp.slot.storagePath,
+            previewUrl: jpgUp.slot.previewUrl,
+            filename: jpgUp.item.file.name,
+            mimeType: jpgUp.item.file.type || "image/jpeg",
+            sizeBytes: jpgUp.item.file.size + rawUp.item.file.size,
+            thumbnailKey,
+            previewPath,
+            kind: "paired",
+            processingStatus: "ready",
+          });
+        } else if (jpgUp) {
+          registerRows.push({
+            storagePath: jpgUp.slot.storagePath,
+            previewUrl: jpgUp.slot.previewUrl,
+            filename: jpgUp.item.file.name,
+            mimeType: jpgUp.item.file.type || "image/jpeg",
+            sizeBytes: jpgUp.item.file.size,
+            thumbnailKey,
+            previewPath,
+            kind: "jpeg",
+            processingStatus: "ready",
+          });
+        } else if (rawUp) {
+          registerRows.push({
+            storagePath: rawUp.slot.storagePath,
+            previewUrl: "",
+            filename: rawUp.item.file.name,
+            mimeType: rawUp.item.file.type || "application/octet-stream",
+            sizeBytes: rawUp.item.file.size,
+            kind: "raw",
+            processingStatus: "pending",
+          });
+        }
       }
 
       let registered = 0;
       let sortStart: number | undefined;
-      for (const chunk of chunkArray(uploaded, REGISTER_CHUNK)) {
+      for (const chunk of chunkArray(registerRows, REGISTER_CHUNK)) {
         const result = await registerUploadedShots({
           projectId,
           files: chunk,
@@ -314,12 +422,12 @@ export function PhotoUpload({
         sortStart = result.nextSortOrder;
       }
 
-      const failed = queue.length - uploaded.length;
+      const failedFiles = queue.length - uploadedById.size;
       if (registered > 0) {
         setSuccess(
-          failed > 0
-            ? `${registered} photos added · ${failed} failed`
-            : `${registered} photo${registered === 1 ? "" : "s"} added`
+          failedFiles > 0
+            ? `${registered} shot${registered === 1 ? "" : "s"} added · ${failedFiles} file(s) failed`
+            : `${registered} shot${registered === 1 ? "" : "s"} added`
         );
         router.refresh();
       }
@@ -400,8 +508,8 @@ export function PhotoUpload({
                 Start this delivery
               </p>
               <p className="max-w-sm text-sm text-stone-500">
-                Drop a batch of wedding JPEGs here, or choose files from your
-                computer. Up to 30MB each.
+                Drop JPEG and/or RAW (same basename pairs into one shot). JPEG
+                up to 30MB · RAW up to 100MB.
               </p>
               <Button
                 type="button"
@@ -427,7 +535,7 @@ export function PhotoUpload({
                 {busy ? "Uploading…" : "Upload photos"}
               </Button>
               <p className="hidden min-w-0 text-xs leading-snug text-stone-500 sm:block">
-                Drop files here · JPEG / PNG · max 30MB
+                JPEG + RAW · same name pairs · 30MB / 100MB
               </p>
             </>
           )}

@@ -93,6 +93,13 @@ export function ClientGallery({
       if (rollback) setSelected(rollback);
       return;
     }
+    if (res.error === "locked") {
+      setMessage(
+        "Selections are locked — your photographer finalized this gallery."
+      );
+      if (rollback) setSelected(rollback);
+      return;
+    }
     if (res.error === "schema_missing") {
       setMessage(
         "Bulk select needs a quick database update — ask your photographer, or pick photos one by one."
@@ -108,8 +115,18 @@ export function ClientGallery({
     setSelected(new Set(res.selected_shot_ids ?? []));
   }
 
+  const proofLocked =
+    initial.project.status === "final" ||
+    initial.project.status === "archived";
+
   function onToggle(shotId: string) {
     setMessage(null);
+    if (proofLocked) {
+      setMessage(
+        "Selections are locked — your photographer finalized this gallery."
+      );
+      return;
+    }
     const prev = new Set(selected);
     const next = new Set(selected);
     if (next.has(shotId)) {

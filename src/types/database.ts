@@ -5,7 +5,8 @@ export type ProjectStatus =
   | "final"
   | "archived";
 
-export type ShotKind = "preview" | "jpeg" | "raw" | "final";
+export type ShotKind = "preview" | "jpeg" | "raw" | "paired" | "final";
+export type ProcessingStatus = "pending" | "ready" | "failed";
 
 /** Who owns a project: personal user or studio team */
 export type ProjectOwnerType = "user" | "team";
@@ -107,6 +108,13 @@ export interface Shot {
   kind: ShotKind;
   /** Object key in Supabase Storage or R2 — not a public URL */
   storage_key: string | null;
+  /** Companion RAW when kind = paired */
+  raw_key?: string | null;
+  /** Web-safe preview object key (never use raw_key for <img>) */
+  preview_key?: string | null;
+  /** ready | pending | failed — pending when RAW has no web preview */
+  processing_status?: ProcessingStatus | null;
+  processing_error?: string | null;
   /**
    * Optional permanent external URL (demo Unsplash samples only).
    * Uploaded files should leave this null and use signed `display_url`.

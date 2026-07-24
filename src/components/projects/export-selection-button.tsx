@@ -1,12 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Download, Heart, Images, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FileText,
+  Heart,
+  Images,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { downloadPhotosZip } from "@/lib/zip-download";
@@ -41,9 +49,42 @@ export function ExportSelectionButton({
   /** Client-selected / proofed photos */
   proofedShots: Shot[];
 }) {
-  const [busy, setBusy] = useState<"full" | "proofing" | null>(null);
+  const [busy, setBusy] = useState<"full" | "proofing" | "list" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+
+  function downloadFilenameList(shots: Shot[], kind: "proofing" | "full") {
+    if (!shots.length) {
+      setError(
+        kind === "proofing"
+          ? "Client hasn’t finished proofing yet."
+          : "No photos in this gallery yet."
+      );
+      return;
+    }
+    setError(null);
+    setBusy("list");
+    try {
+      const lines = shots
+        .map((s) => s.filename?.trim())
+        .filter((n): n is string => Boolean(n));
+      const body = lines.length
+        ? lines.join("\n") + "\n"
+        : shots.map((s) => s.id).join("\n") + "\n";
+      const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+      const a = document.createElement("a");
+      const safe = projectTitle.replace(/[^\w.-]+/g, "_").slice(0, 48) || "gallery";
+      a.href = URL.createObjectURL(blob);
+      a.download =
+        kind === "proofing"
+          ? `${safe}-proof-filenames.txt`
+          : `${safe}-filenames.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   async function runZip(
     kind: "full" | "proofing",
@@ -153,6 +194,20 @@ export function ExportSelectionButton({
                 {proofCount > 0
                   ? `Only the ${proofCount} photo${proofCount === 1 ? "" : "s"} they hearted`
                   : "No proofing picks yet"}
+              </span>
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="items-start py-2"
+            disabled={isBusy || proofCount === 0}
+            onClick={() => downloadFilenameList(proofedShots, "proofing")}
+          >
+            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-sm font-medium">Proof filename list</span>
+              <span className="text-[11px] leading-snug text-muted-foreground">
+                .txt for Lightroom / Finder filter
               </span>
             </span>
           </DropdownMenuItem>

@@ -1,14 +1,17 @@
 /**
- * Browser-side web thumbnail (canvas) for faster contact-sheet loads.
- * Best-effort — failures leave thumbnail_key null; full res still works.
+ * Browser-side web derivatives (canvas) for contact-sheet + lightbox.
+ * Best-effort — failures leave keys null; full res still works for JPEG.
  */
 
-const MAX_EDGE = 960;
-const JPEG_QUALITY = 0.82;
+const THUMB_EDGE = 720;
+const PREVIEW_EDGE = 1800;
+const JPEG_QUALITY_THUMB = 0.82;
+const JPEG_QUALITY_PREVIEW = 0.85;
 
-export async function makeClientThumbnail(
+async function resizeToBlob(
   file: File,
-  maxEdge = MAX_EDGE
+  maxEdge: number,
+  quality: number
 ): Promise<Blob | null> {
   if (!file.type.startsWith("image/") && !/\.jpe?g$/i.test(file.name)) {
     return null;
@@ -19,6 +22,12 @@ export async function makeClientThumbnail(
     file.type === "image/heif" ||
     /\.heic$/i.test(file.name) ||
     /\.heif$/i.test(file.name)
+  ) {
+    return null;
+  }
+  // Never try canvas on RAW
+  if (
+    /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef|srw)$/i.test(file.name)
   ) {
     return null;
   }
@@ -40,10 +49,9 @@ export async function makeClientThumbnail(
       if (!ctx) return null;
       ctx.drawImage(bitmap, 0, 0, w, h);
 
-      const blob = await new Promise<Blob | null>((resolve) => {
-        canvas.toBlob((b) => resolve(b), "image/jpeg", JPEG_QUALITY);
+      return await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", quality);
       });
-      return blob;
     } finally {
       bitmap.close();
     }
@@ -52,10 +60,32 @@ export async function makeClientThumbnail(
   }
 }
 
+export async function makeClientThumbnail(
+  file: File,
+  maxEdge = THUMB_EDGE
+): Promise<Blob | null> {
+  return resizeToBlob(file, maxEdge, JPEG_QUALITY_THUMB);
+}
+
+/** Larger web preview for lightbox (~1600–1800px) */
+export async function makeClientPreview(
+  file: File,
+  maxEdge = PREVIEW_EDGE
+): Promise<Blob | null> {
+  return resizeToBlob(file, maxEdge, JPEG_QUALITY_PREVIEW);
+}
+
 /** Object key sibling for a full-res storage path */
 export function thumbnailObjectKey(storagePath: string) {
   const clean = storagePath.replace(/^\//, "");
   const slash = clean.lastIndexOf("/");
   if (slash < 0) return `thumbs/${clean}`;
   return `${clean.slice(0, slash)}/thumbs/${clean.slice(slash + 1)}`;
+}
+
+export function previewObjectKey(storagePath: string) {
+  const clean = storagePath.replace(/^\//, "");
+  const slash = clean.lastIndexOf("/");
+  if (slash < 0) return `previews/${clean}.jpg`;
+  return `${clean.slice(0, slash)}/previews/${clean.slice(slash + 1)}.jpg`;
 }

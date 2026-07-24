@@ -10,11 +10,17 @@ import {
 } from "@/lib/r2";
 import { getStorageBackend, type StorageBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/env";
+import {
+  JPEG_MAX_BYTES,
+  maxBytesForFile,
+  isRawFile,
+} from "@/lib/media";
 
 const MAX_PREPARE = 150;
-const MAX_BYTES = 30 * 1024 * 1024;
 
 export type UploadBackend = StorageBackend;
+
+export type AssetRole = "original" | "raw" | "preview" | "thumb";
 
 export type UploadSlot = {
   clientId: string;
@@ -28,6 +34,7 @@ export type UploadSlot = {
   previewUrl: string;
   contentType: string;
   backend: UploadBackend;
+  assetRole?: AssetRole;
 };
 
 export type PrepareBatchResult =
@@ -42,6 +49,7 @@ export type PrepareBatchResult =
 /**
  * Mint upload slots. Files go browser → storage (never through Next body).
  * Backend switches automatically: R2 when env ready, else Supabase Storage.
+ * JPEG ≤ 30MB · RAW ≤ 100MB.
  */
 export async function prepareBatchUpload(input: {
   projectId: string;
@@ -50,6 +58,7 @@ export async function prepareBatchUpload(input: {
     filename: string;
     contentType: string;
     sizeBytes: number;
+    assetRole?: AssetRole;
   }[];
 }): Promise<PrepareBatchResult> {
   if (!isSupabaseConfigured()) {
@@ -66,10 +75,12 @@ export async function prepareBatchUpload(input: {
   }
 
   for (const f of input.files) {
-    if (f.sizeBytes > MAX_BYTES) {
+    const max = maxBytesForFile(f.filename, f.contentType);
+    if (f.sizeBytes > max) {
+      const label = isRawFile(f.filename, f.contentType) ? "100MB" : "30MB";
       return {
         ok: false,
-        error: `"${f.filename}" exceeds 30MB limit.`,
+        error: `"${f.filename}" exceeds ${label} limit.`,
       };
     }
   }
@@ -94,7 +105,11 @@ export async function prepareBatchUpload(input: {
 
   try {
     for (const f of input.files) {
-      const contentType = f.contentType || "image/jpeg";
+      const contentType =
+        f.contentType ||
+        (isRawFile(f.filename, f.contentType)
+          ? "application/octet-stream"
+          : "image/jpeg");
       const storagePath = photoStorageKey(
         user.id,
         input.projectId,
@@ -107,13 +122,12 @@ export async function prepareBatchUpload(input: {
           clientId: f.clientId,
           storagePath,
           uploadUrl,
-          // Prefer empty preview (signed GET at read time). Optional public base only if set.
           previewUrl: hasR2PublicBase() ? r2PublicObjectUrl(storagePath) : "",
           contentType,
           backend: "r2",
+          assetRole: f.assetRole ?? "original",
         });
       } else {
-        // Supabase: upload with user JWT; store storage_key only (private bucket)
         slots.push({
           clientId: f.clientId,
           storagePath,
@@ -121,6 +135,7 @@ export async function prepareBatchUpload(input: {
           previewUrl: "",
           contentType,
           backend: "supabase",
+          assetRole: f.assetRole ?? "original",
         });
       }
     }
@@ -142,3 +157,6 @@ export async function prepareBatchUpload(input: {
 export async function getUploadBackend(): Promise<UploadBackend> {
   return getStorageBackend();
 }
+
+/** @deprecated use JPEG_MAX_BYTES / maxBytesForFile */
+export const LEGACY_MAX_BYTES = JPEG_MAX_BYTES;
