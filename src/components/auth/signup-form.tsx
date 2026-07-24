@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { Building2, User } from "lucide-react";
 import { signUp, type AuthState } from "@/actions/auth";
 import { EmailField } from "@/components/auth/email-field";
 import {
@@ -48,64 +49,46 @@ export function SignupForm() {
         Create your account
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        One login. Pick how you work, then continue with Google, Apple, or
-        email.
+        One login for personal and studio work.
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* 1) Intent first — applies to OAuth and email */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-stone-700">I am…</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => chooseIntent("personal")}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-left text-xs transition",
-                intent === "personal"
-                  ? "border-stone-900 bg-stone-900 text-white"
-                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
-              )}
-            >
-              <span className="block font-semibold">Photographer</span>
-              <span
-                className={cn(
-                  "mt-0.5 block",
-                  intent === "personal" ? "text-white/70" : "text-stone-400"
-                )}
-              >
-                Personal workspace
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => chooseIntent("team")}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-left text-xs transition",
-                intent === "team"
-                  ? "border-stone-900 bg-stone-900 text-white"
-                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
-              )}
-            >
-              <span className="block font-semibold">Studio company</span>
-              <span
-                className={cn(
-                  "mt-0.5 block",
-                  intent === "team" ? "text-white/70" : "text-stone-400"
-                )}
-              >
-                Team workspace
-              </span>
-            </button>
-          </div>
-          <p className="text-[11px] leading-snug text-stone-400">
-            {intent === "team"
-              ? "After Google/Apple sign-in we’ll ask for your company name and link."
-              : "You can add a company workspace later in Settings."}
-          </p>
+        {/* Intent: icon-only — personal vs studio company */}
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => chooseIntent("personal")}
+            aria-label="Personal photographer"
+            aria-pressed={intent === "personal"}
+            title="Personal"
+            className={cn(
+              "flex h-[52px] w-[52px] items-center justify-center rounded-full border transition",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              intent === "personal"
+                ? "border-stone-900 bg-stone-900 text-white shadow-sm"
+                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+            )}
+          >
+            <User className="h-5 w-5" strokeWidth={1.75} />
+          </button>
+          <button
+            type="button"
+            onClick={() => chooseIntent("team")}
+            aria-label="Studio company"
+            aria-pressed={intent === "team"}
+            title="Studio company"
+            className={cn(
+              "flex h-[52px] w-[52px] items-center justify-center rounded-full border transition",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              intent === "team"
+                ? "border-stone-900 bg-stone-900 text-white shadow-sm"
+                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+            )}
+          >
+            <Building2 className="h-5 w-5" strokeWidth={1.75} />
+          </button>
         </div>
 
-        {/* 2) Social — uses intent cookie + next path */}
         <SocialAuthButtons
           accountIntent={intent}
           next={
