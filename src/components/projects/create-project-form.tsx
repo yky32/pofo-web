@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { createProject, type ProjectActionState } from "@/actions/projects";
+import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { Button } from "@/components/ui/button";
 import { DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,16 @@ export function CreateProjectForm({
   showCancel?: boolean;
 }) {
   const [state, action, pending] = useActionState(createProject, initial);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  useEffect(() => {
+    if (state.error?.startsWith("PROJECTS_LIMIT")) {
+      setUpgradeOpen(true);
+    }
+  }, [state.error]);
 
   return (
+    <>
     <form
       action={action}
       className={
@@ -62,7 +71,7 @@ export function CreateProjectForm({
         />
       </div>
 
-      {state.error ? (
+      {state.error && !state.error.startsWith("PROJECTS_LIMIT") ? (
         <p className="rounded-[5px] bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100">
           {state.error}
         </p>
@@ -102,5 +111,11 @@ export function CreateProjectForm({
         ) : null}
       </div>
     </form>
+    <UpgradeModal
+      open={upgradeOpen}
+      reason="projects_limit"
+      onClose={() => setUpgradeOpen(false)}
+    />
+    </>
   );
 }

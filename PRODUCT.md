@@ -380,7 +380,7 @@ https://app.example/s/northlight   ← public brand presence
 - Full CRM  
 - AI culling  
 - Full video delivery pipeline  
-- Billing (design sketch only)
+- ~~Billing (design sketch only)~~ → **v1 Free-first plans live** (see §15c)
 
 ### Engineering guardrails (always)
 
@@ -702,7 +702,7 @@ Service role key is **server-only** (required for private client images).
 
 - Team accounts & multi-user studios  
 - Custom domains for portfolio  
-- Billing & storage tiers  
+- Stripe / real billing provider (plan columns + stub upgrade exist)  
 - Resumable multipart for huge RAWs (if needed)  
 - Video delivery  
 - WhatsApp / SMS notifications  
@@ -760,6 +760,49 @@ Apply: `supabase/features-teams.sql`
 
 ---
 
+## 15c. Pricing wall + Free-first upgrade (v1)
+
+**Narrative:** *You pay for space to deliver jobs — not an all-in-one studio OS.*
+
+| Rule | Detail |
+|------|--------|
+| Default | Every new user is **Free** (`profiles.plan = 'free'`) |
+| Signup | No plan picker; upgrade is optional until limits |
+| Client gallery | **Never** show upgrade / paywall UI |
+| Primary metric | Storage GB |
+| Secondary | Active projects (not archived) |
+
+| Plan | Price | Storage | Active projects |
+|------|-------|---------|-----------------|
+| **Free** | $0 | 50GB | 3 |
+| **Solo** (recommended) | $12/mo or $10/mo annual | 500GB | 20 |
+| **Pro** | $29/mo or $24/mo annual | 2TB | 100 |
+
+**Where Upgrade lives**
+
+1. Account menu: `Plan: …` + Upgrade + Plan & billing  
+2. Settings → Plan & billing (`/dashboard/settings/billing`) — usage + PricingWall  
+3. Soft banner on dashboard at ~80% storage or projects  
+4. Hard `UpgradeModal` only when create-project or upload is blocked  
+
+**Code map**
+
+| Piece | Path |
+|-------|------|
+| Plan definitions | `src/lib/plans.ts` |
+| Usage / stub upgrade | `src/actions/billing.ts` |
+| Marketing + settings wall | `src/components/billing/pricing-wall.tsx` |
+| Usage card | `src/components/billing/plan-usage-card.tsx` |
+| Soft banner | `src/components/billing/soft-limit-banner.tsx` |
+| Hard modal | `src/components/billing/upgrade-modal.tsx` |
+| SQL | `supabase/features-plans.sql` |
+
+**Billing provider:** stub only (`setPlanStub`). No Stripe in v1.
+
+Apply: `supabase/features-plans.sql`
+
+---
+
 ## 16. Roadmap beyond MVP2
 
 | Phase | Focus |
@@ -767,7 +810,7 @@ Apply: `supabase/features-teams.sql`
 | **Team** | Invites, roles UI, shared projects polish |
 | **Public brand** | Custom domain, OG images, SEO portfolio |
 | **Smart assist** | Optional AI tags / face clusters — never block delivery |
-| **Billing** | Free tier limits; Pro storage / seats |
+| **Billing** | Stripe / real checkout; invoices; seat pricing later |
 | **Hardening** | Rate limits, cleanup jobs, E2E tests, monitoring |
 
 ---

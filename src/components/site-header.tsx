@@ -17,6 +17,9 @@ export function SiteHeader() {
           <a href="#workflow" className="transition-colors hover:text-stone-900">
             Workflow
           </a>
+          <a href="#pricing" className="transition-colors hover:text-stone-900">
+            Pricing
+          </a>
           <a href="#look" className="transition-colors hover:text-stone-900">
             Look
           </a>

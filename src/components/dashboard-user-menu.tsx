@@ -3,13 +3,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ExternalLink, LogOut, Mail } from "lucide-react";
+import { CreditCard, ExternalLink, LogOut, Mail, Sparkles } from "lucide-react";
 import { signOut } from "@/actions/auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   providerLabel,
   type AuthProviderId,
 } from "@/lib/auth-identities";
+import type { PlanId } from "@/lib/plans";
+import { planOf } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 export type DashboardUser = {
@@ -18,6 +20,7 @@ export type DashboardUser = {
   avatarUrl?: string | null;
   /** How they signed in: google | apple | email | … */
   signInProvider?: AuthProviderId | null;
+  plan?: PlanId | null;
 };
 
 function initialsFrom(user: DashboardUser) {
@@ -224,10 +227,46 @@ export function DashboardUserMenu({
                         {user.email}
                       </p>
                     ) : null}
+                    <p className="mt-1 text-[10px] text-stone-500">
+                      Plan:{" "}
+                      <span className="font-medium text-stone-800">
+                        {planOf(user.plan).name}
+                      </span>
+                    </p>
                   </div>
                 )}
 
                 <div className="p-0.5">
+                  <Link
+                    href="/dashboard/settings/billing"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
+                      "hover:bg-stone-900/5 hover:text-stone-950"
+                    )}
+                  >
+                    <Sparkles
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
+                      strokeWidth={1.75}
+                    />
+                    Upgrade
+                  </Link>
+                  <Link
+                    href="/dashboard/settings/billing"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
+                      "hover:bg-stone-900/5 hover:text-stone-950"
+                    )}
+                  >
+                    <CreditCard
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
+                      strokeWidth={1.75}
+                    />
+                    Plan & billing
+                  </Link>
                   <Link
                     href="/"
                     role="menuitem"

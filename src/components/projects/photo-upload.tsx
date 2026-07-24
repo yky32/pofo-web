@@ -9,6 +9,7 @@ import {
   type UploadBackend,
   type UploadSlot,
 } from "@/actions/uploads";
+import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { Button } from "@/components/ui/button";
 import {
   makeClientThumbnail,
@@ -107,6 +108,7 @@ export function PhotoUpload({
   const [success, setSuccess] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [storageUpgradeOpen, setStorageUpgradeOpen] = useState(false);
 
   const patchItem = useCallback((id: string, patch: Partial<FileItem>) => {
     setItems((prev) =>
@@ -298,9 +300,14 @@ export function PhotoUpload({
           sortOrderStart: sortStart,
         });
         if (result.error) {
-          setError(
-            `Files reached storage, but saving the gallery failed: ${friendlyUploadError(result.error)}`
-          );
+          if (result.error.startsWith("STORAGE_LIMIT")) {
+            setStorageUpgradeOpen(true);
+            setError(null);
+          } else {
+            setError(
+              `Files reached storage, but saving the gallery failed: ${friendlyUploadError(result.error)}`
+            );
+          }
           break;
         }
         registered += result.registered ?? chunk.length;
@@ -493,6 +500,12 @@ export function PhotoUpload({
           {success}
         </p>
       ) : null}
+
+      <UpgradeModal
+        open={storageUpgradeOpen}
+        reason="storage_limit"
+        onClose={() => setStorageUpgradeOpen(false)}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   Timer,
   Upload,
 } from "lucide-react";
+import { PricingWall } from "@/components/billing/pricing-wall";
 import { Button } from "@/components/ui/button";
 import { PhotoFrame } from "@/components/photo/photo-frame";
 import { FilmStrip } from "@/components/photo/film-strip";
@@ -256,6 +257,11 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Pricing wall */}
+      <section className="border-t border-stone-100 py-20 sm:py-28">
+        <PricingWall loggedIn={false} />
       </section>
 
       {/* Bottom CTA with photo strip */}

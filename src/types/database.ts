@@ -25,6 +25,9 @@ export interface Profile {
    * Denormalized from auth.identities — source of truth remains Auth.
    */
   providers?: string[] | null;
+  /** free | solo | pro — Free by default */
+  plan?: "free" | "solo" | "pro" | null;
+  billing_interval?: "monthly" | "annual" | null;
   created_at: string;
   updated_at: string;
 }

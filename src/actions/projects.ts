@@ -263,6 +263,16 @@ export async function createProject(
     return { error: "You must be logged in." };
   }
 
+  // Free-first plan limits (active projects)
+  const { canCreateProject } = await import("@/actions/billing");
+  const gate = await canCreateProject();
+  if (!gate.ok) {
+    return {
+      error:
+        "PROJECTS_LIMIT: Free includes 3 active projects. Upgrade or archive one to continue.",
+    };
+  }
+
   // Ensure profile exists (e.g. if trigger missed)
   await supabase.from("profiles").upsert({
     id: user.id,

@@ -59,6 +59,7 @@ bun dev
 6. Paste `supabase/features-p1-p2.sql` → **Run** (studio notes/flags, share analytics, thumbnails)
 7. Paste `supabase/features-p3.sql` → **Run** (portfolio + original download window)
 8. Paste `supabase/features-teams.sql` → **Run** (studio workspaces / teams)
+8b. Paste `supabase/features-plans.sql` → **Run** (Free/Solo/Pro plan columns)
 9. Optional: paste `supabase/slug.sql` if you use studio subdomains
 10. Optional (existing DBs): paste `supabase/cleanup-unused-columns.sql` to drop dead columns
    — **re-run `features-p1-p2.sql` + `features-p3.sql` + `features-teams.sql` after cleanup**

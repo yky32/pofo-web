@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getMyPlanUsage } from "@/actions/billing";
+import { SoftLimitBanner } from "@/components/billing/soft-limit-banner";
 import { Button } from "@/components/ui/button";
 import { GalleryCard } from "@/components/photo/gallery-card";
 import { PhotoImage } from "@/components/photo/photo-image";
@@ -10,6 +12,7 @@ import { studioPhotos } from "@/lib/photos";
 export default async function DashboardPage() {
   const { projects, demoMode } = await getDashboardProjects();
   const configured = isSupabaseConfigured();
+  const usage = configured ? await getMyPlanUsage() : null;
   const proofing = projects.filter((g) => g.status === "proofing").length;
   const totalPhotos = projects.reduce(
     (sum, g) => sum + (g.photo_count ?? 0),
@@ -18,6 +21,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10">
+      {usage ? <SoftLimitBanner usage={usage} /> : null}
       <section className="relative overflow-hidden rounded-[5px] film-grain">
         <div className="relative min-h-[180px] sm:min-h-[200px]">
           <PhotoImage

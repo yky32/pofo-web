@@ -25,11 +25,12 @@ async function loadDashboardUser(): Promise<DashboardUser | null> {
     const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
     const { data: profile } = await supabase
       .from("profiles")
-      .select("display_name, avatar_url, studio_name")
+      .select("display_name, avatar_url, studio_name, plan")
       .eq("id", user.id)
       .maybeSingle();
 
     const identities = identitiesFromUser(user);
+    const planRaw = (profile as { plan?: string } | null)?.plan;
 
     return {
       email: user.email,
@@ -40,6 +41,10 @@ async function loadDashboardUser(): Promise<DashboardUser | null> {
       avatarUrl: profile?.avatar_url || avatarFromMetadata(meta),
       // Prefer IdP on the session (Triftly: identities → google/apple/email)
       signInProvider: primaryProvider(identities),
+      plan:
+        planRaw === "solo" || planRaw === "pro" || planRaw === "free"
+          ? planRaw
+          : "free",
     };
   } catch {
     return null;

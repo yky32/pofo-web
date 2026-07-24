@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getMyProfile } from "@/actions/profile";
 import { getLinkedIdentities } from "@/actions/session";
 import { listMyTeams } from "@/actions/teams";
@@ -27,7 +28,15 @@ export default async function SettingsPage({
           Settings
         </h1>
         <p className="mt-1 text-stone-500">
-          Personal brand, studio workspaces, and sign-in methods.
+          Personal brand, studio workspaces, plan, and sign-in methods.
+        </p>
+        <p className="mt-2">
+          <Link
+            href="/dashboard/settings/billing"
+            className="text-sm font-medium text-stone-900 underline-offset-2 hover:underline"
+          >
+            Plan & billing →
+          </Link>
         </p>
       </div>
 

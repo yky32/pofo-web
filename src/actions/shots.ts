@@ -153,6 +153,16 @@ export async function registerUploadedShots(input: {
     return { error: "Too many files in one request — send up to 150 at a time." };
   }
 
+  const addBytes = input.files.reduce((s, f) => s + (f.sizeBytes || 0), 0);
+  const { canUploadBytes } = await import("@/actions/billing");
+  const storageGate = await canUploadBytes(addBytes);
+  if (!storageGate.ok) {
+    return {
+      error:
+        "STORAGE_LIMIT: Free storage is full. Upgrade to Solo for more space, or delete photos.",
+    };
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
