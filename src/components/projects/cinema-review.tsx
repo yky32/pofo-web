@@ -9,11 +9,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  Flag,
   Loader2,
   StickyNote,
   X,
@@ -29,17 +26,18 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { StudioFlag } from "@/types/database";
 
-const FLAGS: { value: StudioFlag; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "print", label: "Print" },
-  { value: "retouch", label: "Retouch" },
-  { value: "hero", label: "Hero" },
-  { value: "reject", label: "Reject" },
+const FLAGS: { value: StudioFlag; label: string; short: string }[] = [
+  { value: "none", label: "None", short: "·" },
+  { value: "print", label: "Print", short: "P" },
+  { value: "retouch", label: "Retouch", short: "R" },
+  { value: "hero", label: "Hero", short: "H" },
+  { value: "reject", label: "Reject", short: "X" },
 ];
 
 /**
- * Photo-first cinema: image uses almost full viewport.
- * Studio mark is a floating glass card (not a layout column that steals width).
+ * Photo-first cinema: the image owns the full viewport.
+ * All chrome (nav, flags, filmstrip) floats as thin overlays and
+ * auto-hides so the photo stays the product.
  */
 export function CinemaReview({
   projectId,
@@ -70,14 +68,38 @@ export function CinemaReview({
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  /** Note field collapsed by default — photo stays huge */
   const [noteOpen, setNoteOpen] = useState(false);
+  /** Chrome visible — auto-hides so photo is full-bleed */
+  const [chromeVisible, setChromeVisible] = useState(true);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteOpenRef = useRef(false);
 
   const shotId = shot?.id;
   const shotNote = shot?.studio_note;
   const shotFlag = shot?.studio_flag;
+
+  useEffect(() => {
+    noteOpenRef.current = noteOpen;
+    if (noteOpen) setChromeVisible(true);
+  }, [noteOpen]);
+
+  const bumpChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => {
+      // Keep chrome while note editor is open
+      if (!noteOpenRef.current) setChromeVisible(false);
+    }, 2200);
+  }, []);
+
+  useEffect(() => {
+    bumpChrome();
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [bumpChrome, safeIndex]);
 
   useEffect(() => {
     if (!shotId) return;
@@ -131,6 +153,7 @@ export function CinemaReview({
   function applyFlag(next: StudioFlag) {
     setFlag(next);
     persistMeta(next, note);
+    bumpChrome();
   }
 
   function saveNote() {
@@ -151,6 +174,10 @@ export function CinemaReview({
         e.stopPropagation();
         if (inField) {
           (t as HTMLElement).blur();
+          setNoteOpen(false);
+          return;
+        }
+        if (noteOpen) {
           setNoteOpen(false);
           return;
         }
@@ -180,6 +207,7 @@ export function CinemaReview({
       if (e.key === "n" || e.key === "N") {
         e.preventDefault();
         setNoteOpen(true);
+        setChromeVisible(true);
         requestAnimationFrame(() => noteRef.current?.focus());
         return;
       }
@@ -199,236 +227,246 @@ export function CinemaReview({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [go, onClose, shot?.id, flag, note, projectId]);
+  }, [go, onClose, shot?.id, flag, note, projectId, noteOpen]);
 
   if (!shot || typeof document === "undefined") return null;
 
   const flagLabel = flagShortLabel(flag === "none" ? null : flag);
+  const chromeInteractive = chromeVisible || noteOpen;
 
   return createPortal(
-    <div className="fixed inset-0 z-[280] flex flex-col bg-black">
-      {/* Soft vignette only — keep photo the star */}
+    <div
+      className="fixed inset-0 z-[280] bg-black"
+      onMouseMove={bumpChrome}
+      onPointerDown={bumpChrome}
+    >
+      {/* Soft vignette — photo stays the star */}
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,oklch(0_0_0/0.55)_100%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_45%,oklch(0_0_0/0.45)_100%)]"
         aria-hidden
       />
 
-      {/* Minimal chrome over photo */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 p-3 sm:p-4">
-        <div className="pointer-events-auto min-w-0 rounded-xl bg-black/40 px-3 py-2 backdrop-blur-md">
-          <p className="truncate text-sm font-medium text-white/95">
-            {shot.alt || "Photo"}
-          </p>
-          <p className="text-[11px] text-white/50">
-            {safeIndex + 1} / {items.length}
-            <span className="ml-2 hidden text-white/35 sm:inline">
-              ← → · 1–5 · N · Esc
+      {/* ── Full-viewport photo (no layout chrome steals pixels) ── */}
+      <div className="absolute inset-0 z-0">
+        {shot.src ? (
+          <PhotoImage
+            src={shot.src}
+            alt={shot.alt}
+            sizes="100vw"
+            priority
+            className="object-contain"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-white/50">
+            Preview pending
+          </div>
+        )}
+      </div>
+
+      {/* Edge hit zones for prev/next (invisible, always active) */}
+      <button
+        type="button"
+        disabled={!hasPrev}
+        onClick={() => go(-1)}
+        aria-label="Previous photo"
+        className="absolute inset-y-0 left-0 z-10 w-[12%] max-w-[5rem] cursor-w-resize bg-transparent disabled:cursor-default"
+      />
+      <button
+        type="button"
+        disabled={!hasNext}
+        onClick={() => go(1)}
+        aria-label="Next photo"
+        className="absolute inset-y-0 right-0 z-10 w-[12%] max-w-[5rem] cursor-e-resize bg-transparent disabled:cursor-default"
+      />
+
+      {/* ── Overlays — never shrink the photo ── */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 z-20 transition-opacity duration-300",
+          chromeInteractive ? "opacity-100" : "opacity-0"
+        )}
+      >
+        {/* Top: counter + flag chip + close */}
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2.5 sm:p-3">
+          <div
+            className={cn(
+              "pointer-events-auto flex min-w-0 items-center gap-2 rounded-full bg-black/40 px-2.5 py-1 backdrop-blur-md",
+              !chromeInteractive && "pointer-events-none"
+            )}
+          >
+            <span className="truncate text-[11px] font-medium text-white/90 sm:text-xs">
+              {safeIndex + 1}
+              <span className="text-white/40"> / {items.length}</span>
             </span>
-          </p>
-        </div>
-        <div className="pointer-events-auto flex items-center gap-2">
-          {flagLabel ? (
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide shadow",
-                flagBadgeClass(flag === "none" ? null : flag)
-              )}
-            >
-              {flagLabel}
-            </span>
-          ) : null}
+            {flagLabel ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide",
+                  flagBadgeClass(flag === "none" ? null : flag)
+                )}
+              >
+                {flagLabel}
+              </span>
+            ) : null}
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Exit cinema"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition hover:bg-black/60"
+            className={cn(
+              "pointer-events-auto flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-md transition hover:bg-black/65",
+              !chromeInteractive && "pointer-events-none"
+            )}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
-      </div>
 
-      {/* Full-bleed photo stage */}
-      <div className="relative z-10 flex min-h-0 flex-1 items-center justify-center">
-        <button
-          type="button"
-          disabled={!hasPrev}
-          onClick={() => go(-1)}
-          aria-label="Previous photo"
-          className={cn(
-            "absolute left-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition sm:left-4",
-            hasPrev ? "hover:bg-black/55" : "cursor-default opacity-20"
-          )}
-        >
-          <ChevronLeft className="h-6 w-6" strokeWidth={1.75} />
-        </button>
-
-        <div className="absolute inset-0 sm:inset-y-0 sm:inset-x-0">
-          {shot.src ? (
-            <PhotoImage
-              src={shot.src}
-              alt={shot.alt}
-              sizes="100vw"
-              priority
-              className="object-contain"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-white/50">
-              Preview pending
-            </div>
-          )}
-        </div>
-
-        <button
-          type="button"
-          disabled={!hasNext}
-          onClick={() => go(1)}
-          aria-label="Next photo"
-          className={cn(
-            "absolute right-2 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition sm:right-4",
-            hasNext ? "hover:bg-black/55" : "cursor-default opacity-20"
-          )}
-        >
-          <ChevronRight className="h-6 w-6" strokeWidth={1.75} />
-        </button>
-      </div>
-
-      {/* Floating studio card — does not steal photo column width */}
-      <div className="pointer-events-none absolute bottom-[4.75rem] right-3 z-30 w-[min(17.5rem,calc(100vw-1.5rem))] sm:bottom-24 sm:right-5">
+        {/* Side chevrons (visual only — hit zones above handle click) */}
         <div
           className={cn(
-            "pointer-events-auto rounded-2xl border border-white/12 bg-black/55 shadow-2xl backdrop-blur-xl",
-            "animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
+            "pointer-events-none absolute left-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm sm:left-3",
+            !hasPrev && "opacity-0"
+          )}
+          aria-hidden
+        >
+          <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />
+        </div>
+        <div
+          className={cn(
+            "pointer-events-none absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm sm:right-3",
+            !hasNext && "opacity-0"
+          )}
+          aria-hidden
+        >
+          <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
+        </div>
+
+        {/* Bottom dock: compact flags + filmstrip — one thin band */}
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/35 to-transparent pt-10",
+            chromeInteractive ? "pointer-events-auto" : "pointer-events-none"
           )}
         >
-          <div className="border-b border-white/10 px-3 py-2">
-            <p className="text-[11px] font-medium text-white/90">Studio mark</p>
-            <p className="text-[10px] text-white/40">Private · photo-first</p>
-          </div>
-
-          <div className="space-y-2.5 px-3 py-2.5">
-            <div>
-              <p className="mb-1 flex items-center gap-1 text-[10px] font-medium text-white/60">
-                <Flag className="h-3 w-3" />
-                Flag
-                <span className="text-white/30">1–5</span>
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {FLAGS.map((f, i) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    title={`Key ${i + 1}`}
-                    disabled={pending}
-                    onClick={() => applyFlag(f.value)}
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[10px] font-medium transition",
-                      flag === f.value
-                        ? f.value === "none"
-                          ? "bg-white text-stone-900"
-                          : flagBadgeClass(f.value)
-                        : "bg-white/10 text-white/75 hover:bg-white/20"
-                    )}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+          {/* Flag row + note toggle — single line */}
+          <div className="mx-auto flex max-w-3xl items-center justify-center gap-1.5 px-3 pb-1.5">
+            <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-black/50 p-0.5 backdrop-blur-xl">
+              {FLAGS.map((f, i) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  title={`${f.label} (${i + 1})`}
+                  disabled={pending}
+                  onClick={() => applyFlag(f.value)}
+                  className={cn(
+                    "rounded-full px-2 py-1 text-[10px] font-medium transition sm:px-2.5",
+                    flag === f.value
+                      ? f.value === "none"
+                        ? "bg-white text-stone-900"
+                        : flagBadgeClass(f.value)
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <span className="sm:hidden">{f.short}</span>
+                  <span className="hidden sm:inline">{f.label}</span>
+                </button>
+              ))}
             </div>
-
-            <div>
-              <button
-                type="button"
-                onClick={() => {
-                  setNoteOpen((v) => !v);
-                  if (!noteOpen) {
-                    requestAnimationFrame(() => noteRef.current?.focus());
-                  }
-                }}
-                className="mb-1 flex w-full items-center justify-between gap-1 text-[10px] font-medium text-white/60 hover:text-white/80"
-              >
-                <span className="flex items-center gap-1">
-                  <StickyNote className="h-3 w-3" />
-                  Note
-                  <span className="text-white/30">N</span>
-                </span>
-                {noteOpen ? (
-                  <ChevronDown className="h-3 w-3 opacity-60" />
-                ) : (
-                  <ChevronUp className="h-3 w-3 opacity-60" />
-                )}
-              </button>
-              {noteOpen ? (
-                <>
-                  <textarea
-                    ref={noteRef}
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={3}
-                    maxLength={2000}
-                    placeholder="Retouch skin, crop for album…"
-                    className="w-full resize-none rounded-lg border border-white/12 bg-white/10 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-white/35 focus:border-white/30"
-                  />
-                  <div className="mt-1.5 flex justify-end">
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={pending}
-                      onClick={saveNote}
-                      className="h-7 rounded-full bg-white px-3 text-xs text-stone-900 hover:bg-white/90"
-                    >
-                      {pending ? (
-                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                      ) : null}
-                      Save note
-                    </Button>
-                  </div>
-                </>
-              ) : note.trim() ? (
-                <p className="line-clamp-2 text-[11px] leading-snug text-white/55">
-                  {note}
-                </p>
-              ) : null}
-            </div>
-
-            {error ? (
-              <p className="text-[11px] text-rose-300">{error}</p>
+            <button
+              type="button"
+              title="Note (N)"
+              onClick={() => {
+                setNoteOpen((v) => !v);
+                setChromeVisible(true);
+                if (!noteOpen) {
+                  requestAnimationFrame(() => noteRef.current?.focus());
+                }
+              }}
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/75 backdrop-blur-xl transition hover:bg-black/65 hover:text-white",
+                noteOpen && "bg-white/20 text-white",
+                note.trim() && !noteOpen && "text-amber-200"
+              )}
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+            </button>
+            {pending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-white/50" />
             ) : null}
           </div>
-        </div>
-      </div>
 
-      {/* Compact filmstrip */}
-      <div className="relative z-20 shrink-0 border-t border-white/10 bg-black/50 px-2 py-1.5 backdrop-blur-md sm:px-4 sm:py-2">
-        <div ref={stripRef} className="flex gap-1 overflow-x-auto pb-0.5">
-          {items.map((item, i) => {
-            const active = i === safeIndex;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                data-cinema-i={i}
-                onClick={() => onIndexChange(i)}
-                className={cn(
-                  "relative h-9 w-9 shrink-0 overflow-hidden rounded transition sm:h-10 sm:w-10",
-                  active
-                    ? "ring-2 ring-white ring-offset-1 ring-offset-black"
-                    : "opacity-50 hover:opacity-100"
-                )}
-              >
-                {item.src ? (
-                  <PhotoImage
-                    src={item.src}
-                    alt=""
-                    sizes="40px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full bg-white/10" />
-                )}
-              </button>
-            );
-          })}
+          {/* Expanded note — only when open */}
+          {noteOpen ? (
+            <div className="mx-auto mb-1.5 w-full max-w-md px-3">
+              <div className="rounded-xl border border-white/12 bg-black/60 p-2 shadow-xl backdrop-blur-xl">
+                <textarea
+                  ref={noteRef}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  maxLength={2000}
+                  placeholder="Retouch, crop, album note…"
+                  className="w-full resize-none rounded-lg border border-white/10 bg-white/10 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-white/35 focus:border-white/25"
+                />
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  {error ? (
+                    <p className="text-[11px] text-rose-300">{error}</p>
+                  ) : (
+                    <span className="text-[10px] text-white/35">
+                      ⌘↵ save · Esc close
+                    </span>
+                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending}
+                    onClick={saveNote}
+                    className="h-6 rounded-full bg-white px-2.5 text-[11px] text-stone-900 hover:bg-white/90"
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Ultra-compact filmstrip */}
+          <div className="px-2 pb-2 sm:px-3 sm:pb-2.5">
+            <div
+              ref={stripRef}
+              className="flex justify-center gap-0.5 overflow-x-auto"
+            >
+              {items.map((item, i) => {
+                const active = i === safeIndex;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-cinema-i={i}
+                    onClick={() => onIndexChange(i)}
+                    className={cn(
+                      "relative h-7 w-7 shrink-0 overflow-hidden rounded transition sm:h-8 sm:w-8",
+                      active
+                        ? "ring-2 ring-white ring-offset-1 ring-offset-black"
+                        : "opacity-40 hover:opacity-90"
+                    )}
+                  >
+                    {item.src ? (
+                      <PhotoImage
+                        src={item.src}
+                        alt=""
+                        sizes="32px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full bg-white/10" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </div>,
