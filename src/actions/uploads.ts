@@ -57,49 +57,50 @@ export async function prepareBatchUpload(input: {
     assetRole?: AssetRole;
   }[];
 }): Promise<PrepareBatchResult> {
-  if (!isSupabaseConfigured()) {
-    return { ok: false, error: "Supabase is not configured." };
-  }
-  if (!input.files.length) {
-    return { ok: false, error: "No files." };
-  }
-  if (input.files.length > MAX_PREPARE) {
-    return {
-      ok: false,
-      error: `Prepare at most ${MAX_PREPARE} files per request.`,
-    };
-  }
-
-  for (const f of input.files) {
-    const max = maxBytesForFile(f.filename, f.contentType);
-    if (f.sizeBytes > max) {
-      const label = isRawFile(f.filename, f.contentType) ? "100MB" : "30MB";
+  try {
+    if (!isSupabaseConfigured()) {
+      return { ok: false, error: "Supabase is not configured." };
+    }
+    if (!input.files.length) {
+      return { ok: false, error: "No files." };
+    }
+    if (input.files.length > MAX_PREPARE) {
       return {
         ok: false,
-        error: `"${f.filename}" exceeds ${label} limit.`,
+        error: `Prepare at most ${MAX_PREPARE} files per request.`,
       };
     }
-  }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "You must be logged in." };
+    for (const f of input.files) {
+      const max = maxBytesForFile(f.filename, f.contentType);
+      if (f.sizeBytes > max) {
+        const label = isRawFile(f.filename, f.contentType) ? "100MB" : "30MB";
+        return {
+          ok: false,
+          error: `"${f.filename}" exceeds ${label} limit.`,
+        };
+      }
+    }
 
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", input.projectId)
-    .eq("owner_id", user.id)
-    .maybeSingle();
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false, error: "You must be logged in." };
 
-  if (!project) return { ok: false, error: "Project not found." };
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("id", input.projectId)
+      .eq("owner_id", user.id)
+      .maybeSingle();
 
-  const backend = getStorageBackend();
-  const slots: UploadSlot[] = [];
+    if (!project) return { ok: false, error: "Project not found." };
 
-  try {
+    // Default Supabase; R2 only if STORAGE_BACKEND=r2 and configured
+    const backend = getStorageBackend();
+    const slots: UploadSlot[] = [];
+
     for (const f of input.files) {
       const contentType =
         f.contentType ||
@@ -135,19 +136,23 @@ export async function prepareBatchUpload(input: {
         });
       }
     }
+
+    return {
+      ok: true,
+      backend: backend === "r2" && isR2Ready() ? "r2" : "supabase",
+      ownerId: user.id,
+      slots,
+    };
   } catch (e) {
+    console.error("prepareBatchUpload", e);
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Failed to prepare uploads.",
+      error:
+        e instanceof Error
+          ? e.message
+          : "Failed to prepare uploads. Sign in again and retry.",
     };
   }
-
-  return {
-    ok: true,
-    backend,
-    ownerId: user.id,
-    slots,
-  };
 }
 
 export async function getUploadBackend(): Promise<UploadBackend> {

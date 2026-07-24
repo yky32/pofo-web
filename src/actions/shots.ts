@@ -330,152 +330,160 @@ export async function registerUploadedShots(input: {
   /** Continue sort_order from client when uploading multi-chunk batches */
   sortOrderStart?: number;
 }): Promise<ShotActionState & { registered?: number; nextSortOrder?: number }> {
-  if (!isSupabaseConfigured()) {
-    return { error: "Supabase is not configured." };
-  }
-  if (!input.files.length) return { error: "No files to register." };
-  // Guard single request size (client should chunk ~50–100)
-  if (input.files.length > 150) {
-    return { error: "Too many files in one request — send up to 150 at a time." };
-  }
+  try {
+    if (!isSupabaseConfigured()) {
+      return { error: "Supabase is not configured." };
+    }
+    if (!input.files.length) return { error: "No files to register." };
+    if (input.files.length > 150) {
+      return {
+        error: "Too many files in one request — send up to 150 at a time.",
+      };
+    }
 
-  const addBytes = input.files.reduce((s, f) => s + (f.sizeBytes || 0), 0);
-  const { canUploadBytes } = await import("@/actions/billing");
-  const storageGate = await canUploadBytes(addBytes);
-  if (!storageGate.ok) {
+    const addBytes = input.files.reduce((s, f) => s + (f.sizeBytes || 0), 0);
+    const { canUploadBytes } = await import("@/actions/billing");
+    const storageGate = await canUploadBytes(addBytes);
+    if (!storageGate.ok) {
+      return {
+        error:
+          "STORAGE_LIMIT: Free storage is full. Upgrade to Solo for more space, or delete photos.",
+      };
+    }
+
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { error: "You must be logged in." };
+
+    const { data: project } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("id", input.projectId)
+      .eq("owner_id", user.id)
+      .maybeSingle();
+    if (!project) return { error: "Project not found." };
+
+    let { data: container } = await supabase
+      .from("containers")
+      .select("id")
+      .eq("project_id", input.projectId)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!container) {
+      const { data: created, error: cErr } = await supabase
+        .from("containers")
+        .insert({
+          project_id: input.projectId,
+          name: "Main Gallery",
+          sort_order: 0,
+        })
+        .select("id")
+        .single();
+      if (cErr || !created) {
+        return { error: cErr?.message ?? "Could not create container." };
+      }
+      container = created;
+    }
+
+    let baseOrder = input.sortOrderStart;
+    if (baseOrder == null) {
+      const { count } = await supabase
+        .from("shots")
+        .select("id", { count: "exact", head: true })
+        .eq("project_id", input.projectId);
+      baseOrder = count ?? 0;
+    }
+
+    const rows = input.files.map((f, i) => {
+      const preview = f.previewUrl?.trim() || null;
+      const thumb = f.thumbnailKey?.trim() || null;
+      const rawPath = f.rawPath?.trim() || null;
+      const previewPath = f.previewPath?.trim() || null;
+      const kind = f.kind ?? (rawPath ? "paired" : "jpeg");
+      const processingStatus =
+        f.processingStatus ??
+        (kind === "raw" && !previewPath && !thumb ? "pending" : "ready");
+
+      return {
+        project_id: input.projectId,
+        container_id: container!.id,
+        owner_id: user.id,
+        kind,
+        storage_key: f.storagePath,
+        preview_url: preview,
+        filename: f.filename,
+        mime_type: f.mimeType,
+        size_bytes: f.sizeBytes,
+        sort_order: baseOrder! + i,
+        ...(thumb ? { thumbnail_key: thumb } : {}),
+        ...(rawPath ? { raw_key: rawPath } : {}),
+        ...(previewPath ? { preview_key: previewPath } : {}),
+        processing_status: processingStatus,
+      };
+    });
+
+    for (let i = 0; i < rows.length; i += REGISTER_CHUNK) {
+      const slice = rows.slice(i, i + REGISTER_CHUNK);
+      let { error } = await supabase.from("shots").insert(slice);
+      if (
+        error &&
+        (error.message.includes("raw_key") ||
+          error.message.includes("preview_key") ||
+          error.message.includes("processing_status") ||
+          error.message.includes("paired") ||
+          error.code === "42703" ||
+          error.code === "23514")
+      ) {
+        const legacy = slice.map((r) => ({
+          project_id: r.project_id,
+          container_id: r.container_id,
+          owner_id: r.owner_id,
+          kind: r.kind === "paired" || r.kind === "raw" ? "jpeg" : r.kind,
+          storage_key: r.storage_key,
+          preview_url: r.preview_url,
+          filename: r.filename,
+          mime_type: r.mime_type,
+          size_bytes: r.size_bytes,
+          sort_order: r.sort_order,
+          ...("thumbnail_key" in r && r.thumbnail_key
+            ? { thumbnail_key: r.thumbnail_key }
+            : {}),
+        }));
+        const retry = await supabase.from("shots").insert(legacy);
+        error = retry.error;
+        if (error) {
+          return {
+            error:
+              "Upload columns missing or outdated. Run supabase/features-raw-pipeline.sql in the SQL Editor, then retry.",
+            registered: i,
+          };
+        }
+      } else if (error) {
+        return { error: error.message, registered: i };
+      }
+    }
+
+    revalidatePath(`/dashboard/galleries/${input.projectId}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/galleries");
+    return {
+      success: `Uploaded ${rows.length} photo${rows.length === 1 ? "" : "s"}.`,
+      registered: rows.length,
+      nextSortOrder: baseOrder! + rows.length,
+    };
+  } catch (e) {
+    console.error("registerUploadedShots", e);
     return {
       error:
-        "STORAGE_LIMIT: Free storage is full. Upgrade to Solo for more space, or delete photos.",
+        e instanceof Error
+          ? e.message
+          : "Could not save photos. Sign in again and retry.",
     };
   }
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "You must be logged in." };
-
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", input.projectId)
-    .eq("owner_id", user.id)
-    .maybeSingle();
-  if (!project) return { error: "Project not found." };
-
-  let { data: container } = await supabase
-    .from("containers")
-    .select("id")
-    .eq("project_id", input.projectId)
-    .order("sort_order", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (!container) {
-    const { data: created, error: cErr } = await supabase
-      .from("containers")
-      .insert({
-        project_id: input.projectId,
-        name: "Main Gallery",
-        sort_order: 0,
-      })
-      .select("id")
-      .single();
-    if (cErr || !created) {
-      return { error: cErr?.message ?? "Could not create container." };
-    }
-    container = created;
-  }
-
-  let baseOrder = input.sortOrderStart;
-  if (baseOrder == null) {
-    const { count } = await supabase
-      .from("shots")
-      .select("id", { count: "exact", head: true })
-      .eq("project_id", input.projectId);
-    baseOrder = count ?? 0;
-  }
-
-  const rows = input.files.map((f, i) => {
-    // Prefer storage_key only; never persist permanent public URLs for private buckets.
-    const preview = f.previewUrl?.trim() || null;
-    const thumb = f.thumbnailKey?.trim() || null;
-    const rawPath = f.rawPath?.trim() || null;
-    const previewPath = f.previewPath?.trim() || null;
-    const kind = f.kind ?? (rawPath ? "paired" : "jpeg");
-    const processingStatus =
-      f.processingStatus ??
-      (kind === "raw" && !previewPath && !thumb ? "pending" : "ready");
-
-    return {
-      project_id: input.projectId,
-      container_id: container!.id,
-      owner_id: user.id,
-      kind,
-      storage_key: f.storagePath,
-      preview_url: preview,
-      filename: f.filename,
-      mime_type: f.mimeType,
-      size_bytes: f.sizeBytes,
-      sort_order: baseOrder! + i,
-      ...(thumb ? { thumbnail_key: thumb } : {}),
-      ...(rawPath ? { raw_key: rawPath } : {}),
-      ...(previewPath ? { preview_key: previewPath } : {}),
-      processing_status: processingStatus,
-    };
-  });
-
-  // Chunk inserts for safety even within one action call
-  for (let i = 0; i < rows.length; i += REGISTER_CHUNK) {
-    const slice = rows.slice(i, i + REGISTER_CHUNK);
-    let { error } = await supabase.from("shots").insert(slice);
-    // Pre-migration fallback: strip RAW columns if SQL not applied yet
-    if (
-      error &&
-      (error.message.includes("raw_key") ||
-        error.message.includes("preview_key") ||
-        error.message.includes("processing_status") ||
-        error.message.includes("paired") ||
-        error.code === "42703" ||
-        error.code === "23514")
-    ) {
-      const legacy = slice.map((r) => ({
-        project_id: r.project_id,
-        container_id: r.container_id,
-        owner_id: r.owner_id,
-        kind: r.kind === "paired" || r.kind === "raw" ? "jpeg" : r.kind,
-        storage_key: r.storage_key,
-        preview_url: r.preview_url,
-        filename: r.filename,
-        mime_type: r.mime_type,
-        size_bytes: r.size_bytes,
-        sort_order: r.sort_order,
-        ...("thumbnail_key" in r && r.thumbnail_key
-          ? { thumbnail_key: r.thumbnail_key }
-          : {}),
-      }));
-      const retry = await supabase.from("shots").insert(legacy);
-      error = retry.error;
-      if (error) {
-        return {
-          error:
-            "Upload columns missing or outdated. Run supabase/features-raw-pipeline.sql in the SQL Editor, then retry.",
-          registered: i,
-        };
-      }
-    } else if (error) {
-      return { error: error.message, registered: i };
-    }
-  }
-
-  revalidatePath(`/dashboard/galleries/${input.projectId}`);
-  revalidatePath("/dashboard");
-  revalidatePath("/dashboard/galleries");
-  return {
-    success: `Uploaded ${rows.length} photo${rows.length === 1 ? "" : "s"}.`,
-    registered: rows.length,
-    nextSortOrder: baseOrder! + rows.length,
-  };
 }
 
 /** Seed Unsplash contact-sheet previews so share/proofing works without R2. */

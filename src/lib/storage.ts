@@ -18,8 +18,26 @@ export const SHOTS_BUCKET = "shots";
 /** Default signed URL lifetime for gallery views */
 export const READ_URL_TTL_SEC = 60 * 60; // 1 hour
 
+/**
+ * Default: Supabase private `shots` bucket.
+ * R2 only when explicitly enabled (STORAGE_BACKEND=r2 or FORCE_R2=1) and configured.
+ */
 export function getStorageBackend(): StorageBackend {
-  return isR2Ready() ? "r2" : "supabase";
+  const forced = (process.env.STORAGE_BACKEND || "").toLowerCase();
+  if (forced === "supabase" || forced === "supabase_storage") {
+    return "supabase";
+  }
+  if (
+    (forced === "r2" || process.env.FORCE_R2 === "1") &&
+    isR2Ready()
+  ) {
+    return "r2";
+  }
+  // Prefer Supabase for professional-ready path unless R2 is forced
+  if (isR2Ready() && forced === "auto") {
+    return "r2";
+  }
+  return "supabase";
 }
 
 export function isExternalHttpUrl(value: string | null | undefined): boolean {

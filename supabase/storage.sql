@@ -13,8 +13,20 @@ values (
   'shots',
   'shots',
   false, -- private
-  31457280, -- 30MB wedding JPEGs
-  array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
+  104857600, -- 100MB (RAW + large JPEG)
+  array[
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+    'image/x-adobe-dng',
+    'image/x-canon-cr2',
+    'image/x-canon-cr3',
+    'image/x-nikon-nef',
+    'image/x-sony-arw',
+    'application/octet-stream'
+  ]
 )
 on conflict (id) do update set
   public = excluded.public,

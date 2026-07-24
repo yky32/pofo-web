@@ -47,17 +47,27 @@ export type PhotoUploadVariant = "hero" | "compact";
 function friendlyUploadError(raw: string): string {
   const m = raw.toLowerCase();
   if (
+    m.includes("server components render") ||
+    m.includes("omitted in production") ||
+    m.includes("digest")
+  ) {
+    return "Server hiccup during upload. Hard-refresh, stay on this project page, and try 1–2 small JPEGs again.";
+  }
+  if (
     m.includes("row-level security") ||
     m.includes("violates row-level") ||
     m.includes("rls")
   ) {
-    return "Storage permission blocked this file. Ask your admin to re-run supabase/storage.sql, then retry.";
+    return "Storage permission blocked this file. Re-run supabase/storage.sql in the SQL Editor, then retry.";
   }
-  if (m.includes("bucket not found") || m.includes("not found")) {
+  if (m.includes("bucket not found")) {
     return "Photo storage isn’t set up yet. Run supabase/storage.sql in the Supabase SQL Editor.";
   }
+  if (m.includes("mime type") || m.includes("not supported")) {
+    return "File type not allowed in the shots bucket. Use JPEG/PNG/WebP (or re-run storage.sql for RAW types).";
+  }
   if (m.includes("payload too large") || m.includes("maximum allowed")) {
-    return "File is too large (JPEG 30MB · RAW 100MB).";
+    return "File is too large (JPEG 30MB · RAW 100MB). Raise the bucket limit or use a smaller file.";
   }
   if (m.includes("network") || m.includes("fetch")) {
     return "Network error — check your connection and retry.";
@@ -65,8 +75,7 @@ function friendlyUploadError(raw: string): string {
   if (m.includes("jwt") || m.includes("not authenticated") || m.includes("session")) {
     return "Session expired — refresh the page and sign in again.";
   }
-  // Keep short; drop noisy prefixes
-  return raw.length > 120 ? `${raw.slice(0, 117)}…` : raw;
+  return raw.length > 160 ? `${raw.slice(0, 157)}…` : raw;
 }
 
 async function putToR2(slot: UploadSlot, file: File) {
@@ -447,13 +456,23 @@ export function PhotoUpload({
             ? `${registered} shot${registered === 1 ? "" : "s"} added · ${failedFiles} file(s) failed`
             : `${registered} shot${registered === 1 ? "" : "s"} added`
         );
-        router.refresh();
+        // Soft refresh — don't surface RSC errors as "Upload failed"
+        try {
+          router.refresh();
+        } catch {
+          /* ignore */
+        }
       }
       if (inputRef.current) inputRef.current.value = "";
     } catch (e) {
-      setError(
-        friendlyUploadError(e instanceof Error ? e.message : "Upload failed.")
-      );
+      const msg =
+        e instanceof Error
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Upload failed.";
+      console.error("runUpload", e);
+      setError(friendlyUploadError(msg));
     } finally {
       setBusy(false);
     }
