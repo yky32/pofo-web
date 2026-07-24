@@ -164,16 +164,15 @@ export function CreateProjectForm({
   const locationField = (
     <div className={field}>
       <Label htmlFor="location" className={labelCls}>
-        Location
+        Locations
       </Label>
-      <Input
+      <ProjectTagsField
         id="location"
         name="location"
-        autoComplete="off"
-        data-1p-ignore
-        data-lpignore="true"
-        placeholder="Hong Kong · The Peninsula"
-        className={inputCls}
+        mode="locations"
+        hint=""
+        placeholder="Hong Kong, church, hotel…"
+        className="space-y-2"
       />
     </div>
   );
@@ -260,11 +259,11 @@ export function CreateProjectForm({
                   {dateField}
                   {limitField}
                 </div>
-                {locationField}
               </div>
             </div>
-            {/* Full width so suggestion chips aren’t clipped */}
+            {/* Full width chips — tags + multi-location */}
             {tagsField}
+            {locationField}
             {serverError}
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/60 pt-4">
               <p className="text-[11px] text-stone-400">
