@@ -268,14 +268,42 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="mt-14 grid gap-px overflow-hidden rounded-[5px] bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((step) => {
+          {/* 1 → 2 → 3 → 4 stepper */}
+          <ol
+            className="mx-auto mt-10 flex max-w-lg items-center justify-center sm:max-w-xl"
+            aria-label="Delivery workflow steps"
+          >
+            {steps.map((step, i) => (
+              <li key={step.n} className="flex flex-1 items-center last:flex-none">
+                <div className="flex flex-col items-center gap-1.5">
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-stone-900 text-[11px] font-semibold tabular-nums text-white sm:h-9 sm:w-9 sm:text-xs"
+                    aria-current={i === 0 ? "step" : undefined}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="hidden text-[10px] font-medium text-stone-500 sm:block">
+                    {step.title}
+                  </span>
+                </div>
+                {i < steps.length - 1 ? (
+                  <span
+                    className="mx-1.5 mb-0 h-px min-w-[1.25rem] flex-1 bg-stone-300 sm:mx-2 sm:mb-5"
+                    aria-hidden
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-10 grid gap-px overflow-hidden rounded-[5px] bg-stone-200/40 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step, i) => {
               const Icon = step.icon;
               return (
                 <div key={step.n} className="bg-white/70 p-7 backdrop-blur-sm">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-mono text-xs tracking-widest text-stone-400">
-                      {step.n}
+                      {String(i + 1).padStart(2, "0")}
                     </span>
                     <Icon
                       className="h-4 w-4 shrink-0 text-stone-400"
