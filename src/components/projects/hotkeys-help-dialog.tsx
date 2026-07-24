@@ -18,26 +18,20 @@ export type HotkeySection = {
 /** Canonical photographer contact-sheet shortcuts */
 export const CONTACT_SHEET_HOTKEYS: HotkeySection[] = [
   {
-    title: "Browse & cinema",
+    title: "Cinema + studio (layout, no pop-up)",
     rows: [
-      { keys: ["C"], action: "Enter Cinema review (full-screen browse)" },
-      { keys: ["←", "→"], action: "Previous / next photo (grid or cinema)" },
-      { keys: ["Enter"], action: "Open Studio mark from cinema" },
-      { keys: ["Click"], action: "Open Studio mark (flag + note)" },
-      { keys: ["Esc"], action: "Exit cinema / mark / hotkeys · exit Select" },
-      { keys: ["?"], action: "Show this hotkeys menu" },
-    ],
-  },
-  {
-    title: "Studio mark (while open)",
-    rows: [
+      { keys: ["C"], action: "Enter Cinema (photo + studio dock)" },
+      { keys: ["Click"], action: "Open photo in Cinema" },
+      { keys: ["←", "→"], action: "Previous / next photo" },
       { keys: ["1"], action: "Flag · None" },
       { keys: ["2"], action: "Flag · Print" },
       { keys: ["3"], action: "Flag · Retouch" },
       { keys: ["4"], action: "Flag · Hero" },
       { keys: ["5"], action: "Flag · Reject" },
-      { keys: ["N"], action: "Focus note field" },
-      { keys: ["⌘", "Enter"], action: "Save mark (Ctrl+Enter on Windows)" },
+      { keys: ["N"], action: "Focus note in studio dock" },
+      { keys: ["⌘", "Enter"], action: "Save note (Ctrl+Enter on Windows)" },
+      { keys: ["Esc"], action: "Exit cinema / hotkeys · exit Select" },
+      { keys: ["?"], action: "Show this hotkeys menu" },
     ],
   },
   {

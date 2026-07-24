@@ -32,7 +32,6 @@ import {
   HotkeysHelpDialog,
 } from "@/components/projects/hotkeys-help-dialog";
 import {
-  ShotStudioMetaPanel,
   flagBadgeClass,
   flagShortLabel,
 } from "@/components/projects/shot-studio-meta";
@@ -139,7 +138,6 @@ export function ContactSheet({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [metaShotId, setMetaShotId] = useState<string | null>(null);
   const [viewLayout, setViewLayout] = useState<ContactViewLayout>("mosaic");
   const [viewOpen, setViewOpen] = useState(false);
   const [viewMounted, setViewMounted] = useState(false);
@@ -226,10 +224,6 @@ export function ContactSheet({
   const allIds = useMemo(() => items.map((i) => i.id), [items]);
   const count = selected.size;
   const allSelected = items.length > 0 && count === items.length;
-  const metaShot = metaShotId
-    ? items.find((i) => i.id === metaShotId) ?? null
-    : null;
-
   const exitSelect = useCallback(() => {
     setSelectMode(false);
     setSelected(new Set());
@@ -254,23 +248,11 @@ export function ContactSheet({
     }
   }
 
-  function navigateMeta(dir: -1 | 1) {
-    if (!metaShotId) return;
-    const idx = items.findIndex((i) => i.id === metaShotId);
-    if (idx < 0) return;
-    const next = items[idx + dir];
-    if (next) {
-      setMetaShotId(next.id);
-      lastShotIdRef.current = next.id;
-    }
-  }
-
   function openCinema(atId?: string) {
     const id = atId ?? lastShotIdRef.current ?? items[0]?.id;
     if (!id) return;
     const idx = items.findIndex((i) => i.id === id);
     setCinemaIndex(idx >= 0 ? idx : 0);
-    setMetaShotId(null);
     setViewOpen(false);
     setHotkeysOpen(false);
     if (selectMode) exitSelect();
@@ -298,16 +280,15 @@ export function ContactSheet({
       if (hotkeysOpen) return; // dialog handles Esc
       if (cinemaIndex !== null) return; // cinema owns keys
       if (inField) return;
-      if (metaShotId) return; // studio panel owns keys while open
 
-      // C = cinema mode
+      // C = cinema mode (studio mark is a layout panel inside)
       if (e.key === "c" || e.key === "C") {
         e.preventDefault();
         openCinema();
         return;
       }
 
-      // ← → on grid: enter cinema at last/first and step
+      // ← → on grid: enter cinema and step
       if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         e.preventDefault();
         const dir = e.key === "ArrowLeft" ? -1 : 1;
@@ -328,7 +309,6 @@ export function ContactSheet({
           setSelectMode(true);
           setMessage(null);
           setError(null);
-          setMetaShotId(null);
         }
         return;
       }
@@ -364,7 +344,6 @@ export function ContactSheet({
     selectMode,
     hotkeysOpen,
     cinemaIndex,
-    metaShotId,
     selected,
     items,
     exitSelect,
@@ -504,7 +483,6 @@ export function ContactSheet({
                 setSelectMode(true);
                 setMessage(null);
                 setError(null);
-                setMetaShotId(null);
               }}
             >
               Select
@@ -599,6 +577,7 @@ export function ContactSheet({
 
       {cinemaIndex !== null ? (
         <CinemaReview
+          projectId={projectId}
           items={items}
           index={cinemaIndex}
           onIndexChange={(i) => {
@@ -606,10 +585,15 @@ export function ContactSheet({
             lastShotIdRef.current = items[i]?.id ?? null;
           }}
           onClose={() => setCinemaIndex(null)}
-          onOpenMark={(id) => {
-            setCinemaIndex(null);
-            setMetaShotId(id);
-            lastShotIdRef.current = id;
+          onShotMetaSaved={(shotId, next) => {
+            setItems((prev) =>
+              prev.map((i) =>
+                i.id === shotId
+                  ? { ...i, studio_note: next.note, studio_flag: next.flag }
+                  : i
+              )
+            );
+            router.refresh();
           }}
         />
       ) : null}
@@ -625,7 +609,8 @@ export function ContactSheet({
             toggle(item.id);
             return;
           }
-          setMetaShotId(item.id);
+          // Open cinema with docked studio mark (no pop-up)
+          openCinema(item.id);
         }}
         itemClassName={() => "cursor-pointer"}
         renderTile={({ item, image }) => {
@@ -689,28 +674,7 @@ export function ContactSheet({
         }}
       />
 
-      {metaShot ? (
-        <ShotStudioMetaPanel
-          projectId={projectId}
-          shotId={metaShot.id}
-          filename={metaShot.alt}
-          initialNote={metaShot.studio_note}
-          initialFlag={metaShot.studio_flag}
-          positionLabel={`${items.findIndex((i) => i.id === metaShot.id) + 1} / ${items.length}`}
-          onNavigate={navigateMeta}
-          onClose={() => setMetaShotId(null)}
-          onSaved={({ note, flag }) => {
-            setItems((prev) =>
-              prev.map((i) =>
-                i.id === metaShot.id
-                  ? { ...i, studio_note: note, studio_flag: flag }
-                  : i
-              )
-            );
-            router.refresh();
-          }}
-        />
-      ) : null}
+
     </div>
   );
 }
