@@ -4,8 +4,8 @@
 |--|--|
 | **Product** | Pofo (`pofo-web`) |
 | **Repo** | https://github.com/yky32/pofo-web |
-| **Status** | MVP in active development |
-| **Last updated** | 2026-07-23 |
+| **Status** | Superseded for product scope by **[PRODUCT.md](./PRODUCT.md)** — this file is the deep design archive |
+| **Last updated** | 2026-07-23 (archive); product wrap-up 2026-07-24 |
 
 ---
 

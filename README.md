@@ -90,11 +90,19 @@ Push to `main` → GitHub Actions verify + Vercel deploy. See [docs/CI.md](docs/
 - [ ] Background Sharp thumbnails worker
 - [ ] Billing
 
+## Product docs
+
+| Doc | Use |
+|-----|-----|
+| **[PRODUCT.md](./PRODUCT.md)** | **Canonical product + MVP1/MVP2 scope** |
+| [DESIGN.md](./DESIGN.md) | Deep design archive |
+| [supabase/SETUP.md](./supabase/SETUP.md) | Database setup |
+
 ## Goal
 
 Create the lightest and best client delivery experience for photographers.
 
-**Status**: MVP1 feature-complete in app — apply SQL migrations on your Supabase project for full runtime.
+**Status**: MVP1 feature-complete in app — apply SQL migrations on your Supabase project for full runtime. See PRODUCT.md for MVP2.
 
 ---
 
