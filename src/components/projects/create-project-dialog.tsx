@@ -23,7 +23,7 @@ const triggerStyles: Record<TriggerVariant, string> = {
 };
 
 /**
- * Create-project dialog — wider glass panel, dense 2-column form.
+ * Create-project dialog — clean glass panel, no overflow footer glitch.
  */
 export function CreateProjectDialog({
   triggerLabel = "New",
@@ -55,25 +55,25 @@ export function CreateProjectDialog({
         showCloseButton
         overlayClassName="dialog-glass-overlay"
         className={cn(
-          "dialog-glass-panel gap-0 rounded-2xl p-0",
-          "w-[min(100vw-1.5rem,34rem)] max-w-lg sm:max-w-lg",
+          "dialog-glass-panel gap-0 overflow-hidden rounded-2xl p-0",
+          "w-[min(100vw-1.5rem,32rem)] max-w-lg",
           "text-stone-900 ring-1 ring-white/60"
         )}
       >
-        <div className="flex max-h-[min(90vh,40rem)] flex-col">
-          <DialogHeader className="shrink-0 gap-1 border-b border-stone-200/60 px-5 pb-3.5 pt-5 pr-12 sm:px-6 sm:pt-6">
+        <div className="flex max-h-[min(88vh,36rem)] flex-col overflow-hidden">
+          <DialogHeader className="shrink-0 gap-1 border-b border-stone-200/50 px-5 pb-3 pt-5 pr-12 sm:px-6 sm:pt-5">
             <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-stone-400">
               Create
             </p>
-            <DialogTitle className="font-heading text-xl font-medium tracking-tight text-stone-900 sm:text-2xl">
+            <DialogTitle className="font-heading text-xl font-medium tracking-tight text-stone-900">
               New project
             </DialogTitle>
-            <DialogDescription className="text-xs text-stone-500 sm:text-sm">
+            <DialogDescription className="text-xs text-stone-500">
               Name the job — upload photos after.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
             {!configured ? (
               <div className="mb-4 rounded-xl bg-amber-50/90 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200/70">
                 Supabase is not configured. Add keys in{" "}

@@ -34,12 +34,13 @@ export function CreateProjectForm({
     }
   }, [state.error]);
 
-  const field = "space-y-1.5";
-  const inputCls = "h-9 rounded-xl bg-white/90";
+  const field = "space-y-1";
+  const inputCls =
+    "h-9 rounded-xl border-stone-200/90 bg-white shadow-none";
 
   function validateTitle(value: string): string | null {
     const t = value.trim();
-    if (!t) return "Add a project title to continue";
+    if (!t) return "Add a project title";
     if (t.length < 2) return "Title is too short";
     return null;
   }
@@ -54,22 +55,57 @@ export function CreateProjectForm({
     setTitleError(null);
   }
 
+  const actions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        type="submit"
+        disabled={pending}
+        className="rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
+      >
+        {pending ? "Creating…" : "Create"}
+      </Button>
+      {showCancel ? (
+        compact ? (
+          <DialogClose
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-full border-stone-300 bg-white"
+              />
+            }
+          >
+            Cancel
+          </DialogClose>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full"
+            asChild
+          >
+            <Link href="/dashboard/galleries">Cancel</Link>
+          </Button>
+        )
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <form
         action={action}
         noValidate
+        autoComplete="off"
         onSubmit={onSubmit}
         className={cn(
-          compact ? "space-y-4" : "paper space-y-5 rounded-[5px] p-6"
+          compact ? "space-y-3.5" : "paper space-y-5 rounded-[5px] p-6"
         )}
       >
-        {/* Title + client side by side */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className={field}>
-            <Label htmlFor="title" className="text-xs text-stone-600">
+            <Label htmlFor="title" className="text-xs font-medium text-stone-600">
               Title
-              <span className="ml-0.5 text-rose-500/80">*</span>
             </Label>
             <Input
               id="title"
@@ -85,44 +121,47 @@ export function CreateProjectForm({
                 }
               }}
               autoFocus={compact}
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
+              data-form-type="other"
               placeholder="Alicia & James — Wedding"
               aria-invalid={Boolean(titleError)}
               aria-describedby={titleError ? "title-error" : undefined}
               className={cn(
                 inputCls,
                 titleError &&
-                  "border-rose-300 bg-rose-50/40 focus-visible:border-rose-400 focus-visible:ring-rose-200/60"
+                  "border-rose-300 bg-rose-50/30 focus-visible:border-rose-400 focus-visible:ring-rose-200/50"
               )}
             />
             {titleError ? (
               <p
                 id="title-error"
-                className="flex items-start gap-1.5 text-[11px] leading-snug text-rose-600"
+                className="flex items-center gap-1 text-[11px] text-rose-600"
               >
-                <AlertCircle
-                  className="mt-px h-3 w-3 shrink-0"
-                  strokeWidth={2}
-                />
-                <span>{titleError}</span>
+                <AlertCircle className="h-3 w-3 shrink-0" strokeWidth={2} />
+                {titleError}
               </p>
             ) : null}
           </div>
           <div className={field}>
-            <Label htmlFor="client" className="text-xs text-stone-600">
+            <Label htmlFor="client" className="text-xs font-medium text-stone-600">
               Client
             </Label>
             <Input
               id="client"
               name="client"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
               placeholder="Alicia Chen"
               className={inputCls}
             />
           </div>
         </div>
 
-        {/* Tags — compact */}
         <div className={field}>
-          <Label htmlFor="tags" className="text-xs text-stone-600">
+          <Label htmlFor="tags" className="text-xs font-medium text-stone-600">
             Tags
           </Label>
           <ProjectTagsField
@@ -134,10 +173,12 @@ export function CreateProjectForm({
           />
         </div>
 
-        {/* Date + limit | Location full width below */}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className={field}>
-            <Label htmlFor="event_date" className="text-xs text-stone-600">
+            <Label
+              htmlFor="event_date"
+              className="text-xs font-medium text-stone-600"
+            >
               Event date
             </Label>
             <DateField
@@ -147,7 +188,7 @@ export function CreateProjectForm({
             />
           </div>
           <div className={field}>
-            <Label htmlFor="limit" className="text-xs text-stone-600">
+            <Label htmlFor="limit" className="text-xs font-medium text-stone-600">
               Proofing limit
             </Label>
             <Input
@@ -157,16 +198,23 @@ export function CreateProjectForm({
               defaultValue={40}
               min={1}
               max={200}
+              autoComplete="off"
               className={inputCls}
             />
           </div>
           <div className={cn(field, "sm:col-span-2")}>
-            <Label htmlFor="location" className="text-xs text-stone-600">
+            <Label
+              htmlFor="location"
+              className="text-xs font-medium text-stone-600"
+            >
               Location
             </Label>
             <Input
               id="location"
               name="location"
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
               placeholder="Hong Kong · The Peninsula"
               className={inputCls}
             />
@@ -176,55 +224,18 @@ export function CreateProjectForm({
         {state.error && !state.error.startsWith("PROJECTS_LIMIT") ? (
           <div
             role="alert"
-            className="flex items-start gap-2.5 rounded-xl border border-rose-200/80 bg-rose-50/90 px-3 py-2.5 text-sm text-rose-800"
+            className="flex items-start gap-2 rounded-xl border border-rose-200/80 bg-rose-50/90 px-3 py-2 text-sm text-rose-800"
           >
             <AlertCircle
               className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
               strokeWidth={1.75}
             />
-            <p className="min-w-0 leading-snug">{state.error}</p>
+            <p className="leading-snug">{state.error}</p>
           </div>
         ) : null}
 
-        <div
-          className={cn(
-            "flex flex-wrap items-center gap-2",
-            compact &&
-              "sticky bottom-0 -mx-1 border-t border-stone-200/70 bg-white/80 px-1 pt-3 backdrop-blur-sm"
-          )}
-        >
-          <Button
-            type="submit"
-            disabled={pending}
-            className="rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
-          >
-            {pending ? "Creating…" : "Create"}
-          </Button>
-          {showCancel ? (
-            compact ? (
-              <DialogClose
-                render={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full border-stone-300 bg-white/70"
-                  />
-                }
-              >
-                Cancel
-              </DialogClose>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                asChild
-              >
-                <Link href="/dashboard/galleries">Cancel</Link>
-              </Button>
-            )
-          ) : null}
-        </div>
+        {/* In-dialog: actions sit in normal flow (no sticky overflow) */}
+        <div className={cn(compact ? "pt-1" : "pt-1")}>{actions}</div>
       </form>
       <UpgradeModal
         open={upgradeOpen}
