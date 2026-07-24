@@ -396,7 +396,7 @@ export function ContactSheet({
             </span>
           ) : (
             <span className="ml-1.5 text-stone-400">
-              · tap a photo for studio
+              · tap a photo for studio mode
             </span>
           )}
         </p>
