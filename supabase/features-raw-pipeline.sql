@@ -13,17 +13,14 @@ alter table public.shots
 alter table public.shots
   add column if not exists processing_error text;
 
--- kind: allow paired (JPEG + RAW together)
+-- kind is enum public.shot_kind (not text) — extend with paired (JPEG + RAW).
+-- CHECK constraints on enum labels fail with 22P02 if the label is missing.
+alter type public.shot_kind add value if not exists 'paired';
+
+-- Drop any legacy text-style check (enum already enforces membership)
 do $$ begin
   alter table public.shots drop constraint if exists shots_kind_check;
 exception when undefined_object then null;
-end $$;
-
-do $$ begin
-  alter table public.shots
-    add constraint shots_kind_check
-    check (kind in ('preview', 'jpeg', 'raw', 'paired', 'final'));
-exception when duplicate_object then null;
 end $$;
 
 do $$ begin

@@ -69,7 +69,7 @@ create index if not exists containers_project_idx
 -- ---------------------------------------------------------------------------
 do $$ begin
   create type public.shot_kind as enum (
-    'preview', 'jpeg', 'raw', 'final'
+    'preview', 'jpeg', 'raw', 'paired', 'final'
   );
 exception when duplicate_object then null;
 end $$;
