@@ -1,26 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Pencil, X } from "lucide-react";
 import {
+  getMyTagSuggestions,
+  rememberUserCustomTag,
+} from "@/actions/projects";
+import {
+  isSystemProjectTag,
   parseProjectTags,
   SUGGESTED_PROJECT_TAGS,
 } from "@/lib/project-tags";
 import { cn } from "@/lib/utils";
 
 /**
- * Chip-style tag editor. Submits as comma-separated `name` hidden field.
+ * Chip editor for project tags.
+ * System starters + this user’s customs; “+ Custom” for new personal tags.
  */
 export function ProjectTagsField({
   name = "tags",
   id = "tags",
   defaultTags = [],
-  suggestions = SUGGESTED_PROJECT_TAGS as unknown as string[],
+  suggestions: suggestionsProp,
   className,
   labelClassName,
   chipClassName,
-  hint = "Job nature for filtering — wedding, commercial, custom…",
+  hint = "",
   dense = false,
+  /** Load per-user suggestions (default true) */
+  loadUserSuggestions = true,
 }: {
   name?: string;
   id?: string;
@@ -29,25 +37,73 @@ export function ProjectTagsField({
   className?: string;
   labelClassName?: string;
   chipClassName?: string;
-  /** Empty string hides the hint line */
   hint?: string;
-  /** Tighter chips for dialogs */
   dense?: boolean;
+  loadUserSuggestions?: boolean;
 }) {
   const [tags, setTags] = useState<string[]>(() =>
     parseProjectTags(defaultTags)
   );
   const [draft, setDraft] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>(
+    () =>
+      suggestionsProp ??
+      ([...SUGGESTED_PROJECT_TAGS] as string[])
+  );
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customDraft, setCustomDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const customRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (suggestionsProp) {
+      setSuggestions(suggestionsProp);
+      return;
+    }
+    if (!loadUserSuggestions) return;
+    let cancelled = false;
+    void getMyTagSuggestions().then((list) => {
+      if (!cancelled && list?.length) setSuggestions(list);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [suggestionsProp, loadUserSuggestions]);
+
+  useEffect(() => {
+    if (customOpen) {
+      requestAnimationFrame(() => customRef.current?.focus());
+    }
+  }, [customOpen]);
 
   const selectedKeys = useMemo(
     () => new Set(tags.map((t) => t.toLowerCase())),
     [tags]
   );
 
+  async function persistIfCustom(tag: string) {
+    if (isSystemProjectTag(tag)) return;
+    const res = await rememberUserCustomTag(tag);
+    if (res.ok) {
+      setSuggestions((prev) => {
+        const next = parseProjectTags([...prev, tag]);
+        return next;
+      });
+    }
+  }
+
   function addTag(raw: string) {
     const next = parseProjectTags([...tags, raw]);
+    const added = next.filter(
+      (t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())
+    );
     setTags(next);
     setDraft("");
+    setCustomDraft("");
+    setCustomOpen(false);
+    for (const t of added) {
+      void persistIfCustom(t);
+    }
   }
 
   function removeTag(tag: string) {
@@ -61,6 +117,17 @@ export function ProjectTagsField({
       if (draft.trim()) addTag(draft);
     } else if (e.key === "Backspace" && !draft && tags.length) {
       removeTag(tags[tags.length - 1]!);
+    }
+  }
+
+  function onCustomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (customDraft.trim()) addTag(customDraft);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setCustomOpen(false);
+      setCustomDraft("");
     }
   }
 
@@ -95,6 +162,7 @@ export function ProjectTagsField({
           </span>
         ))}
         <input
+          ref={inputRef}
           id={id}
           type="text"
           value={draft}
@@ -103,30 +171,81 @@ export function ProjectTagsField({
           onBlur={() => {
             if (draft.trim()) addTag(draft);
           }}
-          placeholder={tags.length ? "Add tag…" : "Wedding, commercial…"}
+          placeholder={tags.length ? "Add tag…" : "Pick or type a tag…"}
           className="min-w-[7rem] flex-1 bg-transparent py-0.5 text-sm text-stone-800 outline-none placeholder:text-stone-400"
           autoComplete="off"
         />
       </div>
-      {unusedSuggestions.length ? (
-        <div className="flex flex-wrap gap-1.5">
-          {unusedSuggestions.map((s) => (
+
+      <div className="flex flex-wrap gap-1.5">
+        {unusedSuggestions.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => addTag(s)}
+            className={cn(
+              "rounded-full border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
+              "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              !isSystemProjectTag(s) && "border-stone-300 bg-stone-50",
+              labelClassName
+            )}
+            title={!isSystemProjectTag(s) ? "Your custom tag" : undefined}
+          >
+            + {s}
+          </button>
+        ))}
+
+        {/* Always offer custom — for tags that don’t exist yet */}
+        {!customOpen ? (
+          <button
+            type="button"
+            onClick={() => setCustomOpen(true)}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-full border border-dashed border-stone-300 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
+              "hover:border-stone-400 hover:bg-stone-50 hover:text-stone-900",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              labelClassName
+            )}
+          >
+            <Pencil className="h-3 w-3" strokeWidth={2} />
+            Custom
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-stone-50 py-0.5 pl-2.5 pr-1">
+            <input
+              ref={customRef}
+              type="text"
+              value={customDraft}
+              onChange={(e) => setCustomDraft(e.target.value)}
+              onKeyDown={onCustomKeyDown}
+              onBlur={() => {
+                if (customDraft.trim()) addTag(customDraft);
+                else setCustomOpen(false);
+              }}
+              placeholder="Your tag…"
+              maxLength={24}
+              className="w-24 bg-transparent text-[11px] font-medium text-stone-800 outline-none placeholder:text-stone-400 sm:w-28"
+              autoComplete="off"
+            />
             <button
-              key={s}
               type="button"
-              onClick={() => addTag(s)}
-              className={cn(
-                "rounded-full border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
-                "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-                labelClassName
-              )}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                if (customDraft.trim()) addTag(customDraft);
+                else {
+                  setCustomOpen(false);
+                  setCustomDraft("");
+                }
+              }}
+              className="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white"
             >
-              + {s}
+              Add
             </button>
-          ))}
-        </div>
-      ) : null}
+          </span>
+        )}
+      </div>
+
       {hint ? (
         <p className="text-[11px] text-stone-400">{hint}</p>
       ) : null}

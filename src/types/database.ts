@@ -29,6 +29,11 @@ export interface Profile {
   /** free | solo | pro — Free by default */
   plan?: "free" | "solo" | "pro" | null;
   billing_interval?: "monthly" | "annual" | null;
+  /**
+   * User-defined project tags (this account only).
+   * Merged with system starters in create/edit UI.
+   */
+  custom_project_tags?: string[] | null;
   created_at: string;
   updated_at: string;
 }

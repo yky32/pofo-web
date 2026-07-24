@@ -43,6 +43,7 @@ DEFAULT_SQLS=(
   supabase/features-project-memory.sql
   supabase/features-project-tags.sql
   supabase/features-proofing-complete.sql
+  supabase/features-custom-tags.sql
 )
 
 SQLS=()

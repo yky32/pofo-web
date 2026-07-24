@@ -7,7 +7,12 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { getCurrentWorkspace } from "@/actions/teams";
 import { joinAddresses, splitAddresses } from "@/lib/project-locations";
-import { parseProjectTags } from "@/lib/project-tags";
+import {
+  customTagsOnly,
+  mergeTagSuggestions,
+  parseProjectTags,
+  SUGGESTED_PROJECT_TAGS,
+} from "@/lib/project-tags";
 import type { Project } from "@/types/database";
 
 /**
@@ -378,6 +383,11 @@ export async function createProject(
     sort_order: 0,
   });
 
+  // Remember non-system tags for this account’s suggestions
+  if (tags.length) {
+    await persistCustomsFromTags(supabase, user.id, tags);
+  }
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/galleries");
   redirect(`/dashboard/galleries/${project.id}`);
@@ -536,6 +546,10 @@ export async function updateProjectSettings(
 
   if (error) return { error: error.message };
 
+  if (tags.length) {
+    await persistCustomsFromTags(supabase, user.id, tags);
+  }
+
   revalidatePath(`/dashboard/galleries/${projectId}`);
   revalidatePath("/dashboard/galleries");
   revalidatePath("/dashboard");
@@ -632,4 +646,119 @@ export async function deleteProjects(input: {
     success: `Deleted ${deleted} project${deleted === 1 ? "" : "s"}.`,
     deleted,
   };
+}
+
+/**
+ * System starters + this user’s custom tags (+ tags already on their projects).
+ */
+export async function getMyTagSuggestions(): Promise<string[]> {
+  if (!isSupabaseConfigured()) {
+    return [...SUGGESTED_PROJECT_TAGS];
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [...SUGGESTED_PROJECT_TAGS];
+
+  const [{ data: profile }, { data: projects }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("custom_project_tags")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("projects")
+      .select("tags")
+      .eq("owner_id", user.id)
+      .limit(100),
+  ]);
+
+  const fromProjects: string[] = [];
+  for (const p of projects ?? []) {
+    const tags = (p as { tags?: string[] | null }).tags;
+    if (tags?.length) fromProjects.push(...tags);
+  }
+
+  return mergeTagSuggestions({
+    userCustom:
+      (profile as { custom_project_tags?: string[] | null } | null)
+        ?.custom_project_tags ?? [],
+    fromProjects,
+  });
+}
+
+/**
+ * Persist a user-defined tag on their profile (account-scoped suggestions).
+ */
+export async function rememberUserCustomTag(
+  tag: string
+): Promise<{ ok?: boolean; error?: string; tags?: string[] }> {
+  if (!isSupabaseConfigured()) return { error: "not_configured" };
+  const customs = customTagsOnly([tag]);
+  if (!customs.length) return { ok: true, tags: [] };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("custom_project_tags")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const existing = parseProjectTags(
+    (profile as { custom_project_tags?: string[] | null } | null)
+      ?.custom_project_tags ?? []
+  );
+  const merged = parseProjectTags([...existing, ...customs]);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ custom_project_tags: merged })
+    .eq("id", user.id);
+
+  if (error) {
+    if (error.message.includes("custom_project_tags") || error.code === "42703") {
+      return {
+        error:
+          "Custom tags column missing. Run supabase/features-custom-tags.sql.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  return { ok: true, tags: merged };
+}
+
+/** Merge any non-system tags from a project into the user’s custom list. */
+async function persistCustomsFromTags(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  tags: string[]
+) {
+  const customs = customTagsOnly(tags);
+  if (!customs.length) return;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("custom_project_tags")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const existing = parseProjectTags(
+    (profile as { custom_project_tags?: string[] | null } | null)
+      ?.custom_project_tags ?? []
+  );
+  const merged = parseProjectTags([...existing, ...customs]);
+  if (merged.length === existing.length) return;
+
+  await supabase
+    .from("profiles")
+    .update({ custom_project_tags: merged })
+    .eq("id", userId);
 }

@@ -3,7 +3,7 @@
  * Keep short, human-readable; normalize for storage.
  */
 
-/** Suggested starters (photographers can still type anything). */
+/** System starters (shared). User customs live on profiles.custom_project_tags. */
 export const SUGGESTED_PROJECT_TAGS = [
   "Wedding",
   "Pre-wedding",
@@ -15,8 +15,17 @@ export const SUGGESTED_PROJECT_TAGS = [
   "Studio",
 ] as const;
 
+const SYSTEM_TAG_KEYS = new Set(
+  SUGGESTED_PROJECT_TAGS.map((t) => t.toLowerCase())
+);
+
+export function isSystemProjectTag(tag: string): boolean {
+  return SYSTEM_TAG_KEYS.has(tag.trim().toLowerCase());
+}
+
 const MAX_TAG_LEN = 24;
 const MAX_TAGS = 12;
+const MAX_USER_CUSTOM = 40;
 
 /** Normalize a single tag string. */
 export function normalizeTag(raw: string): string | null {
@@ -77,4 +86,44 @@ export function collectUniqueTags(
     }
   }
   return out.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+
+/**
+ * Merge system starters + user customs + tags already on projects.
+ * System first (stable order), then user customs A–Z.
+ */
+export function mergeTagSuggestions(input: {
+  userCustom?: string[] | null;
+  fromProjects?: string[] | null;
+}): string[] {
+  const out: string[] = [...SUGGESTED_PROJECT_TAGS];
+  const seen = new Set(out.map((t) => t.toLowerCase()));
+
+  const extras = [
+    ...parseProjectTags(input.userCustom ?? []),
+    ...parseProjectTags(input.fromProjects ?? []),
+  ];
+
+  for (const t of extras) {
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    if (isSystemProjectTag(t)) continue;
+    seen.add(key);
+    out.push(t);
+  }
+
+  // Keep system block first; sort only the custom tail
+  const system = out.slice(0, SUGGESTED_PROJECT_TAGS.length);
+  const custom = out
+    .slice(SUGGESTED_PROJECT_TAGS.length)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  return [...system, ...custom].slice(
+    0,
+    SUGGESTED_PROJECT_TAGS.length + MAX_USER_CUSTOM
+  );
+}
+
+/** Tags from a list that are not system starters (to persist for the user). */
+export function customTagsOnly(tags: string[]): string[] {
+  return parseProjectTags(tags).filter((t) => !isSystemProjectTag(t));
 }
