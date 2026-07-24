@@ -20,7 +20,7 @@ export const CONTACT_SHEET_HOTKEYS: HotkeySection[] = [
   {
     title: "Cinema + studio (layout, no pop-up)",
     rows: [
-      { keys: ["C"], action: "Enter Cinema (photo + studio dock)" },
+      { keys: ["C"], action: "Enter Cinema (photo-first full view)" },
       { keys: ["Click"], action: "Open photo in Cinema" },
       { keys: ["←", "→"], action: "Previous / next photo" },
       { keys: ["1"], action: "Flag · None" },
@@ -28,7 +28,7 @@ export const CONTACT_SHEET_HOTKEYS: HotkeySection[] = [
       { keys: ["3"], action: "Flag · Retouch" },
       { keys: ["4"], action: "Flag · Hero" },
       { keys: ["5"], action: "Flag · Reject" },
-      { keys: ["N"], action: "Focus note in studio dock" },
+      { keys: ["N"], action: "Expand note on floating studio card" },
       { keys: ["⌘", "Enter"], action: "Save note (Ctrl+Enter on Windows)" },
       { keys: ["Esc"], action: "Exit cinema / hotkeys · exit Select" },
       { keys: ["?"], action: "Show this hotkeys menu" },
