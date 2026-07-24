@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,11 +62,10 @@ export function CreateProjectForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="event_date">Event date</Label>
-          <Input
+          <DateField
             id="event_date"
             name="event_date"
-            type="date"
-            className="rounded-xl bg-white/80"
+            placeholder="Event date"
           />
           <p className="text-[11px] text-stone-400">
             When the shoot happened (for Memories)

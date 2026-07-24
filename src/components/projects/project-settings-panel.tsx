@@ -8,6 +8,7 @@ import {
 } from "@/actions/projects";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProjectStatus } from "@/types/database";
@@ -117,12 +118,11 @@ export function ProjectSettingsPanel({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="settings-event-date">Event date</Label>
-              <Input
+              <DateField
                 id="settings-event-date"
                 name="event_date"
-                type="date"
                 defaultValue={eventDate?.slice(0, 10) ?? ""}
-                className="rounded-xl"
+                placeholder="Event date"
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">

@@ -7,6 +7,7 @@ import {
   type ProjectActionState,
 } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -140,17 +141,12 @@ export function ProjectMemoryMeta({
           >
             Event date
           </Label>
-          <Input
+          <DateField
             id="event_date"
             name="event_date"
-            type="date"
             defaultValue={defaultDate}
-            className={cn(
-              "h-9 rounded-lg text-sm",
-              onHero
-                ? "border-white/20 bg-white/10 text-white"
-                : "bg-white"
-            )}
+            placeholder="Event date"
+            variant={onHero ? "hero" : "default"}
           />
         </div>
         <div className="space-y-1 sm:col-span-2">
