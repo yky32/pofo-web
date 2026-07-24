@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   LayoutTemplate,
   Maximize2,
+  Presentation,
   StickyNote,
   Trash2,
   X,
@@ -25,6 +26,7 @@ import {
   MosaicGrid,
   type ContactViewLayout,
 } from "@/components/photo/mosaic-grid";
+import { CinemaReview } from "@/components/projects/cinema-review";
 import {
   HotkeysHelpButton,
   HotkeysHelpDialog,
@@ -147,6 +149,8 @@ export function ContactSheet({
     right: number;
   } | null>(null);
   const [hotkeysOpen, setHotkeysOpen] = useState(false);
+  /** Cinema / gallery review index; null = off */
+  const [cinemaIndex, setCinemaIndex] = useState<number | null>(null);
   /** Last opened shot — for Space toggle in select mode */
   const lastShotIdRef = useRef<string | null>(null);
 
@@ -261,6 +265,17 @@ export function ContactSheet({
     }
   }
 
+  function openCinema(atId?: string) {
+    const id = atId ?? lastShotIdRef.current ?? items[0]?.id;
+    if (!id) return;
+    const idx = items.findIndex((i) => i.id === id);
+    setCinemaIndex(idx >= 0 ? idx : 0);
+    setMetaShotId(null);
+    setViewOpen(false);
+    setHotkeysOpen(false);
+    if (selectMode) exitSelect();
+  }
+
   // Global shortcuts when not typing in an input
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -281,8 +296,30 @@ export function ContactSheet({
       }
 
       if (hotkeysOpen) return; // dialog handles Esc
+      if (cinemaIndex !== null) return; // cinema owns keys
       if (inField) return;
       if (metaShotId) return; // studio panel owns keys while open
+
+      // C = cinema mode
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        openCinema();
+        return;
+      }
+
+      // ← → on grid: enter cinema at last/first and step
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const dir = e.key === "ArrowLeft" ? -1 : 1;
+        const baseId = lastShotIdRef.current ?? items[0]?.id;
+        if (!baseId) return;
+        let idx = items.findIndex((i) => i.id === baseId);
+        if (idx < 0) idx = 0;
+        const next = Math.max(0, Math.min(items.length - 1, idx + dir));
+        lastShotIdRef.current = items[next].id;
+        setCinemaIndex(next);
+        return;
+      }
 
       if (e.key === "s" || e.key === "S") {
         e.preventDefault();
@@ -326,6 +363,7 @@ export function ContactSheet({
   }, [
     selectMode,
     hotkeysOpen,
+    cinemaIndex,
     metaShotId,
     selected,
     items,
@@ -385,6 +423,22 @@ export function ContactSheet({
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <HotkeysHelpButton onClick={() => setHotkeysOpen(true)} />
+
+          {/* Cinema review — macOS-style full browse */}
+          <button
+            type="button"
+            aria-label="Cinema review"
+            title="Cinema review (C) · ← → to browse"
+            onClick={() => openCinema()}
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full bg-white text-stone-600 shadow-sm transition",
+              "hover:bg-stone-50 hover:text-stone-900",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              cinemaIndex !== null && "ring-2 ring-stone-300"
+            )}
+          >
+            <Presentation className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
 
           {/* View layout */}
           <button
@@ -542,6 +596,23 @@ export function ContactSheet({
         open={hotkeysOpen}
         onClose={() => setHotkeysOpen(false)}
       />
+
+      {cinemaIndex !== null ? (
+        <CinemaReview
+          items={items}
+          index={cinemaIndex}
+          onIndexChange={(i) => {
+            setCinemaIndex(i);
+            lastShotIdRef.current = items[i]?.id ?? null;
+          }}
+          onClose={() => setCinemaIndex(null)}
+          onOpenMark={(id) => {
+            setCinemaIndex(null);
+            setMetaShotId(id);
+            lastShotIdRef.current = id;
+          }}
+        />
+      ) : null}
 
       <MosaicGrid
         items={items}

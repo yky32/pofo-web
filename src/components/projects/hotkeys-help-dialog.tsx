@@ -18,11 +18,13 @@ export type HotkeySection = {
 /** Canonical photographer contact-sheet shortcuts */
 export const CONTACT_SHEET_HOTKEYS: HotkeySection[] = [
   {
-    title: "Browse & review",
+    title: "Browse & cinema",
     rows: [
+      { keys: ["C"], action: "Enter Cinema review (full-screen browse)" },
+      { keys: ["←", "→"], action: "Previous / next photo (grid or cinema)" },
+      { keys: ["Enter"], action: "Open Studio mark from cinema" },
       { keys: ["Click"], action: "Open Studio mark (flag + note)" },
-      { keys: ["←", "→"], action: "Previous / next photo while reviewing" },
-      { keys: ["Esc"], action: "Close review or hotkeys · exit Select" },
+      { keys: ["Esc"], action: "Exit cinema / mark / hotkeys · exit Select" },
       { keys: ["?"], action: "Show this hotkeys menu" },
     ],
   },
