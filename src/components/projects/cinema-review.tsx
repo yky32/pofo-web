@@ -391,26 +391,42 @@ export function CinemaReview({
           {/* Flag row + note toggle — single line */}
           <div className="mx-auto flex max-w-3xl items-center justify-center gap-1.5 px-3 pb-1.5">
             <div className="flex items-center gap-0.5 rounded-full border border-white/10 bg-black/50 p-0.5 backdrop-blur-xl">
-              {FLAGS.map((f, i) => (
-                <button
-                  key={f.value}
-                  type="button"
-                  title={`${f.label} (${i + 1})`}
-                  disabled={pending}
-                  onClick={() => applyFlag(f.value)}
-                  className={cn(
-                    "rounded-full px-2 py-1 text-[10px] font-medium transition sm:px-2.5",
-                    flag === f.value
-                      ? f.value === "none"
-                        ? "bg-white text-stone-900"
-                        : flagBadgeClass(f.value)
-                      : "text-white/70 hover:bg-white/10 hover:text-white"
-                  )}
-                >
-                  <span className="sm:hidden">{f.short}</span>
-                  <span className="hidden sm:inline">{f.label}</span>
-                </button>
-              ))}
+              {FLAGS.map((f, i) => {
+                const keyNum = i + 1;
+                const active = flag === f.value;
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    title={`${f.label} (${keyNum})`}
+                    disabled={pending}
+                    onClick={() => applyFlag(f.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium transition sm:px-2.5",
+                      active
+                        ? f.value === "none"
+                          ? "bg-white text-stone-900"
+                          : flagBadgeClass(f.value)
+                        : "text-white/70 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <kbd
+                      className={cn(
+                        "inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded px-0.5 font-mono text-[9px] font-semibold leading-none",
+                        active
+                          ? f.value === "none"
+                            ? "bg-stone-900/10 text-stone-700"
+                            : "bg-black/15 text-current"
+                          : "bg-white/12 text-white/55"
+                      )}
+                    >
+                      {keyNum}
+                    </kbd>
+                    <span className="sm:hidden">{f.short}</span>
+                    <span className="hidden sm:inline">{f.label}</span>
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"
