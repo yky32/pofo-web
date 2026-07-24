@@ -26,7 +26,7 @@ export function ProjectTagFilter({
       <Link
         href={basePath}
         className={cn(
-          "rounded-full px-2.5 py-1 text-xs font-medium transition",
+          "rounded-md px-2.5 py-1 text-xs font-medium transition",
           !active
             ? "bg-stone-900 text-white"
             : "bg-white text-stone-600 ring-1 ring-stone-200/90 hover:bg-stone-50 hover:text-stone-900"
@@ -42,7 +42,7 @@ export function ProjectTagFilter({
             key={tag.toLowerCase()}
             href={isOn ? basePath : href}
             className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium transition",
+              "rounded-md px-2.5 py-1 text-xs font-medium transition",
               isOn
                 ? "bg-stone-900 text-white"
                 : "bg-white text-stone-600 ring-1 ring-stone-200/90 hover:bg-stone-50 hover:text-stone-900"

@@ -149,14 +149,14 @@ export function ProjectTagsField({
         {tags.map((tag) => (
           <span
             key={tag.toLowerCase()}
-            className="inline-flex items-center gap-0.5 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-white"
+            className="inline-flex items-center gap-0.5 rounded-md bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-white"
           >
             {formatTagLabel(tag)}
             <button
               type="button"
               onClick={() => removeTag(tag)}
               aria-label={`Remove ${formatTagLabel(tag)}`}
-              className="ml-0.5 rounded-full p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
+              className="ml-0.5 rounded p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
             >
               <X className="h-3 w-3" strokeWidth={2} />
             </button>
@@ -185,7 +185,7 @@ export function ProjectTagsField({
             type="button"
             onClick={() => addTag(s)}
             className={cn(
-              "rounded-full border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
+              "rounded-md border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
               "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               !isSystemProjectTag(s) && "border-stone-300 bg-stone-50",
@@ -203,7 +203,7 @@ export function ProjectTagsField({
             type="button"
             onClick={() => setCustomOpen(true)}
             className={cn(
-              "inline-flex items-center gap-1 rounded-full border border-dashed border-stone-300 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
+              "inline-flex items-center gap-1 rounded-md border border-dashed border-stone-300 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
               "hover:border-stone-400 hover:bg-stone-50 hover:text-stone-900",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               labelClassName
@@ -213,7 +213,7 @@ export function ProjectTagsField({
             Custom
           </button>
         ) : (
-          <span className="inline-flex items-center gap-1 rounded-full border border-stone-300 bg-stone-50 py-0.5 pl-2.5 pr-1">
+          <span className="inline-flex items-center gap-1 rounded-md border border-stone-300 bg-stone-50 py-0.5 pl-2.5 pr-1">
             <input
               ref={customRef}
               type="text"
@@ -239,7 +239,7 @@ export function ProjectTagsField({
                   setCustomDraft("");
                 }
               }}
-              className="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white"
+              className="rounded-md bg-stone-900 px-2 py-0.5 text-[10px] font-semibold text-white"
             >
               Add
             </button>
