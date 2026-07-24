@@ -65,6 +65,19 @@ export function ShotStudioMetaPanel({
     setError(null);
   }, [shotId, initialNote, initialFlag]);
 
+  // Esc closes without saving
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   function save() {
     setError(null);
     startTransition(async () => {
