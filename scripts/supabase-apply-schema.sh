@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Apply supabase/schema.sql to the linked remote project (Phase 1).
+# Apply Supabase SQL files to the linked remote project (idempotent).
+# Usage:
+#   ./scripts/supabase-apply-schema.sh                      # schema + all feature SQLs
+#   ./scripts/supabase-apply-schema.sh supabase/foo.sql     # one file
+#   ./scripts/supabase-apply-schema.sh all                  # same as default
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,17 +29,40 @@ PROJECT_REF="${PROJECT_REF#http://}"
 PROJECT_REF="${PROJECT_REF%.supabase.co}"
 PROJECT_REF="${PROJECT_REF%/}"
 
-SCHEMA="${1:-supabase/schema.sql}"
-if [ ! -f "$SCHEMA" ]; then
-  echo "::error::Schema file not found: $SCHEMA"
-  exit 1
+# Ordered, idempotent feature pack (Phase 1 schema first).
+DEFAULT_SQLS=(
+  supabase/schema.sql
+  supabase/storage.sql
+  supabase/profiles-providers.sql
+  supabase/share-gate.sql
+  supabase/features-p1-p2.sql
+  supabase/features-p3.sql
+  supabase/features-teams.sql
+  supabase/features-plans.sql
+  supabase/features-raw-pipeline.sql
+  supabase/features-project-memory.sql
+)
+
+SQLS=()
+if [ "${1:-}" = "" ] || [ "${1:-}" = "all" ]; then
+  SQLS=("${DEFAULT_SQLS[@]}")
+else
+  SQLS=("$@")
 fi
+
+for f in "${SQLS[@]}"; do
+  if [ ! -f "$f" ]; then
+    echo "::error::Schema file not found: $f"
+    exit 1
+  fi
+done
 
 echo "=== Link project $PROJECT_REF ==="
 supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
 
-echo "=== Apply $SCHEMA ==="
-# Idempotent IF NOT EXISTS schema — safe to re-run for Phase 1.
-supabase db query --linked --file "$SCHEMA"
+for SCHEMA in "${SQLS[@]}"; do
+  echo "=== Apply $SCHEMA ==="
+  supabase db query --linked --file "$SCHEMA"
+done
 
-echo "OK: schema applied"
+echo "OK: applied ${#SQLS[@]} SQL file(s)"

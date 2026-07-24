@@ -1,4 +1,5 @@
-# Prod tasks — web deploy, Supabase schema/auth, verify (triftly-app prod.yml).
+# Prod tasks — verify on push; Vercel Git deploys the app.
+# CLI deploy / Supabase schema only via manual "Run workflow" (avoids double deploys).
 name: Prod
 
 on:
@@ -13,7 +14,7 @@ on:
           - auth-urls
           - verify
           - all
-        default: web
+        default: verify
   push:
     branches: [main]
     paths-ignore:
@@ -27,6 +28,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Every push to main: CI only. Vercel Git integration ships the site.
   verify:
     if: |
       github.event_name == 'push' ||
@@ -59,11 +61,14 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || secrets.SUPABASE_URL || 'https://example.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4YW1wbGUiLCJyb2xlIjoiYW5vbiIsImlhdCI6MCwiZXhwIjowfQ.placeholder' }}
 
+  # Manual only — do NOT deploy on push (Vercel already listens to GitHub).
+  # Double deploys hit Free tier "100 deploys/day" and fail Actions.
   deploy-web:
     if: |
       always() &&
-      (needs.verify.result == 'success' || needs.verify.result == 'skipped') &&
-      (github.event_name == 'push' || inputs.task == 'web' || inputs.task == 'all')
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.task == 'web' || inputs.task == 'all') &&
+      (needs.verify.result == 'success' || needs.verify.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: verify
@@ -75,17 +80,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy web to Vercel
+      - name: Deploy web to Vercel (CLI override)
         if: env.VERCEL_TOKEN != '' && env.VERCEL_ORG_ID != '' && env.VERCEL_PROJECT_ID != ''
         run: chmod +x scripts/deploy-vercel.sh && ./scripts/deploy-vercel.sh
 
       - name: Vercel secrets missing
         if: env.VERCEL_TOKEN == '' || env.VERCEL_ORG_ID == '' || env.VERCEL_PROJECT_ID == ''
         run: |
-          echo "::warning::Set VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID — see docs/CI.md"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            exit 1
-          fi
+          echo "::error::Set VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID — see docs/CI.md"
+          exit 1
 
   auth-urls:
     if: |
@@ -117,5 +120,5 @@ jobs:
       - uses: supabase/setup-cli@v2
         with:
           version: latest
-      - name: Apply Phase 1 schema
-        run: chmod +x scripts/supabase-apply-schema.sh && ./scripts/supabase-apply-schema.sh
+      - name: Apply schema + feature SQLs
+        run: chmod +x scripts/supabase-apply-schema.sh && ./scripts/supabase-apply-schema.sh all

@@ -1,21 +1,38 @@
 # CI / GitHub Actions (Pofo)
 
-Patterned after **triftly-app** (`pr.yml` / `prod.yml`) and **triftly-www** (Vercel deploy).
+Patterned after **triftly-app** (`pr.yml` / `prod.yml`). **Ship path differs from triftly-www:**
+
+| | **pofo-web** | **triftly-www** |
+|--|--------------|-----------------|
+| App host | **Vercel** (Git integration) | Vercel *and/or* GitHub Pages |
+| On push to `main` | GitHub **verify only** + Vercel auto-deploy | Vercel workflow may CLI-deploy |
+| CLI deploy in Actions | **Manual only** (`task=web`) | Often on every push |
+
+### Why we don’t CLI-deploy on every push
+
+Vercel is already linked to this GitHub repo (`pofo-web`). Every push → Vercel builds production automatically.
+
+If Actions **also** run `vercel deploy --prod`, you get **two deploys per push**. On the Free plan that burns the **100 deploys/day** quota and fails with:
+
+`Resource is limited - try again in 24 hours (more than 100, code: "api-deployments-free-per-day")`
+
+So: **trust Vercel Git for normal deploys.** Use Actions CLI deploy only when you need an explicit override.
 
 ## Workflows
 
 | Workflow | Trigger | What it runs |
 |----------|---------|----------------|
 | **PR** | Pull requests | `verify-ci` → lint → typecheck → build |
-| **Prod** | Push to `main`, or **Actions → Prod → Run workflow** | verify + Vercel deploy; optional Supabase schema / auth URLs |
+| **Prod** | Push to `main` | **verify only** (lint / typecheck / build) |
+| **Prod** | **Actions → Prod → Run workflow** | verify / optional CLI deploy / Supabase SQL / auth URLs |
 
 ### Prod tasks (`workflow_dispatch`)
 
 | Task | Effect |
 |------|--------|
-| `web` | CI verify + deploy to Vercel production |
 | `verify` | Repo checks + lint/typecheck/build only |
-| `supabase` | Apply `supabase/schema.sql` + ensure auth URLs |
+| `web` | CI verify + **manual** Vercel CLI production deploy |
+| `supabase` | Apply schema + feature SQLs (incl. `features-project-memory.sql`) + auth URLs |
 | `auth-urls` | Only Supabase Auth site URL / redirect allow list |
 | `all` | verify + web + supabase + auth-urls |
 
@@ -73,6 +90,8 @@ bun run build
 
 ## Notes
 
-- Git push to `main` still triggers **Vercel’s own Git integration** if linked. The Prod workflow is an explicit CI path (like triftly) and a manual lever for schema/auth.
-- Schema apply is **idempotent** (`IF NOT EXISTS`) for Phase 1; re-running is safe.
+- **Vercel Git** = automatic deploys on push. **Actions `deploy-web`** = optional CLI override only.
+- Schema apply is **idempotent** (`IF NOT EXISTS`); re-running is safe.
+- Memory columns (`event_date`, `location`): run **Actions → Prod → task `supabase`**, or paste `supabase/features-project-memory.sql` in the SQL Editor.
+- `SUPABASE_ACCESS_TOKEN` must be a valid [account access token](https://supabase.com/dashboard/account/tokens) (`sbp_…`). If Actions/link returns **Unauthorized**, regenerate the token and update the GitHub secret + `.env.local`.
 - Do not commit `.env.local` or service role keys.
