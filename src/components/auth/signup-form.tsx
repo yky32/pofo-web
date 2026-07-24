@@ -40,8 +40,12 @@ export function SignupForm() {
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* Intent: icon-only — personal vs studio company */}
-        <div className="flex items-center justify-center gap-4">
+        {/* Intent: icon-only pill toggle — personal vs studio */}
+        <div
+          className="mx-auto flex w-fit items-center gap-0.5 rounded-full border border-stone-200 bg-stone-100/80 p-1"
+          role="group"
+          aria-label="Account type"
+        >
           <button
             type="button"
             onClick={() => setIntent("personal")}
@@ -49,14 +53,14 @@ export function SignupForm() {
             aria-pressed={intent === "personal"}
             title="Personal"
             className={cn(
-              "flex h-[52px] w-[52px] items-center justify-center rounded-full border transition",
+              "flex h-10 w-12 items-center justify-center rounded-full transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               intent === "personal"
-                ? "border-stone-900 bg-stone-900 text-white shadow-sm"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+                ? "bg-stone-900 text-white shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
             )}
           >
-            <User className="h-5 w-5" strokeWidth={1.75} />
+            <User className="h-4 w-4" strokeWidth={1.75} />
           </button>
           <button
             type="button"
@@ -65,14 +69,14 @@ export function SignupForm() {
             aria-pressed={intent === "team"}
             title="Studio company"
             className={cn(
-              "flex h-[52px] w-[52px] items-center justify-center rounded-full border transition",
+              "flex h-10 w-12 items-center justify-center rounded-full transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               intent === "team"
-                ? "border-stone-900 bg-stone-900 text-white shadow-sm"
-                : "border-stone-200 bg-white text-stone-600 hover:border-stone-300 hover:bg-stone-50"
+                ? "bg-stone-900 text-white shadow-sm"
+                : "text-stone-500 hover:text-stone-800"
             )}
           >
-            <Building2 className="h-5 w-5" strokeWidth={1.75} />
+            <Building2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
 
