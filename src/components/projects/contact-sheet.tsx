@@ -13,8 +13,10 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Check,
+  CheckCircle2,
   LayoutGrid,
   LayoutTemplate,
+  Loader2,
   Maximize2,
   Presentation,
   StickyNote,
@@ -151,10 +153,38 @@ export function ContactSheet({
   const [cinemaIndex, setCinemaIndex] = useState<number | null>(null);
   /** Last opened shot — for Space toggle in select mode */
   const lastShotIdRef = useRef<string | null>(null);
+  /** Soft delete handoff — avoid grid glitch on refresh */
+  const [deletePhase, setDeletePhase] = useState<
+    null | "removing" | "refreshing" | "done"
+  >(null);
+  const [deleteCount, setDeleteCount] = useState(0);
+  const [fadingIds, setFadingIds] = useState<Set<string>>(() => new Set());
+  const [refreshPending, startRefresh] = useTransition();
+  const skipNextItemsSync = useRef(false);
 
   useEffect(() => {
+    // Don't clobber optimistic remove mid-delete
+    if (deletePhase) return;
+    if (skipNextItemsSync.current) {
+      skipNextItemsSync.current = false;
+      setItems(initialItems);
+      return;
+    }
     setItems(initialItems);
-  }, [initialItems]);
+  }, [initialItems, deletePhase]);
+
+  // Clear delete curtain after refresh settles
+  useEffect(() => {
+    if (deletePhase !== "refreshing") return;
+    if (refreshPending) return;
+    setDeletePhase("done");
+    const t = window.setTimeout(() => {
+      setDeletePhase(null);
+      setDeleteCount(0);
+      setFadingIds(new Set());
+    }, 650);
+    return () => window.clearTimeout(t);
+  }, [deletePhase, refreshPending]);
 
   useEffect(() => {
     setViewMounted(true);
@@ -352,7 +382,7 @@ export function ContactSheet({
   ]);
 
   async function onDelete() {
-    if (!count) return;
+    if (!count || deletePhase) return;
     const n = count;
     const ok = await confirm({
       title: n === 1 ? "Delete this photo?" : `Delete ${n} photos?`,
@@ -367,6 +397,13 @@ export function ContactSheet({
     const ids = [...selected];
     setError(null);
     setMessage(null);
+    setDeleteCount(n);
+    setFadingIds(new Set(ids));
+    setDeletePhase("removing");
+
+    // Brief fade before server call so tiles don’t hard-pop
+    await new Promise((r) => window.setTimeout(r, 220));
+
     startTransition(async () => {
       const res = await deleteProjectShots({
         projectId,
@@ -374,19 +411,123 @@ export function ContactSheet({
       });
       if (res.error) {
         setError(res.error);
+        setDeletePhase(null);
+        setFadingIds(new Set());
+        setDeleteCount(0);
         return;
       }
-      setMessage(res.success ?? `Deleted ${res.deleted ?? n}.`);
+
+      // Optimistic local remove — grid shrinks smoothly
+      skipNextItemsSync.current = true;
+      setItems((prev) => prev.filter((i) => !ids.includes(i.id)));
       setSelected(new Set());
       setSelectMode(false);
-      router.refresh();
+      setMessage(res.success ?? `Deleted ${res.deleted ?? n}.`);
+      setDeletePhase("refreshing");
+      setFadingIds(new Set());
+
+      startRefresh(() => {
+        try {
+          router.refresh();
+        } catch {
+          /* ignore */
+        }
+      });
     });
   }
 
-  if (!items.length) return null;
+  const deleting =
+    deletePhase === "removing" ||
+    deletePhase === "refreshing" ||
+    deletePhase === "done";
+
+  if (!items.length && !deleting) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="relative space-y-3">
+      {viewMounted && deleting
+        ? createPortal(
+            <div
+              className={cn(
+                "pointer-events-none fixed inset-0 z-[240] flex items-end justify-center p-6 sm:items-center",
+                "bg-stone-950/25 backdrop-blur-[2px] transition-opacity duration-300",
+                deletePhase === "done" ? "opacity-0" : "opacity-100"
+              )}
+              aria-live="polite"
+              aria-busy={deletePhase !== "done"}
+            >
+              <div
+                className={cn(
+                  "pointer-events-auto w-full max-w-sm rounded-2xl border border-white/60 bg-white/95 p-5 shadow-2xl shadow-stone-900/15 backdrop-blur-xl",
+                  "animate-in fade-in-0 zoom-in-95 duration-200"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full",
+                      deletePhase === "done"
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-rose-50 text-rose-700"
+                    )}
+                  >
+                    {deletePhase === "done" ? (
+                      <CheckCircle2 className="h-5 w-5" strokeWidth={1.75} />
+                    ) : deletePhase === "removing" ? (
+                      <Loader2
+                        className="h-5 w-5 animate-spin"
+                        strokeWidth={1.75}
+                      />
+                    ) : (
+                      <Loader2
+                        className="h-5 w-5 animate-spin"
+                        strokeWidth={1.75}
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    <p className="text-sm font-medium text-stone-900">
+                      {deletePhase === "done"
+                        ? deleteCount === 1
+                          ? "Photo removed"
+                          : `${deleteCount} photos removed`
+                        : deletePhase === "removing"
+                          ? deleteCount === 1
+                            ? "Deleting photo…"
+                            : `Deleting ${deleteCount} photos…`
+                          : "Updating gallery…"}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-stone-500">
+                      {deletePhase === "done"
+                        ? "Contact sheet updated"
+                        : deletePhase === "removing"
+                          ? "Removing from gallery and storage"
+                          : "Refreshing the contact sheet"}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-stone-100">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-[width] duration-500 ease-out",
+                      deletePhase === "done" ? "bg-emerald-600" : "bg-rose-700",
+                      deletePhase === "refreshing" && "animate-pulse"
+                    )}
+                    style={{
+                      width:
+                        deletePhase === "removing"
+                          ? "55%"
+                          : deletePhase === "refreshing"
+                            ? "88%"
+                            : "100%",
+                    }}
+                  />
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         {/* Count lives above the tabs — this row is only context / selection */}
         <p className="text-sm text-stone-400">
@@ -457,18 +598,24 @@ export function ContactSheet({
                 type="button"
                 size="sm"
                 className="rounded-full bg-rose-700 text-white hover:bg-rose-800"
-                disabled={pending || count === 0}
+                disabled={pending || deleting || count === 0}
                 onClick={onDelete}
               >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                {pending ? "Deleting…" : `Delete${count ? ` (${count})` : ""}`}
+                {pending || deleting ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {pending || deleting
+                  ? "Deleting…"
+                  : `Delete${count ? ` (${count})` : ""}`}
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="rounded-full"
-                disabled={pending}
+                disabled={pending || deleting}
                 onClick={exitSelect}
               >
                 <X className="mr-1.5 h-3.5 w-3.5" />
@@ -600,12 +747,13 @@ export function ContactSheet({
         />
       ) : null}
 
+      {items.length ? (
       <MosaicGrid
         items={items}
         density="studio"
         layout={viewLayout}
         onItemClick={(item) => {
-          if (pending) return;
+          if (pending || deleting) return;
           lastShotIdRef.current = item.id;
           if (selectMode) {
             toggle(item.id);
@@ -614,7 +762,12 @@ export function ContactSheet({
           // Open cinema with docked studio mark (no pop-up)
           openCinema(item.id);
         }}
-        itemClassName={() => "cursor-pointer"}
+        itemClassName={({ item }) =>
+          cn(
+            "cursor-pointer transition duration-300 ease-out",
+            fadingIds.has(item.id) && "scale-[0.96] opacity-30"
+          )
+        }
         renderTile={({ item, image }) => {
           const isOn = selected.has(item.id);
           const full = items.find((i) => i.id === item.id);
@@ -628,7 +781,14 @@ export function ContactSheet({
           );
           return (
             <>
-              <div className="absolute inset-0">{image}</div>
+              <div
+                className={cn(
+                  "absolute inset-0 transition duration-300",
+                  fadingIds.has(item.id) && "opacity-40 grayscale"
+                )}
+              >
+                {image}
+              </div>
               {selectMode ? (
                 <span
                   className={cn(
@@ -675,7 +835,11 @@ export function ContactSheet({
           );
         }}
       />
-
+      ) : deleting ? (
+        <div className="flex min-h-[12rem] items-center justify-center rounded-[8px] border border-dashed border-stone-200 bg-stone-50/50">
+          <p className="text-sm text-stone-400">Updating gallery…</p>
+        </div>
+      ) : null}
 
     </div>
   );
