@@ -27,7 +27,7 @@ const triggerStyles: Record<TriggerVariant, string> = {
  * (soccer-terminal / sample-terminal avatar-menu feel).
  */
 export function CreateProjectDialog({
-  triggerLabel = "New project",
+  triggerLabel = "New",
   triggerVariant = "primary",
   triggerClassName,
   defaultOpen = false,
