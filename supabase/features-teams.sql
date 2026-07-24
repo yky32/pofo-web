@@ -177,7 +177,9 @@ create policy "team_members_delete" on public.team_members
 -- ---------------------------------------------------------------------------
 -- RLS: projects / children — personal OR active team member
 -- ---------------------------------------------------------------------------
+-- Drop legacy owner-only policies AND re-create target names (idempotent re-run)
 drop policy if exists "projects_owner_all" on public.projects;
+drop policy if exists "projects_accessible_all" on public.projects;
 create policy "projects_accessible_all" on public.projects
   for all using (
     (owner_type = 'user' and owner_id = auth.uid())
@@ -192,12 +194,14 @@ create policy "projects_accessible_all" on public.projects
   );
 
 drop policy if exists "containers_owner_all" on public.containers;
+drop policy if exists "containers_project_access" on public.containers;
 create policy "containers_project_access" on public.containers
   for all using (public.is_project_accessible(project_id))
   with check (public.is_project_accessible(project_id));
 
 -- Shots: project access (uploader still stored as shots.owner_id)
 drop policy if exists "shots_owner_all" on public.shots;
+drop policy if exists "shots_project_access" on public.shots;
 create policy "shots_project_access" on public.shots
   for all using (public.is_project_accessible(project_id))
   with check (
@@ -206,10 +210,12 @@ create policy "shots_project_access" on public.shots
   );
 
 drop policy if exists "share_links_owner_all" on public.share_links;
+drop policy if exists "share_links_project_access" on public.share_links;
 create policy "share_links_project_access" on public.share_links
   for all using (public.is_project_accessible(project_id))
   with check (public.is_project_accessible(project_id));
 
 drop policy if exists "shot_selections_owner_select" on public.shot_selections;
+drop policy if exists "shot_selections_project_select" on public.shot_selections;
 create policy "shot_selections_project_select" on public.shot_selections
   for select using (public.is_project_accessible(project_id));
