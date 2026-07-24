@@ -7,6 +7,7 @@ import {
   rememberUserCustomTag,
 } from "@/actions/projects";
 import {
+  formatTagLabel,
   isSystemProjectTag,
   parseProjectTags,
   SUGGESTED_PROJECT_TAGS,
@@ -150,11 +151,11 @@ export function ProjectTagsField({
             key={tag.toLowerCase()}
             className="inline-flex items-center gap-0.5 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-white"
           >
-            {tag}
+            {formatTagLabel(tag)}
             <button
               type="button"
               onClick={() => removeTag(tag)}
-              aria-label={`Remove ${tag}`}
+              aria-label={`Remove ${formatTagLabel(tag)}`}
               className="ml-0.5 rounded-full p-0.5 text-white/70 hover:bg-white/15 hover:text-white"
             >
               <X className="h-3 w-3" strokeWidth={2} />
@@ -171,7 +172,7 @@ export function ProjectTagsField({
           onBlur={() => {
             if (draft.trim()) addTag(draft);
           }}
-          placeholder={tags.length ? "Add tag…" : "Pick or type a tag…"}
+          placeholder={tags.length ? "Add #tag…" : "Pick or type a #tag…"}
           className="min-w-[7rem] flex-1 bg-transparent py-0.5 text-sm text-stone-800 outline-none placeholder:text-stone-400"
           autoComplete="off"
         />
@@ -192,7 +193,7 @@ export function ProjectTagsField({
             )}
             title={!isSystemProjectTag(s) ? "Your custom tag" : undefined}
           >
-            + {s}
+            + {formatTagLabel(s)}
           </button>
         ))}
 
@@ -223,7 +224,7 @@ export function ProjectTagsField({
                 if (customDraft.trim()) addTag(customDraft);
                 else setCustomOpen(false);
               }}
-              placeholder="Your tag…"
+              placeholder="#your-tag"
               maxLength={24}
               className="w-24 bg-transparent text-[11px] font-medium text-stone-800 outline-none placeholder:text-stone-400 sm:w-28"
               autoComplete="off"

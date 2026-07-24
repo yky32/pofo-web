@@ -3,6 +3,7 @@ import { GalleryStatusBadge } from "@/components/gallery-status-badge";
 import { PhotoImage } from "@/components/photo/photo-image";
 import type { Gallery } from "@/types/database";
 import { galleryCovers, studioPhotos } from "@/lib/photos";
+import { formatTagLabel } from "@/lib/project-tags";
 import { cn } from "@/lib/utils";
 
 /** How many tag chips before “+N” overflow */
@@ -35,7 +36,7 @@ export function GalleryCard({
   const tags = gallery.tags?.filter(Boolean) ?? [];
   const visibleTags = tags.slice(0, MAX_TAG_CHIPS);
   const overflow = Math.max(0, tags.length - MAX_TAG_CHIPS);
-  const tagsTitle = tags.join(", ");
+  const tagsTitle = tags.map(formatTagLabel).join(", ");
 
   const body = (
     <>
@@ -53,7 +54,7 @@ export function GalleryCard({
           <GalleryStatusBadge status={gallery.status} suffix={proofSuffix} />
         </div>
 
-        {/* Tags — top left; leave room for status badge */}
+        {/* Tags — top left with # prefix; leave room for status badge */}
         {tags.length > 0 ? (
           <div
             className="absolute left-2.5 top-2.5 z-10 flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-1"
@@ -62,13 +63,16 @@ export function GalleryCard({
             {visibleTags.map((tag) => (
               <span
                 key={tag}
-                className="max-w-[7.5rem] truncate rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/95 shadow-sm backdrop-blur-sm"
+                className="max-w-[8rem] truncate rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/95 shadow-sm backdrop-blur-sm"
               >
-                {tag}
+                {formatTagLabel(tag)}
               </span>
             ))}
             {overflow > 0 ? (
-              <span className="shrink-0 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/90 shadow-sm backdrop-blur-sm">
+              <span
+                className="shrink-0 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/90 shadow-sm backdrop-blur-sm"
+                title={tags.slice(MAX_TAG_CHIPS).map(formatTagLabel).join(", ")}
+              >
                 +{overflow}
               </span>
             ) : null}

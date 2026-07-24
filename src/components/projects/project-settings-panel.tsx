@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProjectAddressesField } from "@/components/projects/project-addresses-field";
 import { splitAddresses } from "@/lib/project-locations";
+import { formatTagLabel } from "@/lib/project-tags";
 import type { ProjectStatus } from "@/types/database";
 import { cn } from "@/lib/utils";
 
@@ -194,7 +195,7 @@ export function ProjectSettingsPanel({
                       key={t}
                       className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700"
                     >
-                      {t}
+                      {formatTagLabel(t)}
                     </span>
                   ))}
                 </span>

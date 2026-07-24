@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatTagLabel } from "@/lib/project-tags";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,7 +48,7 @@ export function ProjectTagFilter({
                 : "bg-white text-stone-600 ring-1 ring-stone-200/90 hover:bg-stone-50 hover:text-stone-900"
             )}
           >
-            {tag}
+            {formatTagLabel(tag)}
           </Link>
         );
       })}

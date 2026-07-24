@@ -27,9 +27,21 @@ const MAX_TAG_LEN = 24;
 const MAX_TAGS = 12;
 const MAX_USER_CUSTOM = 40;
 
-/** Normalize a single tag string. */
+/**
+ * Display label with # prefix for visual differentiation.
+ * Storage stays without #.
+ */
+export function formatTagLabel(tag: string): string {
+  const t = tag.trim().replace(/^#+/, "");
+  if (!t) return "";
+  return `#${t}`;
+}
+
+/** Normalize a single tag string (strips leading # so we never double-hash). */
 export function normalizeTag(raw: string): string | null {
-  const t = raw.trim().replace(/\s+/g, " ");
+  let t = raw.trim().replace(/\s+/g, " ");
+  // Users may type #Wedding — store as Wedding
+  t = t.replace(/^#+/, "").trim();
   if (!t) return null;
   if (t.length > MAX_TAG_LEN) return t.slice(0, MAX_TAG_LEN).trim();
   return t;
