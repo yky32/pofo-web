@@ -30,7 +30,7 @@ export default function MarketingLayout({
               Log in
             </Link>
             <Link href="/signup" className="hover:text-stone-900">
-              Start free
+              Start delivering
             </Link>
           </div>
           <p className="text-xs text-stone-400">

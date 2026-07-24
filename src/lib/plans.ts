@@ -29,7 +29,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
     priceAnnualMonthly: 0,
     storageGb: 50,
     activeProjects: 3,
-    cta: "Start free",
+    cta: "Start delivering",
     features: [
       "Private client galleries",
       "Share links (password + expiry)",
