@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Check, Loader2, X } from "lucide-react";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
 import { ProjectAddressesField } from "@/components/projects/project-addresses-field";
@@ -176,13 +176,6 @@ export function CreateProjectForm({
 
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
-      <Button
-        type="submit"
-        disabled={pending}
-        className="rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
-      >
-        {pending ? "Creating…" : "Create"}
-      </Button>
       {showCancel ? (
         compact ? (
           <DialogClose
@@ -190,23 +183,38 @@ export function CreateProjectForm({
               <Button
                 type="button"
                 variant="outline"
-                className="rounded-full border-stone-300 bg-white"
+                aria-label="Cancel"
+                className="h-9 w-9 rounded-full border-stone-300 bg-white p-0"
               />
             }
           >
-            Cancel
+            <X className="h-4 w-4" aria-hidden />
           </DialogClose>
         ) : (
           <Button
             type="button"
             variant="outline"
-            className="rounded-full"
+            className="h-9 w-9 rounded-full p-0"
             asChild
           >
-            <Link href="/dashboard/galleries">Cancel</Link>
+            <Link href="/dashboard/galleries" aria-label="Cancel">
+              <X className="h-4 w-4" aria-hidden />
+            </Link>
           </Button>
         )
       ) : null}
+      <Button
+        type="submit"
+        disabled={pending}
+        aria-label={pending ? "Creating project" : "Create project"}
+        className="h-9 w-9 rounded-full bg-stone-900 p-0 text-stone-50 hover:bg-stone-800"
+      >
+        {pending ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : (
+          <Check className="h-4 w-4" aria-hidden />
+        )}
+      </Button>
     </div>
   );
 

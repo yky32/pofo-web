@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, X } from "lucide-react";
 import {
+  forgetUserCustomTag,
   getMyTagSuggestions,
   rememberUserCustomTag,
 } from "@/actions/projects";
@@ -112,6 +113,15 @@ export function ProjectTagsField({
     setTags((prev) => prev.filter((t) => t.toLowerCase() !== key));
   }
 
+  /** Drop a personal custom from suggestions (+ deselect if active). */
+  function forgetSuggestion(tag: string) {
+    if (isSystemProjectTag(tag)) return;
+    const key = tag.toLowerCase();
+    setSuggestions((prev) => prev.filter((t) => t.toLowerCase() !== key));
+    removeTag(tag);
+    void forgetUserCustomTag(tag);
+  }
+
   function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
@@ -179,23 +189,43 @@ export function ProjectTagsField({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        {unusedSuggestions.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => addTag(s)}
-            className={cn(
-              "rounded-md border border-stone-200/90 bg-white/90 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition",
-              "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
-              !isSystemProjectTag(s) && "border-stone-300 bg-stone-50",
-              labelClassName
-            )}
-            title={!isSystemProjectTag(s) ? "Your custom tag" : undefined}
-          >
-            + {formatTagLabel(s)}
-          </button>
-        ))}
+        {unusedSuggestions.map((s) => {
+          const isCustom = !isSystemProjectTag(s);
+          return (
+            <span
+              key={s}
+              className={cn(
+                "inline-flex items-center rounded-md border border-stone-200/90 bg-white/90 text-[11px] font-medium text-stone-600 transition",
+                "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
+                isCustom && "border-stone-300 bg-stone-50",
+                labelClassName
+              )}
+            >
+              <button
+                type="button"
+                onClick={() => addTag(s)}
+                className={cn(
+                  "px-2.5 py-1 focus-visible:outline-none",
+                  isCustom && "pr-1"
+                )}
+                title={isCustom ? "Your custom tag — click to use" : undefined}
+              >
+                + {formatTagLabel(s)}
+              </button>
+              {isCustom ? (
+                <button
+                  type="button"
+                  onClick={() => forgetSuggestion(s)}
+                  aria-label={`Remove custom tag ${formatTagLabel(s)}`}
+                  title="Remove from your tags"
+                  className="mr-1 rounded p-0.5 text-stone-400 transition hover:bg-stone-200/80 hover:text-stone-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} aria-hidden />
+                </button>
+              ) : null}
+            </span>
+          );
+        })}
 
         {/* Always offer custom — for tags that don’t exist yet */}
         {!customOpen ? (

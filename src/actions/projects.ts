@@ -735,6 +735,57 @@ export async function rememberUserCustomTag(
   return { ok: true, tags: merged };
 }
 
+/**
+ * Remove a user-defined tag from profile suggestions (system tags ignored).
+ */
+export async function forgetUserCustomTag(
+  tag: string
+): Promise<{ ok?: boolean; error?: string; tags?: string[] }> {
+  if (!isSupabaseConfigured()) return { error: "not_configured" };
+  const customs = customTagsOnly([tag]);
+  if (!customs.length) return { ok: true, tags: [] };
+
+  const key = customs[0]!.toLowerCase();
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("custom_project_tags")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const existing = parseProjectTags(
+    (profile as { custom_project_tags?: string[] | null } | null)
+      ?.custom_project_tags ?? []
+  );
+  const next = existing.filter((t) => t.toLowerCase() !== key);
+  if (next.length === existing.length) {
+    return { ok: true, tags: existing };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ custom_project_tags: next })
+    .eq("id", user.id);
+
+  if (error) {
+    if (error.message.includes("custom_project_tags") || error.code === "42703") {
+      return {
+        error:
+          "Custom tags column missing. Run supabase/features-custom-tags.sql.",
+      };
+    }
+    return { error: error.message };
+  }
+
+  return { ok: true, tags: next };
+}
+
 /** Merge any non-system tags from a project into the user’s custom list. */
 async function persistCustomsFromTags(
   supabase: Awaited<ReturnType<typeof createClient>>,

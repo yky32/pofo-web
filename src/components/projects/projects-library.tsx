@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import {
   Check,
   CheckCircle2,
+  CheckSquare,
   Loader2,
   Trash2,
   X,
@@ -245,38 +246,56 @@ export function ProjectsLibrary({
                 type="button"
                 size="sm"
                 variant="ghost"
-                className="rounded-full text-stone-600"
+                aria-label={allSelected ? "Deselect all" : "Select all"}
+                title={allSelected ? "Deselect all" : "Select all"}
+                className="h-8 w-8 rounded-full p-0 text-stone-600"
                 disabled={pending || deleting}
                 onClick={toggleAll}
               >
-                {allSelected ? "Deselect all" : "Select all"}
+                {allSelected ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <CheckSquare className="h-3.5 w-3.5" aria-hidden />
+                )}
               </Button>
               <Button
                 type="button"
                 size="sm"
-                className="rounded-full bg-rose-700 text-white hover:bg-rose-800"
+                aria-label={
+                  pending || deleting
+                    ? "Deleting"
+                    : count
+                      ? `Delete ${count} selected`
+                      : "Delete"
+                }
+                title={
+                  pending || deleting
+                    ? "Deleting…"
+                    : count
+                      ? `Delete (${count})`
+                      : "Delete"
+                }
+                className="h-8 w-8 rounded-full bg-rose-700 p-0 text-white hover:bg-rose-800"
                 disabled={pending || deleting || count === 0}
                 onClick={() => void onDelete()}
               >
                 {pending || deleting ? (
-                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                 ) : (
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 )}
-                {pending || deleting
-                  ? "Deleting…"
-                  : `Delete${count ? ` (${count})` : ""}`}
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                className="rounded-full"
+                aria-label="Cancel selection"
+                title="Cancel"
+                className="h-8 w-8 rounded-full p-0"
                 disabled={pending || deleting}
                 onClick={exitSelect}
               >
-                <X className="mr-1.5 h-3.5 w-3.5" />
-                Cancel
+                <X className="h-3.5 w-3.5" aria-hidden />
               </Button>
             </>
           ) : (
@@ -284,14 +303,16 @@ export function ProjectsLibrary({
               type="button"
               size="sm"
               variant="outline"
-              className="rounded-full border-stone-300"
+              aria-label="Select projects"
+              title="Select"
+              className="h-8 w-8 rounded-full border-stone-300 p-0"
               onClick={() => {
                 setSelectMode(true);
                 setMessage(null);
                 setError(null);
               }}
             >
-              Select
+              <CheckSquare className="h-3.5 w-3.5" aria-hidden />
             </Button>
           )}
         </div>

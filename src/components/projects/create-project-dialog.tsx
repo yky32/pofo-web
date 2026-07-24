@@ -61,7 +61,7 @@ export function CreateProjectDialog({
           "text-stone-900 ring-1 ring-white/60"
         )}
       >
-        <div className="flex max-h-[min(90vh,32rem)] flex-col overflow-hidden">
+        <div className="flex max-h-[min(92vh,56rem)] flex-col overflow-hidden">
           <DialogHeader className="shrink-0 gap-1 border-b border-stone-200/50 px-6 pb-3.5 pt-5 pr-12 sm:px-7 sm:pt-6">
             <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
               <div className="min-w-0 space-y-1">

@@ -87,7 +87,7 @@ export default async function SettingsPage({
           {/* Personal brand — main column */}
           <Island
             title="Personal brand"
-            description="How clients see you on /s/… and gallery footers."
+            description="How clients see your name, studio, and public portfolio."
             className="lg:col-span-7"
           >
             <ProfileForm
