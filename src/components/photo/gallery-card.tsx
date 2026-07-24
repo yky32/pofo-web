@@ -5,6 +5,9 @@ import type { Gallery } from "@/types/database";
 import { galleryCovers, studioPhotos } from "@/lib/photos";
 import { cn } from "@/lib/utils";
 
+/** How many tag chips before “+N” overflow */
+const MAX_TAG_CHIPS = 2;
+
 export function GalleryCard({
   gallery,
   href,
@@ -29,6 +32,11 @@ export function GalleryCard({
       ? `${gallery.selection_count ?? 0}/${gallery.selection_limit}`
       : null;
 
+  const tags = gallery.tags?.filter(Boolean) ?? [];
+  const visibleTags = tags.slice(0, MAX_TAG_CHIPS);
+  const overflow = Math.max(0, tags.length - MAX_TAG_CHIPS);
+  const tagsTitle = tags.join(", ");
+
   const body = (
     <>
       <div className="relative aspect-[5/4] overflow-hidden bg-stone-100">
@@ -40,23 +48,35 @@ export function GalleryCard({
         />
         <div className="absolute inset-0 bg-gradient-to-t from-stone-950/55 via-transparent to-black/10" />
 
+        {/* Status — top right */}
         <div className="absolute right-2.5 top-2.5 z-10">
           <GalleryStatusBadge status={gallery.status} suffix={proofSuffix} />
         </div>
 
+        {/* Tags — top left; leave room for status badge */}
+        {tags.length > 0 ? (
+          <div
+            className="absolute left-2.5 top-2.5 z-10 flex max-w-[calc(100%-5.5rem)] flex-wrap items-center gap-1"
+            title={tagsTitle}
+          >
+            {visibleTags.map((tag) => (
+              <span
+                key={tag}
+                className="max-w-[7.5rem] truncate rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/95 shadow-sm backdrop-blur-sm"
+              >
+                {tag}
+              </span>
+            ))}
+            {overflow > 0 ? (
+              <span className="shrink-0 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white/90 shadow-sm backdrop-blur-sm">
+                +{overflow}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Title block — bottom */}
         <div className="absolute bottom-3 left-3 right-3">
-          {gallery.tags?.length ? (
-            <div className="mb-1.5 flex flex-wrap gap-1">
-              {gallery.tags.slice(0, 4).map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-white/20 px-1.5 py-px text-[10px] font-medium text-white/95 backdrop-blur-sm"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          ) : null}
           <p className="font-heading text-lg leading-tight text-white drop-shadow">
             {gallery.title}
           </p>
