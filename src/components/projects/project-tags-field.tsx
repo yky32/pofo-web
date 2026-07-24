@@ -6,59 +6,37 @@ import {
   parseProjectTags,
   SUGGESTED_PROJECT_TAGS,
 } from "@/lib/project-tags";
-import {
-  formatLocations,
-  parseLocations,
-  SUGGESTED_LOCATIONS,
-} from "@/lib/project-locations";
 import { cn } from "@/lib/utils";
 
-type ChipMode = "tags" | "locations";
-
 /**
- * Chip editor for project tags or multi-locations.
- * - tags → hidden value comma-separated (tags text[])
- * - locations → hidden value " · "-joined (location text)
+ * Chip-style tag editor. Submits as comma-separated `name` hidden field.
  */
 export function ProjectTagsField({
   name = "tags",
   id = "tags",
   defaultTags = [],
-  suggestions,
+  suggestions = SUGGESTED_PROJECT_TAGS as unknown as string[],
   className,
   labelClassName,
   chipClassName,
   hint = "Job nature for filtering — wedding, commercial, custom…",
   dense = false,
-  mode = "tags",
-  placeholder,
 }: {
   name?: string;
   id?: string;
-  /** Initial chips — for locations pass split string via parseLocations */
   defaultTags?: string[];
   suggestions?: string[];
   className?: string;
   labelClassName?: string;
   chipClassName?: string;
+  /** Empty string hides the hint line */
   hint?: string;
+  /** Tighter chips for dialogs */
   dense?: boolean;
-  mode?: ChipMode;
-  placeholder?: string;
 }) {
-  const isLoc = mode === "locations";
-  const parse = isLoc ? parseLocations : parseProjectTags;
-  const defaultSuggestions = isLoc
-    ? (SUGGESTED_LOCATIONS as unknown as string[])
-    : (SUGGESTED_PROJECT_TAGS as unknown as string[]);
-  const sugg = suggestions ?? defaultSuggestions;
-  const ph =
-    placeholder ??
-    (isLoc
-      ? "Add place…"
-      : "Wedding, commercial…");
-
-  const [tags, setTags] = useState<string[]>(() => parse(defaultTags));
+  const [tags, setTags] = useState<string[]>(() =>
+    parseProjectTags(defaultTags)
+  );
   const [draft, setDraft] = useState("");
 
   const selectedKeys = useMemo(
@@ -66,10 +44,9 @@ export function ProjectTagsField({
     [tags]
   );
 
-  const hiddenValue = isLoc ? formatLocations(tags) : tags.join(", ");
-
   function addTag(raw: string) {
-    setTags(parse([...tags, raw]));
+    const next = parseProjectTags([...tags, raw]);
+    setTags(next);
     setDraft("");
   }
 
@@ -87,13 +64,13 @@ export function ProjectTagsField({
     }
   }
 
-  const unusedSuggestions = sugg.filter(
+  const unusedSuggestions = suggestions.filter(
     (s) => !selectedKeys.has(s.toLowerCase())
   );
 
   return (
     <div className={cn(dense ? "space-y-1.5" : "space-y-2", className)}>
-      <input type="hidden" name={name} value={hiddenValue} />
+      <input type="hidden" name={name} value={tags.join(", ")} />
       <div
         className={cn(
           "flex min-h-9 flex-wrap items-center gap-1.5 rounded-xl border border-input bg-white/80 px-2 py-1.5 shadow-xs",
@@ -104,12 +81,7 @@ export function ProjectTagsField({
         {tags.map((tag) => (
           <span
             key={tag.toLowerCase()}
-            className={cn(
-              "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
-              isLoc
-                ? "bg-stone-800/90 text-white"
-                : "bg-stone-900 text-white"
-            )}
+            className="inline-flex items-center gap-0.5 rounded-full bg-stone-900 px-2 py-0.5 text-[11px] font-medium text-white"
           >
             {tag}
             <button
@@ -131,11 +103,9 @@ export function ProjectTagsField({
           onBlur={() => {
             if (draft.trim()) addTag(draft);
           }}
-          placeholder={tags.length ? (isLoc ? "Add place…" : "Add tag…") : ph}
+          placeholder={tags.length ? "Add tag…" : "Wedding, commercial…"}
           className="min-w-[7rem] flex-1 bg-transparent py-0.5 text-sm text-stone-800 outline-none placeholder:text-stone-400"
           autoComplete="off"
-          data-1p-ignore
-          data-lpignore="true"
         />
       </div>
       {unusedSuggestions.length ? (

@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { getCurrentWorkspace } from "@/actions/teams";
-import { formatLocations, parseLocations } from "@/lib/project-locations";
 import { parseProjectTags } from "@/lib/project-tags";
 import type { Project } from "@/types/database";
 
@@ -253,9 +252,7 @@ export async function createProject(
   const clientName = String(formData.get("client") ?? "").trim();
   const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
   const eventDateRaw = String(formData.get("event_date") ?? "").trim();
-  const location = formatLocations(
-    parseLocations(String(formData.get("location") ?? ""))
-  );
+  const location = String(formData.get("location") ?? "").trim();
   const tags = parseProjectTags(String(formData.get("tags") ?? ""));
   const eventDate = parseEventDate(eventDateRaw);
 
@@ -396,9 +393,7 @@ export async function updateProjectMemory(
   if (!projectId) return { error: "Missing project." };
 
   const eventDateRaw = String(formData.get("event_date") ?? "").trim();
-  const location = formatLocations(
-    parseLocations(String(formData.get("location") ?? ""))
-  );
+  const location = String(formData.get("location") ?? "").trim();
   const eventDate = parseEventDate(eventDateRaw);
 
   // Allow clearing date: empty string → null
@@ -461,9 +456,7 @@ export async function updateProjectSettings(
   const clientName = String(formData.get("client") ?? "").trim();
   const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
   const eventDateRaw = String(formData.get("event_date") ?? "").trim();
-  const location = formatLocations(
-    parseLocations(String(formData.get("location") ?? ""))
-  );
+  const location = String(formData.get("location") ?? "").trim();
   const tags = parseProjectTags(String(formData.get("tags") ?? ""));
   const eventDate = parseEventDate(eventDateRaw);
 

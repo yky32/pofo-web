@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseLocations } from "@/lib/project-locations";
 import type { ProjectStatus } from "@/types/database";
 import { cn } from "@/lib/utils";
 
@@ -138,14 +137,13 @@ export function ProjectSettingsPanel({
               />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label htmlFor="settings-location">Locations</Label>
-              <ProjectTagsField
+              <Label htmlFor="settings-location">Location(s)</Label>
+              <Input
                 id="settings-location"
                 name="location"
-                mode="locations"
-                defaultTags={parseLocations(location)}
-                placeholder="Hong Kong, church, hotel…"
-                hint="Where the job actually went — add multiple places"
+                defaultValue={location ?? ""}
+                placeholder="Hong Kong · The Peninsula"
+                className="rounded-xl"
               />
             </div>
           </div>
@@ -212,22 +210,9 @@ export function ProjectSettingsPanel({
             </dd>
           </div>
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
-            <dt className="text-stone-400">Locations</dt>
-            <dd className="max-w-[65%] text-right">
-              {parseLocations(location).length ? (
-                <span className="inline-flex flex-wrap justify-end gap-1">
-                  {parseLocations(location).map((loc) => (
-                    <span
-                      key={loc}
-                      className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700"
-                    >
-                      {loc}
-                    </span>
-                  ))}
-                </span>
-              ) : (
-                <span className="text-stone-800">—</span>
-              )}
+            <dt className="text-stone-400">Location(s)</dt>
+            <dd className="max-w-[60%] text-right text-stone-800">
+              {location?.trim() || "—"}
             </dd>
           </div>
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">

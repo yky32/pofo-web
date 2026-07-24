@@ -6,11 +6,10 @@ import {
   updateProjectMemory,
   type ProjectActionState,
 } from "@/actions/projects";
-import { ProjectTagsField } from "@/components/projects/project-tags-field";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { parseLocations } from "@/lib/project-locations";
 import { cn } from "@/lib/utils";
 
 const initial: ProjectActionState = {};
@@ -56,8 +55,7 @@ export function ProjectMemoryMeta({
   }, [state.success]);
 
   const dateLabel = formatEventDate(eventDate);
-  const locs = parseLocations(location);
-  const loc = locs.length ? locs.join(" · ") : null;
+  const loc = location?.trim() || null;
   const empty = !dateLabel && !loc;
   const onHero = variant === "hero";
 
@@ -159,20 +157,19 @@ export function ProjectMemoryMeta({
               onHero ? "text-white/70" : "text-stone-600"
             )}
           >
-            Locations
+            Location(s)
           </Label>
-          <ProjectTagsField
+          <Input
             id="location"
             name="location"
-            mode="locations"
-            defaultTags={locs}
-            hint=""
-            placeholder="Church, hotel, garden…"
-            chipClassName={
+            defaultValue={location ?? ""}
+            placeholder="Hong Kong · The Peninsula · Church…"
+            className={cn(
+              "h-9 rounded-lg text-sm",
               onHero
-                ? "border-white/20 bg-white/10 text-white"
-                : undefined
-            }
+                ? "border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                : "bg-white"
+            )}
           />
         </div>
       </div>
