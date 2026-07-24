@@ -527,3 +527,95 @@ export async function updateProjectSettings(
   revalidatePath("/dashboard");
   return { success: "Settings saved." };
 }
+
+const DELETE_PROJECT_CHUNK = 50;
+
+/**
+ * Bulk-delete projects (owner-only). Cascades DB rows; best-effort storage cleanup.
+ */
+export async function deleteProjects(input: {
+  projectIds: string[];
+}): Promise<ProjectActionState & { deleted?: number }> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const ids = [...new Set(input.projectIds.filter(Boolean))];
+  if (!ids.length) return { error: "No projects selected." };
+  if (ids.length > 50) {
+    return { error: "Delete at most 50 projects at a time." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: owned, error: fetchErr } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("owner_id", user.id)
+    .in("id", ids);
+
+  if (fetchErr) return { error: fetchErr.message };
+  const ownedIds = (owned ?? []).map((p) => p.id as string);
+  if (!ownedIds.length) return { error: "No matching projects." };
+
+  // Collect storage keys before cascade wipe
+  const { data: shots } = await supabase
+    .from("shots")
+    .select("storage_key, raw_key, preview_key, thumbnail_key")
+    .eq("owner_id", user.id)
+    .in("project_id", ownedIds);
+
+  const keySet = new Set<string>();
+  for (const s of shots ?? []) {
+    for (const k of [
+      s.storage_key,
+      (s as { raw_key?: string | null }).raw_key,
+      (s as { preview_key?: string | null }).preview_key,
+      (s as { thumbnail_key?: string | null }).thumbnail_key,
+    ]) {
+      const key = typeof k === "string" ? k.trim() : "";
+      if (key && !key.startsWith("http")) keySet.add(key);
+    }
+  }
+  const keys = [...keySet];
+  for (let i = 0; i < keys.length; i += DELETE_PROJECT_CHUNK) {
+    const slice = keys.slice(i, i + DELETE_PROJECT_CHUNK);
+    const { error: storErr } = await supabase.storage.from("shots").remove(slice);
+    if (storErr) {
+      console.error("deleteProjects storage", storErr.message);
+    }
+  }
+
+  let deleted = 0;
+  for (let i = 0; i < ownedIds.length; i += DELETE_PROJECT_CHUNK) {
+    const slice = ownedIds.slice(i, i + DELETE_PROJECT_CHUNK);
+    const { data: removed, error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("owner_id", user.id)
+      .in("id", slice)
+      .select("id");
+    if (error) {
+      return { error: error.message, deleted };
+    }
+    deleted += removed?.length ?? 0;
+  }
+
+  if (deleted === 0) {
+    return {
+      error: "Could not delete projects. Refresh and try again.",
+      deleted: 0,
+    };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/galleries");
+  return {
+    success: `Deleted ${deleted} project${deleted === 1 ? "" : "s"}.`,
+    deleted,
+  };
+}

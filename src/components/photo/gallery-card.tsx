@@ -9,10 +9,15 @@ export function GalleryCard({
   gallery,
   href,
   className,
+  onClick,
+  selected = false,
 }: {
   gallery: Gallery;
-  href: string;
+  /** When omitted (select mode), card is a button via onClick */
+  href?: string;
   className?: string;
+  onClick?: () => void;
+  selected?: boolean;
 }) {
   const cover =
     gallery.cover_url ||
@@ -24,14 +29,8 @@ export function GalleryCard({
       ? `${gallery.selection_count ?? 0}/${gallery.selection_limit}`
       : null;
 
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group block overflow-hidden rounded-[5px] bg-white/65 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.12)] ring-1 ring-white/80 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_16px_36px_-14px_rgba(28,25,23,0.16)]",
-        className
-      )}
-    >
+  const body = (
+    <>
       <div className="relative aspect-[5/4] overflow-hidden bg-stone-100">
         <PhotoImage
           src={cover}
@@ -73,6 +72,30 @@ export function GalleryCard({
           {gallery.description}
         </div>
       ) : null}
-    </Link>
+    </>
+  );
+
+  const shell = cn(
+    "group block overflow-hidden rounded-[5px] bg-white/65 shadow-[0_8px_28px_-14px_rgba(28,25,23,0.12)] ring-1 ring-white/80 backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:bg-white/80 hover:shadow-[0_16px_36px_-14px_rgba(28,25,23,0.16)]",
+    selected && "ring-2 ring-stone-900 ring-offset-2",
+    className
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={shell}>
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(shell, "w-full text-left")}
+    >
+      {body}
+    </button>
   );
 }

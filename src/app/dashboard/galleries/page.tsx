@@ -1,6 +1,6 @@
-import { GalleryCard } from "@/components/photo/gallery-card";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { ProjectTagFilter } from "@/components/projects/project-tag-filter";
+import { ProjectsLibrary } from "@/components/projects/projects-library";
 import { getDashboardProjects } from "@/lib/projects";
 import {
   collectUniqueTags,
@@ -73,15 +73,7 @@ export default async function GalleriesPage({
           </p>
         </div>
       ) : (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((project) => (
-            <GalleryCard
-              key={project.id}
-              gallery={project}
-              href={`/dashboard/galleries/${project.id}`}
-            />
-          ))}
-        </div>
+        <ProjectsLibrary projects={visible} demoMode={demoMode} />
       )}
     </div>
   );
