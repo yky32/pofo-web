@@ -48,7 +48,7 @@ export function CreateStudioForm({
       onSubmit={onSubmit}
       className={
         compact
-          ? "space-y-3 rounded-[8px] border border-stone-200/80 bg-white/60 p-4"
+          ? "space-y-3 rounded-xl border border-stone-200/80 bg-stone-50/60 p-4"
           : "space-y-4 rounded-[8px] border border-stone-200/80 bg-white/70 p-6"
       }
     >

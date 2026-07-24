@@ -15,10 +15,13 @@ export function ProfileForm({
   profile,
   appUrl,
   rootDomain,
+  dense = false,
 }: {
   profile: Profile;
   appUrl: string;
   rootDomain: string | null;
+  /** Inside a parent island — no outer paper shell */
+  dense?: boolean;
 }) {
   const [state, action, pending] = useActionState(updateProfile, initial);
   const slugPreview = profile.slug || "your-studio";
@@ -28,34 +31,39 @@ export function ProfileForm({
     : studioPublicBaseUrl(slugPreview, appUrl);
 
   return (
-    <form action={action} className="paper space-y-5 rounded-[5px] p-6">
-      <div className="space-y-2">
-        <Label htmlFor="studio" className="text-stone-700">
-          Studio name
-        </Label>
-        <Input
-          id="studio"
-          name="studio"
-          defaultValue={profile.studio_name ?? ""}
-          placeholder="Light & Frame Studio"
-          className="rounded-[5px] border-stone-300 bg-white"
-        />
+    <form
+      action={action}
+      className={dense ? "space-y-4" : "paper space-y-5 rounded-[5px] p-6"}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="studio" className="text-stone-700">
+            Studio name
+          </Label>
+          <Input
+            id="studio"
+            name="studio"
+            defaultValue={profile.studio_name ?? ""}
+            placeholder="Light & Frame Studio"
+            className="rounded-xl border-stone-300 bg-white"
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="display_name" className="text-stone-700">
+            Display name
+          </Label>
+          <Input
+            id="display_name"
+            name="display_name"
+            defaultValue={profile.display_name ?? ""}
+            placeholder="Wayne"
+            className="rounded-xl border-stone-300 bg-white"
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="display_name" className="text-stone-700">
-          Display name
-        </Label>
-        <Input
-          id="display_name"
-          name="display_name"
-          defaultValue={profile.display_name ?? ""}
-          placeholder="Wayne"
-          className="rounded-[5px] border-stone-300 bg-white"
-        />
-      </div>
-
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <Label htmlFor="slug" className="text-stone-700">
           Studio link
         </Label>
@@ -73,7 +81,7 @@ export function ProfileForm({
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="rounded-[5px] border-stone-300 bg-white font-mono text-sm"
+            className="rounded-xl border-stone-300 bg-white font-mono text-sm"
             aria-invalid={!!state.fields?.slug}
           />
           {rootDomain ? (
@@ -85,14 +93,16 @@ export function ProfileForm({
         {state.fields?.slug ? (
           <FieldMessage>{state.fields.slug}</FieldMessage>
         ) : (
-          <p className="text-xs text-stone-400">
+          <p className="text-xs leading-relaxed text-stone-400">
             Public URL:{" "}
-            <span className="font-mono text-stone-600">{publicUrl}</span>
+            <span className="break-all font-mono text-stone-600">
+              {publicUrl}
+            </span>
             {!rootDomain ? (
               <span className="mt-1 block text-stone-400">
                 Path-style until{" "}
                 <code className="text-stone-500">NEXT_PUBLIC_ROOT_DOMAIN</code>{" "}
-                is set (e.g. pofo.app). Local studio host:{" "}
+                is set. Local:{" "}
                 <code className="text-stone-500">
                   {slugPreview}.localhost:3002
                 </code>

@@ -48,9 +48,12 @@ function AppleMark({ className }: { className?: string }) {
 export function LinkedProvidersCard({
   identities,
   justLinked,
+  bare = false,
 }: {
   identities: LinkedIdentity[];
   justLinked?: boolean;
+  /** Inside a parent island — no outer card chrome / title */
+  bare?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -102,15 +105,17 @@ export function LinkedProvidersCard({
   }
 
   return (
-    <div className="paper space-y-4 rounded-[5px] p-6">
-      <div>
-        <h2 className="font-heading text-xl font-medium text-stone-900">
-          Sign-in methods
-        </h2>
-        <p className="mt-1 text-sm text-stone-500">
-          One studio account can use email, Google, and Apple (same person).
-        </p>
-      </div>
+    <div className={cn(bare ? "space-y-3" : "paper space-y-4 rounded-[5px] p-6")}>
+      {!bare ? (
+        <div>
+          <h2 className="font-heading text-xl font-medium text-stone-900">
+            Sign-in methods
+          </h2>
+          <p className="mt-1 text-sm text-stone-500">
+            One studio account can use email, Google, and Apple (same person).
+          </p>
+        </div>
+      ) : null}
 
       <ul className="space-y-2">
         {identities.map((identity) => (
