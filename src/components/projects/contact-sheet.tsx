@@ -388,16 +388,18 @@ export function ContactSheet({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-stone-500">
-          {items.length} photo{items.length === 1 ? "" : "s"}
-          {selectMode && count > 0 ? (
-            <span className="ml-1.5 font-medium text-stone-800">
-              · {count} selected
-            </span>
+        {/* Count lives above the tabs — this row is only context / selection */}
+        <p className="text-sm text-stone-400">
+          {selectMode ? (
+            count > 0 ? (
+              <span className="font-medium text-stone-800">
+                {count} selected
+              </span>
+            ) : (
+              <span>Select photos to download or delete</span>
+            )
           ) : (
-            <span className="ml-1.5 text-stone-400">
-              · tap a photo for studio mode
-            </span>
+            <span>Tap a photo for studio mode</span>
           )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
