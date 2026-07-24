@@ -20,6 +20,7 @@ export function ProjectTagsField({
   labelClassName,
   chipClassName,
   hint = "Job nature for filtering — wedding, commercial, custom…",
+  dense = false,
 }: {
   name?: string;
   id?: string;
@@ -28,7 +29,10 @@ export function ProjectTagsField({
   className?: string;
   labelClassName?: string;
   chipClassName?: string;
+  /** Empty string hides the hint line */
   hint?: string;
+  /** Tighter chips for dialogs */
+  dense?: boolean;
 }) {
   const [tags, setTags] = useState<string[]>(() =>
     parseProjectTags(defaultTags)
@@ -65,7 +69,7 @@ export function ProjectTagsField({
   );
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn(dense ? "space-y-1.5" : "space-y-2", className)}>
       <input type="hidden" name={name} value={tags.join(", ")} />
       <div
         className={cn(
@@ -105,14 +109,21 @@ export function ProjectTagsField({
         />
       </div>
       {unusedSuggestions.length ? (
-        <div className="flex flex-wrap gap-1">
+        <div
+          className={cn(
+            "flex gap-1",
+            dense
+              ? "flex-nowrap overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              : "flex-wrap"
+          )}
+        >
           {unusedSuggestions.map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => addTag(s)}
               className={cn(
-                "rounded-full border border-stone-200/90 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition",
+                "shrink-0 rounded-full border border-stone-200/90 bg-white px-2 py-0.5 text-[11px] text-stone-600 transition",
                 "hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900",
                 labelClassName
               )}
