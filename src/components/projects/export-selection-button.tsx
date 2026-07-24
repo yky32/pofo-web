@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  ChevronDown,
   Download,
   FileText,
   HardDrive,
@@ -174,11 +173,11 @@ export function ExportSelectionButton({
   const isBusy = busy !== null;
   const hasAny = allShots.length > 0;
 
-  const buttonLabel = isBusy
+  const title = isBusy
     ? progress
       ? `Zipping ${progress}`
-      : "Preparing…"
-    : "Download";
+      : "Preparing download…"
+    : "Download photos";
 
   return (
     <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -188,22 +187,19 @@ export function ExportSelectionButton({
           render={
             <Button
               type="button"
-              size="sm"
-              className="rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-full bg-stone-900 text-stone-50 shadow-sm hover:bg-stone-800"
               disabled={!hasAny || isBusy}
-              title="Download photos as ZIP"
+              title={title}
+              aria-label={title}
             />
           }
         >
           {isBusy ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="h-4 w-4" strokeWidth={1.75} />
           )}
-          {buttonLabel}
-          {!isBusy ? (
-            <ChevronDown className="ml-1.5 h-3.5 w-3.5 opacity-70" />
-          ) : null}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[17rem]">
           <DropdownMenuItem
