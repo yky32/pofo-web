@@ -9,7 +9,6 @@ import {
   type DashboardUser,
 } from "@/components/dashboard-user-menu";
 import { Logo } from "@/components/brand/logo";
-import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Team, WorkspaceContext } from "@/types/database";
@@ -94,22 +93,18 @@ export function DashboardShell({
               </p>
             ) : null}
 
-            {!demoMode && user ? (
-              <WorkspaceSwitcher
-                workspace={workspace}
-                teams={teams}
-                collapsed={collapsed}
-              />
-            ) : null}
-
-            {/* Avatar + collapse toggle side by side */}
+            {/* Avatar (workspace lives in account menu) + collapse */}
             <div
               className={cn(
                 "flex items-center gap-2",
                 collapsed ? "flex-col gap-2" : "justify-between"
               )}
             >
-              <DashboardUserMenu user={user} />
+              <DashboardUserMenu
+                user={user}
+                workspace={workspace}
+                teams={teams}
+              />
               <button
                 type="button"
                 onClick={toggle}
@@ -138,7 +133,11 @@ export function DashboardShell({
               <Logo />
             </Link>
             <div className="flex items-center gap-2">
-              <DashboardUserMenu user={user} />
+              <DashboardUserMenu
+                user={user}
+                workspace={workspace}
+                teams={teams}
+              />
               <Button size="sm" variant="outline" className="rounded-full" asChild>
                 <Link href="/dashboard/galleries">Projects</Link>
               </Button>

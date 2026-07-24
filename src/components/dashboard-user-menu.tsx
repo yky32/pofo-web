@@ -1,10 +1,23 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { CreditCard, ExternalLink, LogOut, Mail, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Building2,
+  Check,
+  CreditCard,
+  ExternalLink,
+  LogOut,
+  Mail,
+  Plus,
+  Settings,
+  Sparkles,
+  User,
+} from "lucide-react";
 import { signOut } from "@/actions/auth";
+import { setCurrentWorkspace } from "@/actions/teams";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   providerLabel,
@@ -13,6 +26,7 @@ import {
 import type { PlanId } from "@/lib/plans";
 import { planOf } from "@/lib/plans";
 import { cn } from "@/lib/utils";
+import type { Team, WorkspaceContext } from "@/types/database";
 
 export type DashboardUser = {
   email?: string | null;
@@ -100,18 +114,29 @@ function ProviderBadge({
   );
 }
 
+const itemClass = cn(
+  "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
+  "hover:bg-stone-900/5 hover:text-stone-950 disabled:opacity-50"
+);
+
 export function DashboardUserMenu({
   user,
+  workspace = { kind: "personal" },
+  teams = [],
 }: {
   user: DashboardUser | null;
+  workspace?: WorkspaceContext;
+  teams?: Team[];
   /** @deprecated always icon-only */
   collapsed?: boolean;
 }) {
+  const router = useRouter();
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [pending, startTransition] = useTransition();
   const [pos, setPos] = useState<{ bottom: number; left: number } | null>(
     null
   );
@@ -127,7 +152,7 @@ export function DashboardUserMenu({
       const r = el.getBoundingClientRect();
       setPos({
         bottom: Math.max(8, window.innerHeight - r.top + 6),
-        left: Math.max(8, r.left),
+        left: Math.max(8, Math.min(r.left, window.innerWidth - 200)),
       });
     }
 
@@ -161,6 +186,23 @@ export function DashboardUserMenu({
     user?.displayName?.trim() ||
     user?.email?.trim() ||
     "Account";
+
+  const youLabel =
+    user?.displayName?.trim().split(/\s+/)[0] ||
+    user?.email?.trim().split("@")[0] ||
+    "You";
+
+  function switchWorkspace(kind: "personal" | "team", teamId?: string) {
+    setOpen(false);
+    startTransition(async () => {
+      if (kind === "personal") {
+        await setCurrentWorkspace({ kind: "personal" });
+      } else if (teamId) {
+        await setCurrentWorkspace({ kind: "team", teamId });
+      }
+      router.refresh();
+    });
+  }
 
   return (
     <>
@@ -210,7 +252,7 @@ export function DashboardUserMenu({
                 aria-label="Account"
                 style={{ bottom: pos.bottom, left: pos.left }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] w-[min(11.5rem,calc(100vw-1rem))] overflow-hidden rounded-xl py-0.5",
+                  "dialog-glass-panel fixed z-[201] w-[min(13.5rem,calc(100vw-1rem))] overflow-hidden rounded-xl py-0.5",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
@@ -232,19 +274,94 @@ export function DashboardUserMenu({
                       <span className="font-medium text-stone-800">
                         {planOf(user.plan).name}
                       </span>
+                      {workspace.kind === "team" && workspace.teamName ? (
+                        <>
+                          {" · "}
+                          <span className="font-medium text-stone-800">
+                            {workspace.teamName}
+                          </span>
+                        </>
+                      ) : null}
                     </p>
                   </div>
                 )}
+
+                {/* Workspace — quiet, only full list when studios exist */}
+                <div className="border-b border-stone-900/5 p-0.5">
+                  <p className="px-2 pb-0.5 pt-1 text-[9px] font-medium uppercase tracking-[0.14em] text-stone-400">
+                    Workspace
+                  </p>
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={workspace.kind === "personal"}
+                    disabled={pending}
+                    onClick={() => switchWorkspace("personal")}
+                    className={itemClass}
+                  >
+                    <User
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {youLabel}
+                      <span className="ml-1 font-normal text-stone-400">
+                        personal
+                      </span>
+                    </span>
+                    {workspace.kind === "personal" ? (
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-stone-900"
+                        strokeWidth={2}
+                      />
+                    ) : null}
+                  </button>
+                  {teams.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={
+                        workspace.kind === "team" && workspace.teamId === t.id
+                      }
+                      disabled={pending}
+                      onClick={() => switchWorkspace("team", t.id)}
+                      className={itemClass}
+                    >
+                      <Building2
+                        className="h-3.5 w-3.5 shrink-0 opacity-70"
+                        strokeWidth={1.75}
+                      />
+                      <span className="min-w-0 flex-1 truncate">{t.name}</span>
+                      {workspace.kind === "team" &&
+                      workspace.teamId === t.id ? (
+                        <Check
+                          className="h-3.5 w-3.5 shrink-0 text-stone-900"
+                          strokeWidth={2}
+                        />
+                      ) : null}
+                    </button>
+                  ))}
+                  <Link
+                    href="/dashboard/settings"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className={itemClass}
+                  >
+                    <Plus
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
+                      strokeWidth={1.75}
+                    />
+                    New studio…
+                  </Link>
+                </div>
 
                 <div className="p-0.5">
                   <Link
                     href="/dashboard/settings/billing"
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
-                      "hover:bg-stone-900/5 hover:text-stone-950"
-                    )}
+                    className={itemClass}
                   >
                     <Sparkles
                       className="h-3.5 w-3.5 shrink-0 opacity-70"
@@ -256,10 +373,7 @@ export function DashboardUserMenu({
                     href="/dashboard/settings/billing"
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
-                      "hover:bg-stone-900/5 hover:text-stone-950"
-                    )}
+                    className={itemClass}
                   >
                     <CreditCard
                       className="h-3.5 w-3.5 shrink-0 opacity-70"
@@ -268,13 +382,22 @@ export function DashboardUserMenu({
                     Plan & billing
                   </Link>
                   <Link
+                    href="/dashboard/settings"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className={itemClass}
+                  >
+                    <Settings
+                      className="h-3.5 w-3.5 shrink-0 opacity-70"
+                      strokeWidth={1.75}
+                    />
+                    Settings
+                  </Link>
+                  <Link
                     href="/"
                     role="menuitem"
                     onClick={() => setOpen(false)}
-                    className={cn(
-                      "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
-                      "hover:bg-stone-900/5 hover:text-stone-950"
-                    )}
+                    className={itemClass}
                   >
                     <ExternalLink
                       className="h-3.5 w-3.5 shrink-0 opacity-70"
@@ -284,14 +407,7 @@ export function DashboardUserMenu({
                   </Link>
 
                   <form action={signOut}>
-                    <button
-                      type="submit"
-                      role="menuitem"
-                      className={cn(
-                        "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs text-stone-700 transition",
-                        "hover:bg-stone-900/5 hover:text-stone-950"
-                      )}
-                    >
+                    <button type="submit" role="menuitem" className={itemClass}>
                       <LogOut
                         className="h-3.5 w-3.5 shrink-0 opacity-70"
                         strokeWidth={1.75}
