@@ -40,7 +40,7 @@ export function SignupForm() {
       </p>
 
       <div className="mt-8 space-y-6">
-        {/* Intent: icon-only pill toggle — personal vs studio */}
+        {/* Intent pill: Personal | Team */}
         <div
           className="mx-auto flex w-fit items-center gap-0.5 rounded-full border border-stone-200 bg-stone-100/80 p-1"
           role="group"
@@ -49,34 +49,32 @@ export function SignupForm() {
           <button
             type="button"
             onClick={() => setIntent("personal")}
-            aria-label="Personal photographer"
             aria-pressed={intent === "personal"}
-            title="Personal"
             className={cn(
-              "flex h-10 w-12 items-center justify-center rounded-full transition",
+              "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               intent === "personal"
                 ? "bg-stone-900 text-white shadow-sm"
                 : "text-stone-500 hover:text-stone-800"
             )}
           >
-            <User className="h-4 w-4" strokeWidth={1.75} />
+            <User className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+            Personal
           </button>
           <button
             type="button"
             onClick={() => setIntent("team")}
-            aria-label="Studio company"
             aria-pressed={intent === "team"}
-            title="Studio company"
             className={cn(
-              "flex h-10 w-12 items-center justify-center rounded-full transition",
+              "inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-xs font-medium transition",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
               intent === "team"
                 ? "bg-stone-900 text-white shadow-sm"
                 : "text-stone-500 hover:text-stone-800"
             )}
           >
-            <Building2 className="h-4 w-4" strokeWidth={1.75} />
+            <Building2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+            Team
           </button>
         </div>
 
