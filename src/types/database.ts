@@ -79,6 +79,16 @@ export interface Project {
   title: string;
   client_name: string | null;
   description: string | null;
+  /**
+   * When the shoot/event happened (calendar date).
+   * Separate from created_at — for Memories timeline / filter.
+   */
+  event_date?: string | null;
+  /**
+   * Where it happened. Free text; multiple places ok
+   * e.g. "Hong Kong · The Peninsula · Church of St. John"
+   */
+  location?: string | null;
   status: ProjectStatus;
   selection_limit: number;
   created_at: string;

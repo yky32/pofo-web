@@ -58,6 +58,29 @@ export function CreateProjectForm({
           className="rounded-xl bg-white/80"
         />
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="event_date">Event date</Label>
+          <Input
+            id="event_date"
+            name="event_date"
+            type="date"
+            className="rounded-xl bg-white/80"
+          />
+          <p className="text-[11px] text-stone-400">
+            When the shoot happened (for Memories)
+          </p>
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="location">Location(s)</Label>
+          <Input
+            id="location"
+            name="location"
+            placeholder="Hong Kong · The Peninsula"
+            className="rounded-xl bg-white/80"
+          />
+        </div>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="limit">Proofing limit</Label>
         <Input

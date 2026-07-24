@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { contactSheet } from "@/lib/photos";
-import { withDisplayUrls } from "@/lib/storage";
+import { signReadUrls, withDisplayUrls } from "@/lib/storage";
 import type { Shot } from "@/types/database";
 
 export type ShotActionState = {
@@ -69,6 +69,186 @@ export async function countProjectSelections(
 }
 
 export type SelectedShot = ShotWithDisplay & { selected_at: string };
+
+export type PhotographerDownloadKind =
+  | "preview"
+  | "originals"
+  | "raw"
+  | "originals_and_raw";
+
+/**
+ * Mint short-lived download URLs for the photographer (owner).
+ * - preview: web display (current ZIP behavior)
+ * - originals: primary JPEG/storage_key (skips pure RAW keys when paired JPEG exists)
+ * - raw: raw_key or storage_key when kind=raw
+ * - originals_and_raw: both when present
+ */
+export async function getPhotographerDownloadFiles(input: {
+  projectId: string;
+  /** If empty/omitted → all project shots */
+  shotIds?: string[];
+  kind: PhotographerDownloadKind;
+}): Promise<{ files: { filename: string; url: string }[]; error?: string }> {
+  if (!isSupabaseConfigured()) {
+    return { files: [], error: "Supabase is not configured." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { files: [], error: "You must be logged in." };
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("id")
+    .eq("id", input.projectId)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+  if (!project) return { files: [], error: "Project not found." };
+
+  let q = supabase
+    .from("shots")
+    .select(
+      "id, filename, storage_key, raw_key, preview_key, thumbnail_key, preview_url, mime_type, kind"
+    )
+    .eq("project_id", input.projectId)
+    .eq("owner_id", user.id)
+    .order("sort_order", { ascending: true });
+
+  if (input.shotIds?.length) {
+    q = q.in("id", input.shotIds);
+  }
+
+  const { data: rows, error } = await q;
+  if (error) return { files: [], error: error.message };
+  if (!rows?.length) return { files: [], error: "No photos to download." };
+
+  type Row = {
+    id: string;
+    filename: string | null;
+    storage_key: string | null;
+    raw_key?: string | null;
+    preview_key?: string | null;
+    thumbnail_key?: string | null;
+    preview_url?: string | null;
+    mime_type?: string | null;
+    kind?: string | null;
+  };
+
+  const shots = rows as Row[];
+  const keys: string[] = [];
+
+  function collectKeys(s: Row) {
+    if (input.kind === "preview") {
+      const k =
+        s.preview_key?.trim() ||
+        s.thumbnail_key?.trim() ||
+        (s.kind !== "raw" ? s.storage_key?.trim() : null);
+      if (k) keys.push(k);
+      return;
+    }
+    if (input.kind === "originals" || input.kind === "originals_and_raw") {
+      const sk = s.storage_key?.trim();
+      if (sk && s.kind !== "raw") keys.push(sk);
+      // raw-only shot: storage_key is the RAW — skip for "originals" (JPEG-only)
+    }
+    if (input.kind === "raw" || input.kind === "originals_and_raw") {
+      const rk = s.raw_key?.trim();
+      if (rk) keys.push(rk);
+      else if (s.kind === "raw" && s.storage_key?.trim()) {
+        keys.push(s.storage_key.trim());
+      }
+    }
+  }
+
+  for (const s of shots) collectKeys(s);
+
+  // Also sign display fallbacks for preview mode via withDisplayUrls
+  if (input.kind === "preview") {
+    const withUrls = await withDisplayUrls(supabase, shots as Shot[]);
+    const files = withUrls
+      .map((s, i) => {
+        const url = s.display_url || s.thumb_url;
+        if (!url) return null;
+        return {
+          filename: s.filename ?? `photo-${i + 1}.jpg`,
+          url,
+        };
+      })
+      .filter((f): f is { filename: string; url: string } => Boolean(f));
+    if (!files.length) {
+      return { files: [], error: "No preview URLs available. Refresh and try again." };
+    }
+    return { files };
+  }
+
+  const signed = await signReadUrls(supabase, keys, 60 * 30); // 30 min for zip
+
+  const files: { filename: string; url: string }[] = [];
+  const used = new Set<string>();
+
+  function pushFile(filename: string, url: string) {
+    const name = filename || "file";
+    let final = name;
+    let n = 1;
+    while (used.has(final.toLowerCase())) {
+      const dot = name.lastIndexOf(".");
+      final =
+        dot > 0
+          ? `${name.slice(0, dot)}_${n}${name.slice(dot)}`
+          : `${name}_${n}`;
+      n += 1;
+    }
+    used.add(final.toLowerCase());
+    files.push({ filename: final, url });
+  }
+
+  for (const s of shots) {
+    const base =
+      (s.filename || "photo").replace(/\.[^.]+$/, "") || s.id.slice(0, 8);
+
+    if (input.kind === "originals" || input.kind === "originals_and_raw") {
+      const sk = s.storage_key?.trim();
+      if (sk && s.kind !== "raw" && signed.has(sk)) {
+        pushFile(s.filename || `${base}.jpg`, signed.get(sk)!);
+      }
+    }
+
+    if (input.kind === "raw" || input.kind === "originals_and_raw") {
+      const rk = s.raw_key?.trim();
+      if (rk && signed.has(rk)) {
+        const rawName =
+          s.filename && /\.(cr2|cr3|nef|arw|dng|raf|orf|rw2|pef|srw)$/i.test(s.filename)
+            ? s.filename
+            : `${base}${extFromKey(rk)}`;
+        pushFile(rawName, signed.get(rk)!);
+      } else if (s.kind === "raw" && s.storage_key?.trim() && signed.has(s.storage_key.trim())) {
+        pushFile(
+          s.filename || `${base}${extFromKey(s.storage_key)}`,
+          signed.get(s.storage_key.trim())!
+        );
+      }
+    }
+  }
+
+  if (!files.length) {
+    return {
+      files: [],
+      error:
+        input.kind === "raw"
+          ? "No RAW files in this set yet. Upload paired JPEG+RAW or RAW-only shots."
+          : "No original files available to download.",
+    };
+  }
+
+  return { files };
+}
+
+function extFromKey(key: string): string {
+  const m = key.match(/(\.[a-z0-9]{2,5})$/i);
+  return m?.[1] ?? ".raw";
+}
 
 /** Client proofing picks for photographer review. */
 export async function listSelectedShots(

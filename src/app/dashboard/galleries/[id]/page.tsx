@@ -15,6 +15,7 @@ import { ContactSheet } from "@/components/projects/contact-sheet";
 import { DeliveryStepper } from "@/components/projects/delivery-stepper";
 import { ExportSelectionButton } from "@/components/projects/export-selection-button";
 import { PhotoUpload } from "@/components/projects/photo-upload";
+import { ProjectMemoryMeta } from "@/components/projects/project-memory-meta";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
 import { PublishToPortfolioButton } from "@/components/projects/publish-to-portfolio-button";
 import { SeedPhotosButton } from "@/components/projects/seed-photos-button";
@@ -155,6 +156,14 @@ export default async function GalleryDetailPage({
                   .join(" · ")}
               </p>
             )}
+            {!isDemo ? (
+              <ProjectMemoryMeta
+                projectId={gallery.id}
+                eventDate={gallery.event_date}
+                location={gallery.location}
+                variant="hero"
+              />
+            ) : null}
           </div>
         </div>
       </section>
@@ -183,6 +192,7 @@ export default async function GalleryDetailPage({
                 hasPhotos={hasPhotos}
               />
               <ExportSelectionButton
+                projectId={gallery.id}
                 projectTitle={gallery.title}
                 allShots={shots}
                 proofedShots={selectedShots}
@@ -294,6 +304,7 @@ export default async function GalleryDetailPage({
                       shotIds={selectedShots.map((s) => s.id)}
                     />
                     <ExportSelectionButton
+                      projectId={gallery.id}
                       projectTitle={gallery.title}
                       allShots={shots}
                       proofedShots={selectedShots}

@@ -18,8 +18,8 @@ export async function downloadPhotosZip(
   projectTitle: string,
   files: ZipFileItem[],
   options?: {
-    /** Folder + zip name suffix, e.g. "full" or "proofing" */
-    kind?: "full" | "proofing";
+    /** Folder + zip name suffix, e.g. "full" or "proofing" or "raw" */
+    kind?: string;
     onProgress?: (done: number, total: number) => void;
   }
 ): Promise<void> {
@@ -27,7 +27,7 @@ export async function downloadPhotosZip(
 
   const kind = options?.kind ?? "proofing";
   const onProgress = options?.onProgress;
-  const label = kind === "full" ? "full" : "proofing";
+  const label = kind.replace(/[^\w.-]+/g, "-") || "download";
 
   const zip = new JSZip();
   const folder = zip.folder(
@@ -41,8 +41,9 @@ export async function downloadPhotosZip(
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i];
-    let name = safeName(f.filename, `photo-${i + 1}.jpg`);
-    if (!/\.(jpe?g|png|webp|heic|heif)$/i.test(name)) {
+    // Keep original extension for RAW (cr2/nef/arw/…); default .jpg only if none
+    let name = safeName(f.filename, `photo-${i + 1}`);
+    if (!/\.[a-z0-9]{2,5}$/i.test(name)) {
       name = `${name}.jpg`;
     }
     let final = name;

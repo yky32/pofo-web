@@ -10,6 +10,7 @@ import type { Project } from "@/types/database";
 
 export type ProjectActionState = {
   error?: string;
+  success?: string;
 };
 
 export async function listProjects(): Promise<Project[]> {
@@ -249,6 +250,9 @@ export async function createProject(
   const title = String(formData.get("title") ?? "").trim();
   const clientName = String(formData.get("client") ?? "").trim();
   const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
+  const eventDateRaw = String(formData.get("event_date") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const eventDate = parseEventDate(eventDateRaw);
 
   if (!title) {
     return { error: "Title is required." };
@@ -287,6 +291,8 @@ export async function createProject(
     client_name: clientName || null,
     selection_limit: Math.min(200, Math.max(1, selectionLimit)),
     status: "draft",
+    ...(eventDate ? { event_date: eventDate } : {}),
+    ...(location ? { location } : {}),
   };
 
   if (workspace.kind === "team") {
@@ -343,4 +349,73 @@ export async function createProject(
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/galleries");
   redirect(`/dashboard/galleries/${project.id}`);
+}
+
+/** YYYY-MM-DD only; empty → null */
+function parseEventDate(raw: string): string | null {
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const d = new Date(`${raw}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  return raw;
+}
+
+/**
+ * Update when/where the job happened — Memories metadata.
+ */
+export async function updateProjectMemory(
+  _prev: ProjectActionState,
+  formData: FormData
+): Promise<ProjectActionState> {
+  if (!isSupabaseConfigured()) {
+    return { error: "Supabase is not configured." };
+  }
+
+  const projectId = String(formData.get("project_id") ?? "").trim();
+  if (!projectId) return { error: "Missing project." };
+
+  const eventDateRaw = String(formData.get("event_date") ?? "").trim();
+  const location = String(formData.get("location") ?? "").trim();
+  const eventDate = parseEventDate(eventDateRaw);
+
+  // Allow clearing date: empty string → null
+  if (eventDateRaw && !eventDate) {
+    return { error: "Use a valid date." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const patch: Record<string, string | null> = {
+    event_date: eventDate,
+    location: location || null,
+  };
+
+  const { error } = await supabase
+    .from("projects")
+    .update(patch)
+    .eq("id", projectId)
+    .eq("owner_id", user.id);
+
+  if (
+    error &&
+    (error.message.includes("event_date") ||
+      error.message.includes("location") ||
+      error.code === "42703")
+  ) {
+    return {
+      error:
+        "Memory fields missing. Run supabase/features-project-memory.sql in the SQL Editor.",
+    };
+  }
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/galleries/${projectId}`);
+  revalidatePath("/dashboard/galleries");
+  revalidatePath("/dashboard");
+  return { success: "Saved event details." };
 }
