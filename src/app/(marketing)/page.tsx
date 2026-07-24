@@ -107,7 +107,7 @@ export default function HomePage() {
                 asChild
               >
                 <Link href="/signup">
-                  Let's Go
+                  Let&apos;s Go
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </Link>
               </Button>

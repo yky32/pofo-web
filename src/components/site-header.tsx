@@ -33,7 +33,7 @@ export function SiteHeader() {
             className="rounded-full bg-stone-900 px-5 text-stone-50 hover:bg-stone-800"
             asChild
           >
-            <Link href="/signup">Let's Go</Link>
+            <Link href="/signup">Let&apos;s Go</Link>
           </Button>
         </div>
       </div>
