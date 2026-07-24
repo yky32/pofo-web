@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { signUp, type AuthState } from "@/actions/auth";
 import { EmailField } from "@/components/auth/email-field";
@@ -13,11 +13,17 @@ import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const initial: AuthState = {};
 
+type Intent = "personal" | "team";
+
 export function SignupForm() {
   const [state, action, pending] = useActionState(signUp, initial);
+  const [intent, setIntent] = useState<Intent>("personal");
+  const [teamName, setTeamName] = useState("");
+  const [teamSlug, setTeamSlug] = useState("");
 
   const passwordError = state.fields?.password;
 
@@ -27,28 +33,139 @@ export function SignupForm() {
         Early access
       </p>
       <h1 className="mt-2 font-heading text-3xl font-medium text-stone-900">
-        Create your studio
+        Create your account
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        Start delivering projects in minutes.
+        One login for personal jobs and studio companies.
       </p>
 
       <div className="mt-8 space-y-6">
-        <SocialAuthButtons next="/dashboard" layout="primary" />
+        <SocialAuthButtons
+          next={
+            intent === "team"
+              ? "/dashboard/onboarding/studio"
+              : "/dashboard"
+          }
+          layout="primary"
+        />
 
         <form action={action} noValidate className="space-y-4">
+          <input type="hidden" name="account_intent" value={intent} />
+
+          {/* Account intent */}
           <div className="space-y-2">
-            <Label htmlFor="studio" className="text-stone-700">
-              Studio name
-            </Label>
-            <Input
-              id="studio"
-              name="studio"
-              placeholder="Light & Frame Studio"
-              className="rounded-xl"
-            />
-            <FieldMessage tone="muted">Optional</FieldMessage>
+            <p className="text-sm font-medium text-stone-700">I am…</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIntent("personal")}
+                className={cn(
+                  "rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                  intent === "personal"
+                    ? "border-stone-900 bg-stone-900 text-white"
+                    : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+                )}
+              >
+                <span className="block font-semibold">Photographer</span>
+                <span
+                  className={cn(
+                    "mt-0.5 block",
+                    intent === "personal" ? "text-white/70" : "text-stone-400"
+                  )}
+                >
+                  Personal workspace
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntent("team")}
+                className={cn(
+                  "rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                  intent === "team"
+                    ? "border-stone-900 bg-stone-900 text-white"
+                    : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+                )}
+              >
+                <span className="block font-semibold">Studio company</span>
+                <span
+                  className={cn(
+                    "mt-0.5 block",
+                    intent === "team" ? "text-white/70" : "text-stone-400"
+                  )}
+                >
+                  Team workspace
+                </span>
+              </button>
+            </div>
           </div>
+
+          {intent === "personal" ? (
+            <div className="space-y-2">
+              <Label htmlFor="studio" className="text-stone-700">
+                Studio name
+              </Label>
+              <Input
+                id="studio"
+                name="studio"
+                placeholder="Light & Frame Studio"
+                className="rounded-xl"
+              />
+              <FieldMessage tone="muted">Optional personal brand</FieldMessage>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="team_name" className="text-stone-700">
+                  Company / studio name
+                </Label>
+                <Input
+                  id="team_name"
+                  name="team_name"
+                  value={teamName}
+                  onChange={(e) => {
+                    setTeamName(e.target.value);
+                    if (!teamSlug || teamSlug === slugifyLocal(teamName)) {
+                      setTeamSlug(slugifyLocal(e.target.value));
+                    }
+                  }}
+                  placeholder="Northlight Collective"
+                  required
+                  className="rounded-xl"
+                  aria-invalid={!!state.fields?.team_name}
+                />
+                {state.fields?.team_name ? (
+                  <FieldMessage>{state.fields.team_name}</FieldMessage>
+                ) : (
+                  <FieldMessage tone="muted">Required for team</FieldMessage>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="team_slug" className="text-stone-700">
+                  Studio link
+                </Label>
+                <Input
+                  id="team_slug"
+                  name="team_slug"
+                  value={teamSlug}
+                  onChange={(e) =>
+                    setTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                  }
+                  placeholder="northlight"
+                  className="rounded-xl font-mono text-sm"
+                  aria-invalid={!!state.fields?.team_slug}
+                />
+                {state.fields?.team_slug ? (
+                  <FieldMessage>{state.fields.team_slug}</FieldMessage>
+                ) : (
+                  <FieldMessage tone="muted">
+                    Public brand for the company (you keep a personal brand too)
+                  </FieldMessage>
+                )}
+              </div>
+              {/* Also store as studio for profile brand seed */}
+              <input type="hidden" name="studio" value={teamName} />
+            </>
+          )}
 
           <EmailField serverError={state.fields?.email} />
 
@@ -87,7 +204,11 @@ export function SignupForm() {
             disabled={pending}
             className="w-full rounded-full bg-stone-900 text-stone-50 hover:bg-stone-800"
           >
-            {pending ? "Creating…" : "Create account"}
+            {pending
+              ? "Creating…"
+              : intent === "team"
+                ? "Create studio account"
+                : "Create account"}
           </Button>
         </form>
       </div>
@@ -103,4 +224,13 @@ export function SignupForm() {
       </p>
     </div>
   );
+}
+
+function slugifyLocal(input: string) {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
 }

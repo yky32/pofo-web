@@ -9,8 +9,10 @@ import {
   type DashboardUser,
 } from "@/components/dashboard-user-menu";
 import { Logo } from "@/components/brand/logo";
+import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { Team, WorkspaceContext } from "@/types/database";
 
 const STORAGE_KEY = "pofo-sidebar-collapsed";
 
@@ -18,10 +20,14 @@ export function DashboardShell({
   children,
   demoMode,
   user,
+  workspace = { kind: "personal" },
+  teams = [],
 }: {
   children: React.ReactNode;
   demoMode: boolean;
   user: DashboardUser | null;
+  workspace?: WorkspaceContext;
+  teams?: Team[];
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [ready, setReady] = useState(false);
@@ -86,6 +92,14 @@ export function DashboardShell({
                 Demo mode — add Supabase keys (see{" "}
                 <code className="text-[10px]">supabase/SETUP.md</code>).
               </p>
+            ) : null}
+
+            {!demoMode && user ? (
+              <WorkspaceSwitcher
+                workspace={workspace}
+                teams={teams}
+                collapsed={collapsed}
+              />
             ) : null}
 
             {/* Avatar + collapse toggle side by side */}

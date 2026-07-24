@@ -654,11 +654,37 @@ One real 500+ mixed JPEG/RAW wedding · mobile client proof · download fails af
 
 ---
 
+## 15b. Account opening / workspaces (foundation)
+
+**One login, multiple workspaces** — personal (default) + optional studio team(s).
+
+| Piece | Status |
+|-------|--------|
+| Personal signup (default) | ✅ unchanged |
+| Team signup intent + create team | ✅ foundation |
+| `teams` / `team_members` + `projects.owner_type` | ✅ SQL `features-teams.sql` |
+| Workspace switcher (sidebar) | ✅ minimal |
+| Settings → create studio | ✅ |
+| Project create uses current workspace | ✅ |
+| Full invite/accept UI | ❌ later |
+| Move personal project → team | ❌ later |
+
+**Semantics**
+
+- `owner_type=user` → `owner_id` = `profiles.id` (all existing rows)
+- `owner_type=team` → `owner_id` = `teams.id`
+- Personal projects never visible in a team workspace and vice versa
+- `profiles.slug` = personal brand; `teams.slug` = company brand
+
+Apply: `supabase/features-teams.sql`
+
+---
+
 ## 16. Roadmap beyond MVP2
 
 | Phase | Focus |
 |-------|--------|
-| **Team** | `teams`, membership, shared projects |
+| **Team** | Invites, roles UI, shared projects polish |
 | **Public brand** | Custom domain, OG images, SEO portfolio |
 | **Smart assist** | Optional AI tags / face clusters — never block delivery |
 | **Billing** | Free tier limits; Pro storage / seats |
@@ -784,8 +810,9 @@ When product decisions change, **update PRODUCT.md first**, then implement.
 4. `supabase/share-gate.sql`  
 5. `supabase/features-p1-p2.sql`  
 6. `supabase/features-p3.sql`  
-7. Optional: `supabase/slug.sql`  
-8. **MVP2:** new RAW/preview migration (to be added)
+7. `supabase/features-teams.sql` (workspaces / teams)  
+8. Optional: `supabase/slug.sql`  
+9. **MVP2:** new RAW/preview migration (to be added)
 
 Vercel must include `SUPABASE_SERVICE_ROLE_KEY` for private client images.
 

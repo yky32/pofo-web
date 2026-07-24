@@ -13,6 +13,9 @@ export type AuthFields = {
   email?: string;
   password?: string;
   studio?: string;
+  team_name?: string;
+  team_slug?: string;
+  account_intent?: string;
 };
 
 export type AuthState = {
@@ -34,9 +37,16 @@ export async function signUp(
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const accountIntent =
+    String(formData.get("account_intent") ?? "personal").trim() === "team"
+      ? "team"
+      : "personal";
   const studioName = String(formData.get("studio") ?? "").trim();
+  const teamName = String(formData.get("team_name") ?? "").trim();
+  const teamSlugRaw = String(formData.get("team_slug") ?? "").trim().toLowerCase();
   const displayName =
     String(formData.get("display_name") ?? "").trim() ||
+    teamName ||
     studioName ||
     email.split("@")[0];
 
@@ -47,11 +57,27 @@ export async function signUp(
   else if (password.length < 6)
     fields.password = "Use at least 6 characters";
 
-  if (fields.email || fields.password) {
+  if (accountIntent === "team") {
+    if (!teamName || teamName.length < 2) {
+      fields.team_name = "Studio company name is required";
+    }
+    const slugCheck = teamSlugRaw || preferredSlug(teamName || studioName, email);
+    // Validate slug shape via preferred path
+    if (slugCheck.length < 3) {
+      fields.team_slug = "Studio link needs at least 3 characters";
+    }
+  }
+
+  if (Object.keys(fields).length) {
     return { fields };
   }
 
-  const slug = preferredSlug(studioName || null, email);
+  const personalBrand = studioName || teamName || null;
+  const slug = preferredSlug(personalBrand, email);
+  const teamSlug =
+    accountIntent === "team"
+      ? teamSlugRaw || preferredSlug(teamName, email)
+      : null;
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
@@ -60,8 +86,11 @@ export async function signUp(
     options: {
       data: {
         display_name: displayName,
-        studio_name: studioName || null,
+        studio_name: personalBrand,
         slug,
+        account_intent: accountIntent,
+        team_name: accountIntent === "team" ? teamName : null,
+        team_slug: teamSlug,
       },
     },
   });
@@ -77,6 +106,12 @@ export async function signUp(
   } = await supabase.auth.getUser();
 
   if (user) {
+    if (accountIntent === "team") {
+      // Create team after profile trigger (non-blocking if SQL missing)
+      const { ensureTeamFromSignupMetadata } = await import("@/actions/teams");
+      await ensureTeamFromSignupMetadata();
+      redirect("/dashboard");
+    }
     redirect("/dashboard");
   }
 

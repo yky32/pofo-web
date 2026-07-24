@@ -7,11 +7,17 @@ export type ProjectStatus =
 
 export type ShotKind = "preview" | "jpeg" | "raw" | "final";
 
+/** Who owns a project: personal user or studio team */
+export type ProjectOwnerType = "user" | "team";
+
+export type TeamMemberRole = "owner" | "admin" | "member";
+export type TeamMemberStatus = "active" | "invited";
+
 export interface Profile {
   id: string;
   display_name: string | null;
   studio_name: string | null;
-  /** Public handle → {slug}.pofo.app */
+  /** Personal public brand → {slug}.pofo.app /s/{slug} */
   slug: string | null;
   avatar_url: string | null;
   /**
@@ -23,6 +29,34 @@ export interface Profile {
   updated_at: string;
 }
 
+/** Studio company workspace (team) */
+export interface Team {
+  id: string;
+  name: string;
+  /** Team public brand slug (separate from profiles.slug) */
+  slug: string;
+  logo_url: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  /** Role of current user when listed for session */
+  my_role?: TeamMemberRole;
+}
+
+export interface TeamMember {
+  id: string;
+  team_id: string;
+  user_id: string;
+  role: TeamMemberRole;
+  status: TeamMemberStatus;
+  created_at: string;
+}
+
+/** Cookie / UI workspace context */
+export type WorkspaceContext =
+  | { kind: "personal" }
+  | { kind: "team"; teamId: string; teamName?: string; teamSlug?: string };
+
 export interface StudioPublic {
   slug: string | null;
   studio_name: string | null;
@@ -33,6 +67,11 @@ export interface StudioPublic {
 export interface Project {
   id: string;
   owner_id: string;
+  /**
+   * `user` → owner_id is profiles.id (default, existing rows)
+   * `team` → owner_id is teams.id
+   */
+  owner_type?: ProjectOwnerType;
   title: string;
   client_name: string | null;
   description: string | null;

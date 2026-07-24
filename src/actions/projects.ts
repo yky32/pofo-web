@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
+import { getCurrentWorkspace } from "@/actions/teams";
 import type { Project } from "@/types/database";
 
 export type ProjectActionState = {
@@ -20,18 +21,50 @@ export async function listProjects(): Promise<Project[]> {
   } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const workspace = await getCurrentWorkspace();
+
+  let query = supabase
     .from("projects")
     .select("*")
-    .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
 
+  if (workspace.kind === "team") {
+    query = query
+      .eq("owner_type", "team")
+      .eq("owner_id", workspace.teamId);
+  } else {
+    // Personal: only user-owned projects (never team projects)
+    query = query.eq("owner_id", user.id).eq("owner_type", "user");
+  }
+
+  const { data, error } = await query;
+
   if (error) {
+    // owner_type column missing — fall back to personal-only list
+    if (
+      error.message.includes("owner_type") ||
+      error.code === "42703"
+    ) {
+      const { data: legacy } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("owner_id", user.id)
+        .order("updated_at", { ascending: false });
+      return attachProjectMeta(supabase, (legacy ?? []) as Project[]);
+    }
     console.error("listProjects", error.message);
     return [];
   }
 
-  const projects = (data ?? []) as Project[];
+  let projects = (data ?? []) as Project[];
+
+  // Extra safety: in personal workspace ignore team rows if owner_type missing on filter
+  if (workspace.kind === "personal") {
+    projects = projects.filter(
+      (p) => !p.owner_type || p.owner_type === "user"
+    );
+  }
+
   if (projects.length === 0) return projects;
 
   // Attach photo / selection counts + cover for dashboard cards
@@ -79,6 +112,76 @@ export async function listProjects(): Promise<Project[]> {
     selMap.set(pid, (selMap.get(pid) ?? 0) + 1);
   }
 
+  return finalizeProjectList(
+    supabase,
+    projects,
+    photoMap,
+    selMap,
+    coverShotByProject
+  );
+}
+
+async function attachProjectMeta(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projects: Project[]
+): Promise<Project[]> {
+  if (!projects.length) return projects;
+  const ids = projects.map((p) => p.id);
+  const [{ data: shotRows }, { data: selRows }] = await Promise.all([
+    supabase
+      .from("shots")
+      .select("id, project_id, storage_key, preview_url, sort_order, created_at")
+      .in("project_id", ids)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
+    supabase.from("shot_selections").select("project_id").in("project_id", ids),
+  ]);
+
+  const photoMap = new Map<string, number>();
+  const coverShotByProject = new Map<
+    string,
+    { id: string; storage_key: string | null; preview_url: string | null }
+  >();
+  for (const row of shotRows ?? []) {
+    const r = row as {
+      id: string;
+      project_id: string;
+      storage_key: string | null;
+      preview_url: string | null;
+    };
+    photoMap.set(r.project_id, (photoMap.get(r.project_id) ?? 0) + 1);
+    if (!coverShotByProject.has(r.project_id)) {
+      coverShotByProject.set(r.project_id, {
+        id: r.id,
+        storage_key: r.storage_key,
+        preview_url: r.preview_url,
+      });
+    }
+  }
+  const selMap = new Map<string, number>();
+  for (const row of selRows ?? []) {
+    const pid = (row as { project_id: string }).project_id;
+    selMap.set(pid, (selMap.get(pid) ?? 0) + 1);
+  }
+  return finalizeProjectList(
+    supabase,
+    projects,
+    photoMap,
+    selMap,
+    coverShotByProject
+  );
+}
+
+async function finalizeProjectList(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projects: Project[],
+  photoMap: Map<string, number>,
+  selMap: Map<string, number>,
+  coverShotByProject: Map<
+    string,
+    { id: string; storage_key: string | null; preview_url: string | null }
+  >
+): Promise<Project[]> {
   const coverShots = [...coverShotByProject.values()];
   const withUrls = coverShots.length
     ? await withDisplayUrls(supabase, coverShots)
@@ -109,19 +212,28 @@ export async function getProject(id: string): Promise<Project | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
+  // RLS enforces personal owner or active team membership
   const { data, error } = await supabase
     .from("projects")
     .select("*")
     .eq("id", id)
-    .eq("owner_id", user.id)
     .maybeSingle();
 
   if (error) {
     console.error("getProject", error.message);
     return null;
   }
+  if (!data) return null;
 
-  return data as Project | null;
+  const project = data as Project;
+  // Soft guard: personal projects only for owner
+  if (
+    (!project.owner_type || project.owner_type === "user") &&
+    project.owner_id !== user.id
+  ) {
+    return null;
+  }
+  return project;
 }
 
 export async function createProject(
@@ -159,17 +271,53 @@ export async function createProject(
     studio_name: user.user_metadata?.studio_name ?? null,
   });
 
-  const { data: project, error } = await supabase
+  const workspace = await getCurrentWorkspace();
+  const insertRow: Record<string, unknown> = {
+    title,
+    client_name: clientName || null,
+    selection_limit: Math.min(200, Math.max(1, selectionLimit)),
+    status: "draft",
+  };
+
+  if (workspace.kind === "team") {
+    insertRow.owner_type = "team";
+    insertRow.owner_id = workspace.teamId;
+  } else {
+    insertRow.owner_type = "user";
+    insertRow.owner_id = user.id;
+  }
+
+  let { data: project, error } = await supabase
     .from("projects")
-    .insert({
-      owner_id: user.id,
-      title,
-      client_name: clientName || null,
-      selection_limit: Math.min(200, Math.max(1, selectionLimit)),
-      status: "draft",
-    })
+    .insert(insertRow)
     .select("id")
     .single();
+
+  // Legacy DB without owner_type — personal only
+  if (
+    error &&
+    (error.message.includes("owner_type") || error.code === "42703")
+  ) {
+    if (workspace.kind === "team") {
+      return {
+        error:
+          "Team workspaces need supabase/features-teams.sql applied. Create personal projects until then.",
+      };
+    }
+    const retry = await supabase
+      .from("projects")
+      .insert({
+        owner_id: user.id,
+        title,
+        client_name: clientName || null,
+        selection_limit: Math.min(200, Math.max(1, selectionLimit)),
+        status: "draft",
+      })
+      .select("id")
+      .single();
+    project = retry.data;
+    error = retry.error;
+  }
 
   if (error || !project) {
     return { error: error?.message ?? "Failed to create project." };

@@ -25,6 +25,12 @@ export const RESERVED_SLUGS = new Set([
   "pofo",
   "studio",
   "client",
+  "team",
+  "teams",
+  "workspace",
+  "workspaces",
+  "org",
+  "orgs",
 ]);
 
 const SLUG_RE = /^[a-z0-9]([a-z0-9-]{1,30}[a-z0-9])?$/;

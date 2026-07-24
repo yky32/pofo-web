@@ -1,3 +1,7 @@
+import {
+  getCurrentWorkspace,
+  listMyTeams,
+} from "@/actions/teams";
 import { DashboardShell } from "@/components/dashboard-shell";
 import type { DashboardUser } from "@/components/dashboard-user-menu";
 import {
@@ -49,9 +53,18 @@ export default async function DashboardLayout({
 }) {
   const configured = isSupabaseConfigured();
   const user = await loadDashboardUser();
+  const teams = configured ? await listMyTeams() : [];
+  const workspace = configured
+    ? await getCurrentWorkspace()
+    : ({ kind: "personal" } as const);
 
   return (
-    <DashboardShell demoMode={!configured} user={user}>
+    <DashboardShell
+      demoMode={!configured}
+      user={user}
+      workspace={workspace}
+      teams={teams}
+    >
       {children}
     </DashboardShell>
   );
