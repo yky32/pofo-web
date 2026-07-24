@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
+import { ProjectTagsField } from "@/components/projects/project-tags-field";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { DialogClose } from "@/components/ui/dialog";
@@ -58,6 +59,10 @@ export function CreateProjectForm({
           placeholder="Alicia Chen"
           className="rounded-xl bg-white/80"
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="tags">Tags</Label>
+        <ProjectTagsField id="tags" name="tags" />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

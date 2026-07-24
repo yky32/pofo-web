@@ -7,6 +7,7 @@ import {
   type ProjectActionState,
 } from "@/actions/projects";
 import { ProjectStatusControl } from "@/components/projects/project-status-control";
+import { ProjectTagsField } from "@/components/projects/project-tags-field";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ export function ProjectSettingsPanel({
   status,
   eventDate,
   location,
+  tags = [],
   isDemo = false,
 }: {
   projectId: string;
@@ -48,6 +50,7 @@ export function ProjectSettingsPanel({
   status: ProjectStatus;
   eventDate?: string | null;
   location?: string | null;
+  tags?: string[] | null;
   isDemo?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
@@ -101,6 +104,14 @@ export function ProjectSettingsPanel({
               name="client"
               defaultValue={clientName ?? ""}
               className="rounded-xl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-tags">Tags</Label>
+            <ProjectTagsField
+              id="settings-tags"
+              name="tags"
+              defaultTags={tags ?? []}
             />
           </div>
           <div className="space-y-1.5">
@@ -172,6 +183,25 @@ export function ProjectSettingsPanel({
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
             <dt className="text-stone-400">Client</dt>
             <dd className="text-right text-stone-800">{clientName ?? "—"}</dd>
+          </div>
+          <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
+            <dt className="text-stone-400">Tags</dt>
+            <dd className="max-w-[65%] text-right">
+              {tags?.length ? (
+                <span className="inline-flex flex-wrap justify-end gap-1">
+                  {tags.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="text-stone-800">—</span>
+              )}
+            </dd>
           </div>
           <div className="flex justify-between gap-4 border-b border-stone-100 py-2">
             <dt className="text-stone-400">Event date</dt>

@@ -1,17 +1,28 @@
 import { GalleryCard } from "@/components/photo/gallery-card";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
+import { ProjectTagFilter } from "@/components/projects/project-tag-filter";
 import { getDashboardProjects } from "@/lib/projects";
+import {
+  collectUniqueTags,
+  tagsOverlap,
+} from "@/lib/project-tags";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export default async function GalleriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; tag?: string }>;
 }) {
   const sp = await searchParams;
   const { projects, demoMode } = await getDashboardProjects();
   const configured = isSupabaseConfigured();
   const openNew = sp.new === "1" || sp.new === "true";
+  const activeTag = sp.tag?.trim() || null;
+
+  const allTags = collectUniqueTags(projects);
+  const visible = activeTag
+    ? projects.filter((p) => tagsOverlap(p.tags, activeTag))
+    : projects;
 
   return (
     <div className="space-y-8">
@@ -35,6 +46,10 @@ export default async function GalleriesPage({
         />
       </div>
 
+      {allTags.length > 0 ? (
+        <ProjectTagFilter tags={allTags} activeTag={activeTag} />
+      ) : null}
+
       {projects.length === 0 ? (
         <div className="paper rounded-[5px] p-10 text-center">
           <p className="font-heading text-xl text-stone-900">No projects yet</p>
@@ -48,9 +63,18 @@ export default async function GalleriesPage({
             />
           </div>
         </div>
+      ) : visible.length === 0 ? (
+        <div className="paper rounded-[5px] p-10 text-center">
+          <p className="font-heading text-xl text-stone-900">
+            No projects with tag “{activeTag}”
+          </p>
+          <p className="mt-2 text-sm text-stone-500">
+            Clear the filter or add this tag on a project in Settings.
+          </p>
+        </div>
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((project) => (
+          {visible.map((project) => (
             <GalleryCard
               key={project.id}
               gallery={project}

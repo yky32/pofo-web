@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { getCurrentWorkspace } from "@/actions/teams";
+import { parseProjectTags } from "@/lib/project-tags";
 import type { Project } from "@/types/database";
 
 export type ProjectActionState = {
@@ -252,6 +253,7 @@ export async function createProject(
   const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
   const eventDateRaw = String(formData.get("event_date") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const tags = parseProjectTags(String(formData.get("tags") ?? ""));
   const eventDate = parseEventDate(eventDateRaw);
 
   if (!title) {
@@ -293,6 +295,7 @@ export async function createProject(
     status: "draft",
     ...(eventDate ? { event_date: eventDate } : {}),
     ...(location ? { location } : {}),
+    ...(tags.length ? { tags } : {}),
   };
 
   if (workspace.kind === "team") {
@@ -333,6 +336,21 @@ export async function createProject(
       .single();
     project = retry.data;
     error = retry.error;
+  }
+
+  // Pre-migration: strip tags if column missing
+  if (
+    error &&
+    (error.message.includes("tags") || error.code === "42703")
+  ) {
+    delete insertRow.tags;
+    const retryTags = await supabase
+      .from("projects")
+      .insert(insertRow)
+      .select("id")
+      .single();
+    project = retryTags.data;
+    error = retryTags.error;
   }
 
   if (error || !project) {
@@ -439,6 +457,7 @@ export async function updateProjectSettings(
   const selectionLimit = Number(formData.get("limit") ?? 40) || 40;
   const eventDateRaw = String(formData.get("event_date") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const tags = parseProjectTags(String(formData.get("tags") ?? ""));
   const eventDate = parseEventDate(eventDateRaw);
 
   if (!title) return { error: "Title is required." };
@@ -456,6 +475,7 @@ export async function updateProjectSettings(
     selection_limit: Math.min(200, Math.max(1, selectionLimit)),
     event_date: eventDate,
     location: location || null,
+    tags,
   };
 
   let { error } = await supabase
@@ -464,7 +484,24 @@ export async function updateProjectSettings(
     .eq("id", projectId)
     .eq("owner_id", user.id);
 
-  // Pre-migration: strip memory columns
+  // Pre-migration fallbacks (missing columns)
+  if (error && (error.message.includes("tags") || error.code === "42703")) {
+    const { tags: _t, ...withoutTags } = patch;
+    void _t;
+    const retry = await supabase
+      .from("projects")
+      .update(withoutTags)
+      .eq("id", projectId)
+      .eq("owner_id", user.id);
+    error = retry.error;
+    if (!error && tags.length) {
+      return {
+        error:
+          "Tags column missing. Run supabase/features-project-tags.sql in the SQL Editor.",
+      };
+    }
+  }
+
   if (
     error &&
     (error.message.includes("event_date") ||

@@ -46,6 +46,18 @@ export function GalleryCard({
         </div>
 
         <div className="absolute bottom-3 left-3 right-3">
+          {gallery.tags?.length ? (
+            <div className="mb-1.5 flex flex-wrap gap-1">
+              {gallery.tags.slice(0, 4).map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-white/20 px-1.5 py-px text-[10px] font-medium text-white/95 backdrop-blur-sm"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <p className="font-heading text-lg leading-tight text-white drop-shadow">
             {gallery.title}
           </p>

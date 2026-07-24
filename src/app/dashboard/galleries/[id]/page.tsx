@@ -378,6 +378,7 @@ export default async function GalleryDetailPage({
               status={gallery.status}
               eventDate={gallery.event_date}
               location={gallery.location}
+              tags={gallery.tags}
               isDemo={isDemo}
             />
           </TabsContent>

@@ -41,6 +41,7 @@ DEFAULT_SQLS=(
   supabase/features-plans.sql
   supabase/features-raw-pipeline.sql
   supabase/features-project-memory.sql
+  supabase/features-project-tags.sql
 )
 
 SQLS=()

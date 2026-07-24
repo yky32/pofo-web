@@ -89,6 +89,11 @@ export interface Project {
    * e.g. "Hong Kong · The Peninsula · Church of St. John"
    */
   location?: string | null;
+  /**
+   * Free-form labels for library filter + job nature
+   * e.g. ["Wedding", "Commercial"].
+   */
+  tags?: string[] | null;
   status: ProjectStatus;
   selection_limit: number;
   created_at: string;
