@@ -1,6 +1,9 @@
 /**
  * Workspace context: personal (default) or a team the user belongs to.
- * Cookie is set by server actions; read on server for project ownership.
+ *
+ * ⚠️ Prefer stateless URL later (PRODUCT.md). Cookie is temporary UX only —
+ * not user_preferences, not business source of truth. Invalid membership
+ * always falls back to personal.
  */
 
 import { cookies } from "next/headers";

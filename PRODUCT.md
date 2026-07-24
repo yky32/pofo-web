@@ -75,6 +75,37 @@ Focused on **“job done → deliver”** — wedding and pre-wedding photograph
 3. Prefer **photographer control** over client accounts (MVP: client is anonymous via token).
 4. Prefer **premium empty states** over dense admin chrome.
 5. **Never** stream multi-GB uploads through the Next.js server body — direct-to-storage only.
+6. **Stay stateless** (see below) — cookies/local state cause subtle bugs.
+
+### Stateless by default (engineering law)
+
+**除了 user preferences（目前無 server sync），其餘盡量保持 stateless。**
+
+| Do | Don’t |
+|----|--------|
+| Encode flow state in the **URL** (`?next=`, path segments) | Hide signup/OAuth intent in cookies |
+| Put durable product data in **Postgres** | Mirror business logic into browser storage |
+| Pass intent via **form fields / redirect query** | “Remember” multi-step product state in cookies between tabs |
+| Short-lived **security** cookies only when required | Long-lived cookies for product branching |
+
+**Allowed exceptions**
+
+| Kind | Example | Why OK |
+|------|---------|--------|
+| **Auth session** | Supabase auth cookies | Protocol requirement |
+| **Security gate** | Share-password unlock cookie (token + password fingerprint, short TTL) | Not product preference; invalidates on regen |
+| **UI preferences (no server sync)** | Sidebar collapsed `localStorage` | User chrome only — we do **not** sync to server yet |
+| *(Future)* **user_preferences table** | Theme, locale when we add server sync | Explicit product settings |
+
+**Not preferences — avoid / phase out**
+
+| State | Prefer instead |
+|-------|----------------|
+| Signup personal vs team | `?next=/dashboard/onboarding/studio` on OAuth callback |
+| Current workspace (personal / team) | Prefer URL or server-side default; cookie is temporary UX only |
+| “Where was I” product steps | Explicit routes + query params |
+
+When adding features: **default to URL + DB**. If you reach for a cookie, ask: is this auth, security, or pure UI chrome? If none of those, don’t.
 
 ---
 

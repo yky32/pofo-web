@@ -1,4 +1,7 @@
-/** Signup workspace intent type (personal | team). */
+/**
+ * Signup workspace intent (personal | team).
+ * Stateless: OAuth carries intent only via callback `?next=` (see PRODUCT.md).
+ */
 
 export type SignupIntent = "personal" | "team";
 
@@ -8,10 +11,7 @@ export function parseSignupIntent(
   return raw === "team" ? "team" : "personal";
 }
 
-/**
- * OAuth return path for each intent — carried as `next` query on
- * `/auth/callback?code=…&next=…` (no cookie).
- */
+/** OAuth return path — encoded in URL, not cookies. */
 export function oauthNextForIntent(intent: SignupIntent): string {
   return intent === "team"
     ? "/dashboard/onboarding/studio"
