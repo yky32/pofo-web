@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { Building2, User } from "lucide-react";
 import { signUp, type AuthState } from "@/actions/auth";
@@ -14,10 +14,7 @@ import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  setSignupIntentClient,
-  type SignupIntent,
-} from "@/lib/signup-intent";
+import type { SignupIntent } from "@/lib/signup-intent";
 import { cn } from "@/lib/utils";
 
 const initial: AuthState = {};
@@ -29,16 +26,6 @@ export function SignupForm() {
   const [teamSlug, setTeamSlug] = useState("");
 
   const passwordError = state.fields?.password;
-
-  // Keep cookie in sync so Google/Apple return knows workspace type
-  useEffect(() => {
-    setSignupIntentClient(intent);
-  }, [intent]);
-
-  function chooseIntent(next: SignupIntent) {
-    setIntent(next);
-    setSignupIntentClient(next);
-  }
 
   return (
     <div className="w-full max-w-sm">
@@ -57,7 +44,7 @@ export function SignupForm() {
         <div className="flex items-center justify-center gap-4">
           <button
             type="button"
-            onClick={() => chooseIntent("personal")}
+            onClick={() => setIntent("personal")}
             aria-label="Personal photographer"
             aria-pressed={intent === "personal"}
             title="Personal"
@@ -73,7 +60,7 @@ export function SignupForm() {
           </button>
           <button
             type="button"
-            onClick={() => chooseIntent("team")}
+            onClick={() => setIntent("team")}
             aria-label="Studio company"
             aria-pressed={intent === "team"}
             title="Studio company"

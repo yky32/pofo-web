@@ -710,7 +710,7 @@ One real 500+ mixed JPEG/RAW wedding · mobile client proof · download fails af
 |-------|--------|
 | Personal signup (default) | ✅ unchanged |
 | Team signup intent + create team | ✅ foundation |
-| OAuth knows workspace type | ✅ intent first + cookie; Google/Apple → onboarding if team |
+| OAuth knows workspace type | ✅ via callback `?next=` (team → `/dashboard/onboarding/studio`); no cookie |
 | `teams` / `team_members` + `projects.owner_type` | ✅ SQL `features-teams.sql` |
 | Workspace switcher (sidebar) | ✅ minimal |
 | Settings → create studio | ✅ |

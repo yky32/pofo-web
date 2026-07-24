@@ -79,16 +79,8 @@ export async function signUp(
       ? teamSlugRaw || preferredSlug(teamName, email)
       : null;
 
-  // Cookie so later OAuth/login steps can still know intent if needed
-  const { cookies } = await import("next/headers");
-  const jar = await cookies();
-  jar.set("pofo_signup_intent", accountIntent, {
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-    sameSite: "lax",
-    httpOnly: false,
-  });
-
+  // Intent for email path lives in form + user_metadata (no cookie).
+  // OAuth path uses callback ?next=… only (see SocialAuthButtons).
   const supabase = await createClient();
   const { error } = await supabase.auth.signUp({
     email,

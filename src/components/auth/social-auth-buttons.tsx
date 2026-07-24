@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { signInWithApple, signInWithGoogle } from "@/actions/auth";
 import {
-  setSignupIntentClient,
+  oauthNextForIntent,
   type SignupIntent,
 } from "@/lib/signup-intent";
 import { cn } from "@/lib/utils";
@@ -102,11 +102,17 @@ function OrDivider({ label = "or" }: { label?: string }) {
 /**
  * Triftly-like social sign-in: centered circular Google / Apple + soft or-divider.
  */
+/**
+ * OAuth next path carries intent in the URL (not cookies):
+ *   personal → /dashboard
+ *   team     → /dashboard/onboarding/studio
+ * Supabase returns to /auth/callback?code=…&next=…
+ */
 export function SocialAuthButtons({
   next = "/dashboard",
   className,
   layout = "primary",
-  /** When set (signup page), cookie is written so OAuth return knows personal vs team */
+  /** Signup page: personal | team → sets next for OAuth callback query param */
   accountIntent,
 }: {
   next?: string;
@@ -121,19 +127,13 @@ export function SocialAuthButtons({
   function run(provider: "google" | "apple") {
     setError(null);
     setWhich(provider);
-    // Persist intent before leaving for Google/Apple
-    if (accountIntent) {
-      setSignupIntentClient(accountIntent);
-    }
     startTransition(async () => {
       const fd = new FormData();
-      // Prefer explicit next; team intent also enforced in auth callback via cookie
-      const resolvedNext =
-        accountIntent === "team"
-          ? "/dashboard/onboarding/studio"
-          : next;
+      // Intent → next path → Supabase redirectTo → callback ?next=
+      const resolvedNext = accountIntent
+        ? oauthNextForIntent(accountIntent)
+        : next;
       fd.set("next", resolvedNext);
-      // Match current host (important when APP_URL is 3000 vs 3002)
       if (typeof window !== "undefined") {
         fd.set("origin", window.location.origin);
       }
