@@ -366,7 +366,7 @@ export function ExportSelectionButton({
         title={ariaTitle}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-stone-900 text-stone-50 shadow-sm transition",
+          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-stone-900 text-stone-50 shadow-sm transition",
           "hover:bg-stone-800",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
           open && "ring-2 ring-stone-300",

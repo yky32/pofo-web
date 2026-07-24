@@ -298,7 +298,7 @@ export function ShareLinkPanel({
         title="Client links"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-white text-stone-700 shadow-sm transition",
+          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-stone-700 shadow-sm transition",
           "hover:bg-stone-50 hover:text-stone-950",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
           open && "ring-2 ring-stone-300"
