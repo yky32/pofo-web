@@ -28,6 +28,25 @@ import { planOf } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import type { Team, WorkspaceContext } from "@/types/database";
 
+function PlanBadge({ plan }: { plan?: PlanId | null }) {
+  const def = planOf(plan);
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-1.5 py-px text-[9px] font-semibold tracking-wide",
+        def.id === "free" &&
+          "bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-200/90",
+        def.id === "solo" &&
+          "bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-200/90",
+        def.id === "pro" &&
+          "bg-stone-900 text-stone-50 ring-1 ring-inset ring-stone-900"
+      )}
+    >
+      {def.name}
+    </span>
+  );
+}
+
 export type DashboardUser = {
   email?: string | null;
   displayName?: string | null;
@@ -269,20 +288,14 @@ export function DashboardUserMenu({
                         {user.email}
                       </p>
                     ) : null}
-                    <p className="mt-1 text-[10px] text-stone-500">
-                      Plan:{" "}
-                      <span className="font-medium text-stone-800">
-                        {planOf(user.plan).name}
-                      </span>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <PlanBadge plan={user.plan} />
                       {workspace.kind === "team" && workspace.teamName ? (
-                        <>
-                          {" · "}
-                          <span className="font-medium text-stone-800">
-                            {workspace.teamName}
-                          </span>
-                        </>
+                        <span className="truncate text-[10px] text-stone-500">
+                          {workspace.teamName}
+                        </span>
                       ) : null}
-                    </p>
+                    </div>
                   </div>
                 )}
 
