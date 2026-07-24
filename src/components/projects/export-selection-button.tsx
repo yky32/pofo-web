@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Download,
   FileText,
@@ -13,15 +14,8 @@ import {
   getPhotographerDownloadFiles,
   type PhotographerDownloadKind,
 } from "@/actions/shots";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { downloadPhotosZip } from "@/lib/zip-download";
+import { cn } from "@/lib/utils";
 import { shotDisplayUrl, type Shot } from "@/types/database";
 
 function shotsToPreviewFiles(shots: Shot[]) {
@@ -37,11 +31,18 @@ function shotsToPreviewFiles(shots: Shot[]) {
     .filter((f): f is { filename: string; url: string } => Boolean(f));
 }
 
+type MenuItem = {
+  key: string;
+  label: string;
+  hint: string;
+  icon: React.ReactNode;
+  disabled: boolean;
+  onClick: () => void;
+  separatorBefore?: boolean;
+};
+
 /**
- * Photographer download menu:
- * - Full / proof ZIP (web previews — fast retouch handoff)
- * - Originals + RAW (signed storage keys — full quality)
- * - Proof filename list for Lightroom
+ * Photographer download menu — same glass overlay as Client links.
  */
 export function ExportSelectionButton({
   projectId,
@@ -51,11 +52,21 @@ export function ExportSelectionButton({
 }: {
   projectId: string;
   projectTitle: string;
-  /** All gallery photos (signed display URLs) */
   allShots: Shot[];
-  /** Client-selected / proofed photos */
   proofedShots: Shot[];
 }) {
+  const menuId = useId();
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [pos, setPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+    maxHeight: number;
+  } | null>(null);
+
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -68,6 +79,78 @@ export function ExportSelectionButton({
   const proofHasRaw = proofedShots.some(
     (s) => s.kind === "raw" || s.kind === "paired" || Boolean(s.raw_key)
   );
+  const isBusy = busy !== null;
+  const hasAny = allShots.length > 0;
+
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function place() {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const gap = 8;
+      const margin = 8;
+      const right = Math.max(margin, window.innerWidth - r.right);
+      const spaceBelow = window.innerHeight - r.bottom - gap - margin;
+      const spaceAbove = r.top - gap - margin;
+      const openBelow =
+        spaceBelow >= 280 || spaceBelow >= spaceAbove || spaceAbove < 160;
+
+      if (openBelow) {
+        setPos({
+          top: r.bottom + gap,
+          bottom: undefined,
+          right,
+          maxHeight: Math.max(180, Math.min(spaceBelow, window.innerHeight * 0.85)),
+        });
+      } else {
+        setPos({
+          top: undefined,
+          bottom: window.innerHeight - r.top + gap,
+          right,
+          maxHeight: Math.max(180, Math.min(spaceAbove, window.innerHeight * 0.85)),
+        });
+      }
+    }
+
+    place();
+    const raf = requestAnimationFrame(() => {
+      place();
+      requestAnimationFrame(place);
+    });
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (panelRef.current?.contains(t)) return;
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [open]);
+
+  function closeThen(fn: () => void) {
+    setOpen(false);
+    fn();
+  }
 
   function downloadFilenameList(shots: Shot[], kind: "proofing" | "full") {
     if (!shots.length) {
@@ -103,7 +186,6 @@ export function ExportSelectionButton({
     }
   }
 
-  /** Fast path: use already-signed display URLs (previews) */
   async function runPreviewZip(
     kind: "full" | "proofing",
     shots: Shot[],
@@ -137,7 +219,6 @@ export function ExportSelectionButton({
     }
   }
 
-  /** Originals / RAW via server-signed storage keys */
   async function runAssetZip(
     label: string,
     shotIds: string[] | undefined,
@@ -170,165 +251,194 @@ export function ExportSelectionButton({
     }
   }
 
-  const isBusy = busy !== null;
-  const hasAny = allShots.length > 0;
+  const items: MenuItem[] = [
+    {
+      key: "full",
+      label: "Full gallery",
+      hint: `Web previews · all ${fullCount} photo${fullCount === 1 ? "" : "s"}`,
+      icon: <Images className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />,
+      disabled: isBusy || fullCount === 0,
+      onClick: () =>
+        closeThen(() =>
+          void runPreviewZip("full", allShots, "No photos in this gallery yet.")
+        ),
+    },
+    {
+      key: "proof",
+      label: "Client’s finished proof",
+      hint:
+        proofCount > 0
+          ? `Previews · ${proofCount} hearted`
+          : "No proofing picks yet",
+      icon: <Heart className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />,
+      disabled: isBusy || proofCount === 0,
+      onClick: () =>
+        closeThen(() =>
+          void runPreviewZip(
+            "proofing",
+            proofedShots,
+            "Client hasn’t finished proofing yet."
+          )
+        ),
+    },
+    {
+      key: "originals",
+      label: "Original JPEGs",
+      hint: "Full-res originals (not web previews)",
+      icon: <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />,
+      disabled: isBusy || fullCount === 0,
+      separatorBefore: true,
+      onClick: () =>
+        closeThen(() =>
+          void runAssetZip(
+            "originals",
+            undefined,
+            "originals",
+            "No original JPEGs available."
+          )
+        ),
+    },
+    {
+      key: "raw",
+      label: "RAW files",
+      hint: hasRaw
+        ? "All RAW / paired companions"
+        : "Upload RAW or JPEG+RAW pairs first",
+      icon: <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />,
+      disabled: isBusy || !hasRaw,
+      onClick: () =>
+        closeThen(() =>
+          void runAssetZip(
+            "raw",
+            undefined,
+            "raw",
+            "No RAW files in this gallery yet."
+          )
+        ),
+    },
+    {
+      key: "proof-raw",
+      label: "Proof originals + RAW",
+      hint:
+        proofCount > 0
+          ? `Hearted set · JPEG${proofHasRaw ? " + RAW" : ""}`
+          : "No proofing picks yet",
+      icon: <Heart className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />,
+      disabled: isBusy || proofCount === 0,
+      onClick: () =>
+        closeThen(() =>
+          void runAssetZip(
+            "proof-originals-raw",
+            proofedShots.map((s) => s.id),
+            "originals_and_raw",
+            "No originals for proofed shots."
+          )
+        ),
+    },
+    {
+      key: "list",
+      label: "Proof filename list",
+      hint: ".txt for Lightroom / Finder filter",
+      icon: <FileText className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />,
+      disabled: isBusy || proofCount === 0,
+      separatorBefore: true,
+      onClick: () =>
+        closeThen(() => downloadFilenameList(proofedShots, "proofing")),
+    },
+  ];
 
-  const title = isBusy
+  const ariaTitle = isBusy
     ? progress
       ? `Zipping ${progress}`
       : "Preparing download…"
     : "Download photos";
 
   return (
-    <div className="flex flex-col items-start gap-1 sm:items-end">
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          disabled={!hasAny || isBusy}
-          render={
-            <Button
-              type="button"
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-full bg-stone-900 text-stone-50 shadow-sm hover:bg-stone-800"
-              disabled={!hasAny || isBusy}
-              title={title}
-              aria-label={title}
-            />
-          }
-        >
-          {isBusy ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" strokeWidth={1.75} />
-          )}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[17rem]">
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || fullCount === 0}
-            onClick={() =>
-              void runPreviewZip(
-                "full",
-                allShots,
-                "No photos in this gallery yet."
-              )
-            }
-          >
-            <Images className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">Full gallery</span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                Web previews · all {fullCount} photo
-                {fullCount === 1 ? "" : "s"}
-              </span>
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || proofCount === 0}
-            onClick={() =>
-              void runPreviewZip(
-                "proofing",
-                proofedShots,
-                "Client hasn’t finished proofing yet."
-              )
-            }
-          >
-            <Heart className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">
-                Client’s finished proof
-              </span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                {proofCount > 0
-                  ? `Previews · ${proofCount} hearted`
-                  : "No proofing picks yet"}
-              </span>
-            </span>
-          </DropdownMenuItem>
+    <div className="relative flex flex-col items-start gap-1 sm:items-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={!hasAny || isBusy}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={open ? menuId : undefined}
+        aria-label={ariaTitle}
+        title={ariaTitle}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-stone-200/90 bg-stone-900 text-stone-50 shadow-sm transition",
+          "hover:bg-stone-800",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+          open && "ring-2 ring-stone-300",
+          (!hasAny || isBusy) && "opacity-60"
+        )}
+      >
+        {isBusy ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Download className="h-4 w-4" strokeWidth={1.75} />
+        )}
+      </button>
 
-          <DropdownMenuSeparator />
+      {mounted && open && pos
+        ? createPortal(
+            <>
+              <div
+                className="dialog-glass-overlay fixed inset-0 z-[200]"
+                aria-hidden
+                onClick={() => setOpen(false)}
+              />
+              <div
+                ref={panelRef}
+                id={menuId}
+                role="menu"
+                aria-label="Download options"
+                style={{
+                  top: pos.top,
+                  bottom: pos.bottom,
+                  right: pos.right,
+                  maxHeight: pos.maxHeight,
+                }}
+                className={cn(
+                  "dialog-glass-panel fixed z-[201] w-[min(17.5rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-xl py-1",
+                  "animate-in fade-in-0 zoom-in-95 duration-150"
+                )}
+              >
+                {items.map((item) => (
+                  <div key={item.key}>
+                    {item.separatorBefore ? (
+                      <div className="my-1 border-t border-stone-900/8" />
+                    ) : null}
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={item.disabled}
+                      onClick={item.onClick}
+                      className={cn(
+                        "flex w-full items-start gap-2 px-3 py-2.5 text-left transition",
+                        item.disabled
+                          ? "cursor-not-allowed opacity-45"
+                          : "hover:bg-stone-900/5"
+                      )}
+                    >
+                      {item.icon}
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-sm font-medium text-stone-900">
+                          {item.label}
+                        </span>
+                        <span className="text-[11px] leading-snug text-stone-500">
+                          {item.hint}
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>,
+            document.body
+          )
+        : null}
 
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || fullCount === 0}
-            onClick={() =>
-              void runAssetZip(
-                "originals",
-                undefined,
-                "originals",
-                "No original JPEGs available."
-              )
-            }
-          >
-            <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">Original JPEGs</span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                Full-res originals (not web previews)
-              </span>
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || !hasRaw}
-            onClick={() =>
-              void runAssetZip(
-                "raw",
-                undefined,
-                "raw",
-                "No RAW files in this gallery yet."
-              )
-            }
-          >
-            <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">RAW files</span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                {hasRaw
-                  ? "All RAW / paired companions"
-                  : "Upload RAW or JPEG+RAW pairs first"}
-              </span>
-            </span>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || proofCount === 0}
-            onClick={() =>
-              void runAssetZip(
-                "proof-originals-raw",
-                proofedShots.map((s) => s.id),
-                "originals_and_raw",
-                "No originals for proofed shots."
-              )
-            }
-          >
-            <Heart className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">Proof originals + RAW</span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                {proofCount > 0
-                  ? `Hearted set · JPEG${proofHasRaw ? " + RAW" : ""}`
-                  : "No proofing picks yet"}
-              </span>
-            </span>
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="items-start py-2"
-            disabled={isBusy || proofCount === 0}
-            onClick={() => downloadFilenameList(proofedShots, "proofing")}
-          >
-            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-sm font-medium">Proof filename list</span>
-              <span className="text-[11px] leading-snug text-muted-foreground">
-                .txt for Lightroom / Finder filter
-              </span>
-            </span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
       {error ? (
         <p className="max-w-[17rem] text-right text-[11px] text-rose-600">
           {error}
