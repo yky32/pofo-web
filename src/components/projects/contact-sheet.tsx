@@ -3,14 +3,28 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Check, StickyNote, Trash2, X } from "lucide-react";
+import {
+  Check,
+  LayoutGrid,
+  LayoutTemplate,
+  Maximize2,
+  StickyNote,
+  Trash2,
+  X,
+} from "lucide-react";
 import { deleteProjectShots } from "@/actions/shots";
-import { MosaicGrid } from "@/components/photo/mosaic-grid";
+import {
+  MosaicGrid,
+  type ContactViewLayout,
+} from "@/components/photo/mosaic-grid";
 import {
   ShotStudioMetaPanel,
   flagBadgeClass,
@@ -19,6 +33,46 @@ import {
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+
+const VIEW_STORAGE_KEY = "pofo-contact-view-layout";
+
+const VIEW_MODES: {
+  id: ContactViewLayout;
+  label: string;
+  hint: string;
+  icon: typeof LayoutGrid;
+}[] = [
+  {
+    id: "mosaic",
+    label: "Mosaic",
+    hint: "Mixed sizes · cinematic pack",
+    icon: LayoutTemplate,
+  },
+  {
+    id: "square",
+    label: "Square",
+    hint: "Even grid · classic contact sheet",
+    icon: LayoutGrid,
+  },
+  {
+    id: "dense",
+    label: "Dense",
+    hint: "More columns · scan faster",
+    icon: LayoutGrid,
+  },
+  {
+    id: "large",
+    label: "Large",
+    hint: "Bigger tiles · review detail",
+    icon: Maximize2,
+  },
+];
+
+function parseViewLayout(raw: string | null): ContactViewLayout {
+  if (raw === "mosaic" || raw === "square" || raw === "dense" || raw === "large")
+    return raw;
+  return "mosaic";
+}
 
 export type ContactSheetItem = {
   id: string;
@@ -70,6 +124,9 @@ export function ContactSheet({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const viewMenuId = useId();
+  const viewTriggerRef = useRef<HTMLButtonElement>(null);
+  const viewPanelRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState(initialItems);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
@@ -77,10 +134,83 @@ export function ContactSheet({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [metaShotId, setMetaShotId] = useState<string | null>(null);
+  const [viewLayout, setViewLayout] = useState<ContactViewLayout>("mosaic");
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewMounted, setViewMounted] = useState(false);
+  const [viewPos, setViewPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+  } | null>(null);
 
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    setViewMounted(true);
+    try {
+      setViewLayout(parseViewLayout(localStorage.getItem(VIEW_STORAGE_KEY)));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  function setView(next: ContactViewLayout) {
+    setViewLayout(next);
+    setViewOpen(false);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => {
+    if (!viewOpen) return;
+    function place() {
+      const el = viewTriggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const gap = 8;
+      const margin = 8;
+      const right = Math.max(margin, window.innerWidth - r.right);
+      const spaceBelow = window.innerHeight - r.bottom - gap - margin;
+      if (spaceBelow >= 220) {
+        setViewPos({ top: r.bottom + gap, bottom: undefined, right });
+      } else {
+        setViewPos({
+          top: undefined,
+          bottom: window.innerHeight - r.top + gap,
+          right,
+        });
+      }
+    }
+    place();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setViewOpen(false);
+    };
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [viewOpen]);
+
+  useEffect(() => {
+    if (!viewOpen) return;
+    function onPointer(e: MouseEvent) {
+      const t = e.target as Node;
+      if (viewTriggerRef.current?.contains(t)) return;
+      if (viewPanelRef.current?.contains(t)) return;
+      setViewOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [viewOpen]);
 
   const allIds = useMemo(() => items.map((i) => i.id), [items]);
   const count = selected.size;
@@ -162,6 +292,26 @@ export function ContactSheet({
           )}
         </p>
         <div className="flex flex-wrap items-center gap-2">
+          {/* View layout */}
+          <button
+            ref={viewTriggerRef}
+            type="button"
+            aria-expanded={viewOpen}
+            aria-haspopup="menu"
+            aria-controls={viewOpen ? viewMenuId : undefined}
+            aria-label="View layout"
+            title="View layout"
+            onClick={() => setViewOpen((v) => !v)}
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full bg-white text-stone-600 shadow-sm transition",
+              "hover:bg-stone-50 hover:text-stone-900",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stone-300",
+              viewOpen && "ring-2 ring-stone-300"
+            )}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+
           {selectMode ? (
             <>
               <Button
@@ -215,6 +365,76 @@ export function ContactSheet({
         </div>
       </div>
 
+      {viewMounted && viewOpen && viewPos
+        ? createPortal(
+            <>
+              <div
+                className="dialog-glass-overlay fixed inset-0 z-[200]"
+                aria-hidden
+                onClick={() => setViewOpen(false)}
+              />
+              <div
+                ref={viewPanelRef}
+                id={viewMenuId}
+                role="menu"
+                aria-label="View layout"
+                style={{
+                  top: viewPos.top,
+                  bottom: viewPos.bottom,
+                  right: viewPos.right,
+                }}
+                className={cn(
+                  "dialog-glass-panel fixed z-[201] w-[min(15.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl py-1",
+                  "animate-in fade-in-0 zoom-in-95 duration-150"
+                )}
+              >
+                <p className="px-3 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.14em] text-stone-400">
+                  Layout
+                </p>
+                {VIEW_MODES.map((mode) => {
+                  const Icon = mode.icon;
+                  const active = viewLayout === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      onClick={() => setView(mode.id)}
+                      className={cn(
+                        "flex w-full items-start gap-2 px-3 py-2 text-left transition",
+                        active ? "bg-stone-900/5" : "hover:bg-stone-900/5"
+                      )}
+                    >
+                      <Icon
+                        className="mt-0.5 h-4 w-4 shrink-0 text-stone-500"
+                        strokeWidth={1.75}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-stone-900">
+                          {mode.label}
+                        </span>
+                        <span className="block text-[11px] leading-snug text-stone-500">
+                          {mode.hint}
+                        </span>
+                      </span>
+                      {active ? (
+                        <Check
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-stone-900"
+                          strokeWidth={2}
+                        />
+                      ) : (
+                        <span className="w-3.5 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>,
+            document.body
+          )
+        : null}
+
       {error ? (
         <p className="rounded-[8px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
           {error}
@@ -227,6 +447,7 @@ export function ContactSheet({
       <MosaicGrid
         items={items}
         density="studio"
+        layout={viewLayout}
         onItemClick={(item) => {
           if (pending) return;
           if (selectMode) {
