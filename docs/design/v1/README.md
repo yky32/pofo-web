@@ -3,7 +3,8 @@
 **Status:** Production baseline  
 **Branch:** `design/v1` / `main`  
 **Tag:** `design-v1`  
-**Live:** https://pofo-web.vercel.app
+**Live:** https://pofo-web.vercel.app  
+**Product:** See root [`PRODUCT.md`](../../../PRODUCT.md)
 
 Photo-first Studio Paper UI for Pofo — light surfaces, soft chrome, immersive client gallery.
 
@@ -36,10 +37,10 @@ Photo-first Studio Paper UI for Pofo — light surfaces, soft chrome, immersive 
 | Cover hero | Dashboard, project detail, client gallery |
 | Mat / print frame | Marketing collage, portfolio |
 | Film strip | Marketing accent band |
-| Gallery card | Project / gallery lists |
+| Gallery card | Project lists |
 | Contact sheet | Photographer shot grid |
 | Masonry | Client `/g/[token]` browse |
-| Sticky select bar | Client proofing (flat dark, no glass) |
+| Sticky select bar | Client proofing |
 | Full-bleed look section | Marketing “Client view” |
 
 ## Key files
@@ -53,13 +54,13 @@ src/app/g/[token]/page.tsx
 src/components/brand/logo.tsx
 src/components/photo/*
 src/lib/photos.ts
-DESIGN.md
+PRODUCT.md
 ```
 
 ## Domain language (product)
 
 Project → Container → Shot  
-(UI may still say “gallery” in scaffold — see root `DESIGN.md`.)
+(UI may still say “gallery” in places — see root `PRODUCT.md`.)
 
 ## Run
 

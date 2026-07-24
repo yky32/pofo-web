@@ -1,6 +1,6 @@
 # Pofo design versions
 
-Exploratory visual systems. Product/domain design lives in root [`DESIGN.md`](../../DESIGN.md).
+Exploratory visual systems. **Product / domain truth lives in root [`PRODUCT.md`](../../PRODUCT.md).**
 
 | Version | Branch / tag | Status | Notes |
 |---------|----------------|--------|--------|
@@ -21,4 +21,4 @@ git checkout -b design/v2-explore
 
 1. **Never force-push** frozen `design/vN` branches after release.
 2. When a new direction feels right, cut `design/vN` + tag `design-vN` and add a row here.
-3. Domain model (Project / Container / Shot) is independent of visual version — keep `DESIGN.md` as product truth.
+3. Domain model (Project / Container / Shot) is independent of visual version — keep **`PRODUCT.md`** as product truth.

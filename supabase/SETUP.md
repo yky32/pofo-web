@@ -2,6 +2,8 @@
 
 Do this once so Pofo can sign you in, save projects, share client links, and collect favorites.
 
+Product scope: see root [`PRODUCT.md`](../PRODUCT.md).
+
 ---
 
 ## 1. Create a Supabase project

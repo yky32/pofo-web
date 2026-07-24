@@ -5,10 +5,10 @@
 | **Product** | Pofo (`pofo-web`) |
 | **Repo** | https://github.com/yky32/pofo-web |
 | **Status** | MVP1 shipped in app · MVP2 defined |
-| **Sources** | `DESIGN.md`, MVP2 checklist PDF, README, setup docs |
+| **Sources** | DESIGN archive (merged), MVP2 checklist PDF, README, setup docs |
 | **Last updated** | 2026-07-24 |
 
-This is the **single product wrap-up**: vision, domain language, what MVP1 delivered, what MVP2 must ship, and how it maps to engineering. Deep design history remains in `DESIGN.md`; day-to-day setup stays in `README.md` / `supabase/SETUP.md`.
+This is the **single product source of truth**: vision, domain language, MVP1 shipped status, MVP2 scope, and engineering guardrails. Day-to-day setup stays in `README.md` / `supabase/SETUP.md`.
 
 ---
 
@@ -32,6 +32,8 @@ This is the **single product wrap-up**: vision, domain language, what MVP1 deliv
 16. [Roadmap beyond MVP2](#16-roadmap-beyond-mvp2)
 17. [Doc map](#17-doc-map)
 18. [Glossary](#18-glossary)
+19. [Open decisions (resolved)](#19-open-decisions-resolved)
+20. [Domain fields (MVP summary)](#20-domain-fields-mvp-summary)
 
 ---
 
@@ -171,7 +173,7 @@ Shared Project access without sharing login passwords.
 |-----|--------|
 | True RAW pipeline | Accept/store/pair RAW; never render RAW as `<img>` — **MVP2** |
 | Filename list export | Removed from UI (was confusing “List”); may return as secondary export under Download menu |
-| SQL must be applied manually | See `scripts/apply-mvp-sql.md` |
+| SQL must be applied manually | See [Appendix C](#appendix-c--sql-apply-order-runtime) / `supabase/SETUP.md` |
 | Background Sharp worker | Not required for MVP1 |
 
 ### Routes (as shipped)
@@ -212,7 +214,7 @@ Shared Project access without sharing login passwords.
 - [ ] One internal test wedding (500+ files, mixed JPEG/RAW)
 - [ ] Client proofing path tested on **mobile**
 - [ ] Download path tested **after expiry** (must fail cleanly)
-- [ ] README + this PRODUCT.md + DESIGN.md aligned
+- [ ] README + this PRODUCT.md aligned
 - [ ] Migration scripts documented under `supabase/`
 
 ---
@@ -666,19 +668,16 @@ One real 500+ mixed JPEG/RAW wedding · mobile client proof · download fails af
 
 ## 17. Doc map
 
-| Document | Role after this wrap-up |
-|----------|-------------------------|
-| **`PRODUCT.md`** | **Canonical product + MVP1/MVP2 scope** (this file) |
-| `DESIGN.md` | Historical deep design / field-level model / open questions archive |
+| Document | Role |
+|----------|------|
+| **`PRODUCT.md`** | **Canonical product + MVP1/MVP2** (this file) |
 | `README.md` | Setup, stack, quick start |
-| `supabase/SETUP.md` | Supabase env + SQL apply order |
-| `scripts/apply-mvp-sql.md` | Short SQL checklist |
-| `docs/BATCH_UPLOAD.md` | Large batch / storage backend engineering |
-| `docs/TABLE_DESIGN.md` | Schema benchmarks vs Triftly |
+| `supabase/SETUP.md` | Supabase env + full SQL apply order |
+| `docs/BATCH_UPLOAD.md` | Large-batch upload / R2 switch engineering |
 | `docs/CI.md` | GitHub Actions / Vercel secrets |
-| Source: MVP2 PDF | Checklist + RAW tickets + proofing/notification rules (incorporated above) |
+| `docs/design/` | Visual system version notes (Studio Paper v1) |
 
-When product decisions change, **update PRODUCT.md first**, then implement, then note deltas in DESIGN if still useful.
+When product decisions change, **update PRODUCT.md first**, then implement.
 
 ---
 
@@ -693,8 +692,62 @@ When product decisions change, **update PRODUCT.md first**, then implement, then
 | **Proofing** | Client selection of favorites |
 | **Paired shot** | JPEG + RAW same basename |
 | **Portfolio** | Photographer public showcase |
+| **Concept** | Free-form label for a Container’s purpose |
 | **Owner** | Photographer profile controlling a Project (MVP) |
 | **Team** | Future multi-user studio entity |
+
+---
+
+## 19. Open decisions (resolved)
+
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Where does `selection_limit` live? | **Project** (MVP). Optional Container/link override later |
+| 2 | Empty share-link container allow-list? | **All** containers with `is_client_visible_default` |
+| 3 | JPEG + RAW rows? | **One logical Shot** with multiple keys (MVP2 pairing) |
+| 4 | Client word for Container? | Show **name**; no forced “Album” product mode |
+| 5 | Photographer auth? | Password + Google/Apple OAuth |
+| 6 | HEIC at MVP? | Best-effort; convert offline preferred |
+| 7 | Zip of selects? | **Shipped** (full + proof ZIP) |
+| 8 | Status auto-transitions? | Soft: create link → `shared`; first select → `proofing` |
+| 9 | Final locks client selects? | **Yes** (MVP2 rule) |
+| 10 | Visual system | **Studio Paper v1** (see `docs/design/v1`) |
+
+---
+
+## 20. Domain fields (MVP summary)
+
+### profiles
+`id`, `display_name`, `studio_name`, `slug`, `avatar_url`, `providers[]`, timestamps
+
+### projects
+`id`, `owner_id`, `title`, `client_name`, `description`, `status`, `selection_limit`, timestamps  
+*(optional later: `proof_completed_at`, `proof_locked`, `cover_shot_id`, `team_id`)*
+
+### containers
+`id`, `project_id`, `name`, `sort_order`, `is_client_visible_default`, timestamps  
+*(optional later: free-form `concept`, `selection_limit`)*
+
+### shots
+`id`, `project_id`, `container_id`, `owner_id`, `kind`, `storage_key`, `preview_url`, `filename`, `mime_type`, `size_bytes`, `width`/`height`, `sort_order`, `studio_note`, `studio_flag`, `thumbnail_key`  
+*(MVP2: `raw_key`, `preview_key`, `processing_status`, `processing_error`)*
+
+### share_links
+`id`, `project_id`, `token`, `password_hash`, `expires_at`, `is_active`, `view_count`, `last_viewed_at`, `last_email_to`/`at`, `allow_original_download`, `original_expires_at`
+
+### shot_selections
+`id`, `project_id`, `share_link_id`, `shot_id`, `created_at` — unique `(share_link_id, shot_id)`
+
+### portfolio_items
+`id`, `owner_id`, `shot_id`, `project_id`, `title`, `caption`, `is_published`, `sort_order`, `created_at`
+
+### Project presets (optional UX sugar)
+
+| Pack | Containers |
+|------|------------|
+| Wedding default | Main Gallery, (future) Raw Files, Final Delivery |
+| Pre-wedding light | Main Gallery, Final Delivery |
+| Blank | Single Main Gallery (current app default) |
 
 ---
 

@@ -95,8 +95,9 @@ Push to `main` → GitHub Actions verify + Vercel deploy. See [docs/CI.md](docs/
 | Doc | Use |
 |-----|-----|
 | **[PRODUCT.md](./PRODUCT.md)** | **Canonical product + MVP1/MVP2 scope** |
-| [DESIGN.md](./DESIGN.md) | Deep design archive |
 | [supabase/SETUP.md](./supabase/SETUP.md) | Database setup |
+| [docs/CI.md](./docs/CI.md) | CI / deploy secrets |
+| [docs/BATCH_UPLOAD.md](./docs/BATCH_UPLOAD.md) | Large-batch upload engineering |
 
 ## Goal
 
