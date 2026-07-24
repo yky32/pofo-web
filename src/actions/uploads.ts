@@ -10,11 +10,7 @@ import {
 } from "@/lib/r2";
 import { getStorageBackend, type StorageBackend } from "@/lib/storage";
 import { isSupabaseConfigured } from "@/lib/env";
-import {
-  JPEG_MAX_BYTES,
-  maxBytesForFile,
-  isRawFile,
-} from "@/lib/media";
+import { maxBytesForFile, isRawFile } from "@/lib/media";
 
 const MAX_PREPARE = 150;
 
@@ -157,6 +153,3 @@ export async function prepareBatchUpload(input: {
 export async function getUploadBackend(): Promise<UploadBackend> {
   return getStorageBackend();
 }
-
-/** @deprecated use JPEG_MAX_BYTES / maxBytesForFile */
-export const LEGACY_MAX_BYTES = JPEG_MAX_BYTES;
