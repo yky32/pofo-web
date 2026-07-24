@@ -8,9 +8,8 @@ import {
 } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
-import { Input } from "@/components/ui/input";
+import { ProjectAddressesField } from "@/components/projects/project-addresses-field";
 import { Label } from "@/components/ui/label";
-import { splitTwoLocations } from "@/lib/project-locations";
 import { cn } from "@/lib/utils";
 
 const initial: ProjectActionState = {};
@@ -150,48 +149,29 @@ export function ProjectMemoryMeta({
             variant={onHero ? "hero" : "default"}
           />
         </div>
-        <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
-          {(() => {
-            const [a, b] = splitTwoLocations(location);
-            const inputCls = cn(
-              "h-9 rounded-lg text-sm",
-              onHero
-                ? "border-white/20 bg-white/10 text-white placeholder:text-white/40"
-                : "bg-white"
-            );
-            const labelCls = cn(
+        <div className="space-y-1 sm:col-span-2">
+          <Label
+            htmlFor="location"
+            className={cn(
               "text-[11px]",
               onHero ? "text-white/70" : "text-stone-600"
-            );
-            return (
-              <>
-                <div className="space-y-1">
-                  <Label htmlFor="location_1" className={labelCls}>
-                    Address 1
-                  </Label>
-                  <Input
-                    id="location_1"
-                    name="location_1"
-                    defaultValue={a}
-                    placeholder="Ceremony venue"
-                    className={inputCls}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="location_2" className={labelCls}>
-                    Address 2
-                  </Label>
-                  <Input
-                    id="location_2"
-                    name="location_2"
-                    defaultValue={b}
-                    placeholder="Reception (optional)"
-                    className={inputCls}
-                  />
-                </div>
-              </>
-            );
-          })()}
+            )}
+          >
+            Addresses
+          </Label>
+          <ProjectAddressesField
+            id="location"
+            name="location"
+            defaultValue={location}
+            inputClassName={
+              onHero
+                ? "border-white/20 bg-white/10 text-white placeholder:text-white/40"
+                : undefined
+            }
+            labelClassName={
+              onHero ? "border-white/20 bg-white/10 text-white/60" : undefined
+            }
+          />
         </div>
       </div>
       {state.error ? (

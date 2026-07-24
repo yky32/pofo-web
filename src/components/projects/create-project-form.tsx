@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertCircle } from "lucide-react";
 import { createProject, type ProjectActionState } from "@/actions/projects";
 import { UpgradeModal } from "@/components/billing/upgrade-modal";
+import { ProjectAddressesField } from "@/components/projects/project-addresses-field";
 import { ProjectTagsField } from "@/components/projects/project-tags-field";
 import { Button } from "@/components/ui/button";
 import { DateField } from "@/components/ui/date-field";
@@ -162,36 +163,14 @@ export function CreateProjectForm({
   );
 
   const locationFields = (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className={field}>
-        <Label htmlFor="location_1" className={labelCls}>
-          Address 1
-        </Label>
-        <Input
-          id="location_1"
-          name="location_1"
-          autoComplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          placeholder="Ceremony — St. John’s Cathedral"
-          className={inputCls}
-        />
-      </div>
-      <div className={field}>
-        <Label htmlFor="location_2" className={labelCls}>
-          Address 2
-          <span className="ml-1 font-normal text-stone-400">(optional)</span>
-        </Label>
-        <Input
-          id="location_2"
-          name="location_2"
-          autoComplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          placeholder="Reception — The Peninsula"
-          className={inputCls}
-        />
-      </div>
+    <div className={field}>
+      <Label htmlFor="location" className={labelCls}>
+        Addresses
+        <span className="ml-1 font-normal text-stone-400">
+          — add every place you shot
+        </span>
+      </Label>
+      <ProjectAddressesField id="location" name="location" />
     </div>
   );
 

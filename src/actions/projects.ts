@@ -6,16 +6,21 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { withDisplayUrls } from "@/lib/storage";
 import { getCurrentWorkspace } from "@/actions/teams";
-import { joinTwoLocations } from "@/lib/project-locations";
+import { joinAddresses, splitAddresses } from "@/lib/project-locations";
 import { parseProjectTags } from "@/lib/project-tags";
 import type { Project } from "@/types/database";
 
-/** Read location_1 + location_2 or legacy single location field. */
+/**
+ * Prefer multi `location` ( · -joined from ProjectAddressesField).
+ * Still accept legacy location_1 + location_2 if present alone.
+ */
 function locationFromForm(formData: FormData): string {
+  const multi = String(formData.get("location") ?? "").trim();
+  if (multi) return joinAddresses(splitAddresses(multi));
   const a = String(formData.get("location_1") ?? "").trim();
   const b = String(formData.get("location_2") ?? "").trim();
-  if (a || b) return joinTwoLocations(a, b);
-  return String(formData.get("location") ?? "").trim();
+  if (a || b) return joinAddresses([a, b]);
+  return "";
 }
 
 export type ProjectActionState = {
