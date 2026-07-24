@@ -50,7 +50,13 @@ export function ShareLinkPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  /** Fixed position — flip above trigger when not enough room below */
+  const [pos, setPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+    maxHeight: number;
+  } | null>(null);
 
   const [createState, createAction, createPending] = useActionState(
     createShareLink,
@@ -124,25 +130,52 @@ export function ShareLinkPanel({
       const el = triggerRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setPos({
-        top: r.bottom + 8,
-        right: Math.max(8, window.innerWidth - r.right),
-      });
+      const gap = 8;
+      const margin = 8;
+      const right = Math.max(margin, window.innerWidth - r.right);
+      const spaceBelow = window.innerHeight - r.bottom - gap - margin;
+      const spaceAbove = r.top - gap - margin;
+      // Prefer below unless it would be cramped vs above
+      const openBelow =
+        spaceBelow >= 280 || spaceBelow >= spaceAbove || spaceAbove < 160;
+
+      if (openBelow) {
+        setPos({
+          top: r.bottom + gap,
+          bottom: undefined,
+          right,
+          maxHeight: Math.max(180, Math.min(spaceBelow, window.innerHeight * 0.85)),
+        });
+      } else {
+        setPos({
+          top: undefined,
+          bottom: window.innerHeight - r.top + gap,
+          right,
+          maxHeight: Math.max(180, Math.min(spaceAbove, window.innerHeight * 0.85)),
+        });
+      }
     }
 
     place();
+    // After portal paints, remeasure (panel may flip when content grows)
+    const raf = requestAnimationFrame(() => {
+      place();
+      requestAnimationFrame(place);
+    });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     window.addEventListener("keydown", onKey);
+
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
       window.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, passwordOn, originalsOn, secretReveal, active.length, emailLinkId, resetLinkId]);
 
   useEffect(() => {
     if (!open) return;
@@ -292,9 +325,14 @@ export function ShareLinkPanel({
                 id={menuId}
                 role="menu"
                 aria-label="Client share links"
-                style={{ top: pos.top, right: pos.right }}
+                style={{
+                  top: pos.top,
+                  bottom: pos.bottom,
+                  right: pos.right,
+                  maxHeight: pos.maxHeight,
+                }}
                 className={cn(
-                  "dialog-glass-panel fixed z-[201] flex max-h-[min(85vh,36rem)] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl",
+                  "dialog-glass-panel fixed z-[201] flex w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-xl",
                   "animate-in fade-in-0 zoom-in-95 duration-150"
                 )}
               >
