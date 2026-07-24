@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { signUp, type AuthState } from "@/actions/auth";
 import { EmailField } from "@/components/auth/email-field";
@@ -13,19 +13,31 @@ import { SocialAuthButtons } from "@/components/auth/social-auth-buttons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  setSignupIntentClient,
+  type SignupIntent,
+} from "@/lib/signup-intent";
 import { cn } from "@/lib/utils";
 
 const initial: AuthState = {};
 
-type Intent = "personal" | "team";
-
 export function SignupForm() {
   const [state, action, pending] = useActionState(signUp, initial);
-  const [intent, setIntent] = useState<Intent>("personal");
+  const [intent, setIntent] = useState<SignupIntent>("personal");
   const [teamName, setTeamName] = useState("");
   const [teamSlug, setTeamSlug] = useState("");
 
   const passwordError = state.fields?.password;
+
+  // Keep cookie in sync so Google/Apple return knows workspace type
+  useEffect(() => {
+    setSignupIntentClient(intent);
+  }, [intent]);
+
+  function chooseIntent(next: SignupIntent) {
+    setIntent(next);
+    setSignupIntentClient(next);
+  }
 
   return (
     <div className="w-full max-w-sm">
@@ -36,11 +48,66 @@ export function SignupForm() {
         Create your account
       </h1>
       <p className="mt-2 text-sm text-stone-500">
-        One login for personal jobs and studio companies.
+        One login. Pick how you work, then continue with Google, Apple, or
+        email.
       </p>
 
       <div className="mt-8 space-y-6">
+        {/* 1) Intent first — applies to OAuth and email */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-stone-700">I am…</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => chooseIntent("personal")}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                intent === "personal"
+                  ? "border-stone-900 bg-stone-900 text-white"
+                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+              )}
+            >
+              <span className="block font-semibold">Photographer</span>
+              <span
+                className={cn(
+                  "mt-0.5 block",
+                  intent === "personal" ? "text-white/70" : "text-stone-400"
+                )}
+              >
+                Personal workspace
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => chooseIntent("team")}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-left text-xs transition",
+                intent === "team"
+                  ? "border-stone-900 bg-stone-900 text-white"
+                  : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
+              )}
+            >
+              <span className="block font-semibold">Studio company</span>
+              <span
+                className={cn(
+                  "mt-0.5 block",
+                  intent === "team" ? "text-white/70" : "text-stone-400"
+                )}
+              >
+                Team workspace
+              </span>
+            </button>
+          </div>
+          <p className="text-[11px] leading-snug text-stone-400">
+            {intent === "team"
+              ? "After Google/Apple sign-in we’ll ask for your company name and link."
+              : "You can add a company workspace later in Settings."}
+          </p>
+        </div>
+
+        {/* 2) Social — uses intent cookie + next path */}
         <SocialAuthButtons
+          accountIntent={intent}
           next={
             intent === "team"
               ? "/dashboard/onboarding/studio"
@@ -49,55 +116,9 @@ export function SignupForm() {
           layout="primary"
         />
 
+        {/* 3) Email path */}
         <form action={action} noValidate className="space-y-4">
           <input type="hidden" name="account_intent" value={intent} />
-
-          {/* Account intent */}
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-stone-700">I am…</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setIntent("personal")}
-                className={cn(
-                  "rounded-xl border px-3 py-2.5 text-left text-xs transition",
-                  intent === "personal"
-                    ? "border-stone-900 bg-stone-900 text-white"
-                    : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
-                )}
-              >
-                <span className="block font-semibold">Photographer</span>
-                <span
-                  className={cn(
-                    "mt-0.5 block",
-                    intent === "personal" ? "text-white/70" : "text-stone-400"
-                  )}
-                >
-                  Personal workspace
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setIntent("team")}
-                className={cn(
-                  "rounded-xl border px-3 py-2.5 text-left text-xs transition",
-                  intent === "team"
-                    ? "border-stone-900 bg-stone-900 text-white"
-                    : "border-stone-200 bg-white text-stone-700 hover:border-stone-300"
-                )}
-              >
-                <span className="block font-semibold">Studio company</span>
-                <span
-                  className={cn(
-                    "mt-0.5 block",
-                    intent === "team" ? "text-white/70" : "text-stone-400"
-                  )}
-                >
-                  Team workspace
-                </span>
-              </button>
-            </div>
-          </div>
 
           {intent === "personal" ? (
             <div className="space-y-2">
@@ -148,7 +169,11 @@ export function SignupForm() {
                   name="team_slug"
                   value={teamSlug}
                   onChange={(e) =>
-                    setTeamSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+                    setTeamSlug(
+                      e.target.value
+                        .toLowerCase()
+                        .replace(/[^a-z0-9-]/g, "")
+                    )
                   }
                   placeholder="northlight"
                   className="rounded-xl font-mono text-sm"
@@ -158,11 +183,10 @@ export function SignupForm() {
                   <FieldMessage>{state.fields.team_slug}</FieldMessage>
                 ) : (
                   <FieldMessage tone="muted">
-                    Public brand for the company (you keep a personal brand too)
+                    Public company brand (personal brand stays separate)
                   </FieldMessage>
                 )}
               </div>
-              {/* Also store as studio for profile brand seed */}
               <input type="hidden" name="studio" value={teamName} />
             </>
           )}

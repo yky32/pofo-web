@@ -2,6 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { signInWithApple, signInWithGoogle } from "@/actions/auth";
+import {
+  setSignupIntentClient,
+  type SignupIntent,
+} from "@/lib/signup-intent";
 import { cn } from "@/lib/utils";
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -102,10 +106,13 @@ export function SocialAuthButtons({
   next = "/dashboard",
   className,
   layout = "primary",
+  /** When set (signup page), cookie is written so OAuth return knows personal vs team */
+  accountIntent,
 }: {
   next?: string;
   className?: string;
   layout?: "primary" | "secondary";
+  accountIntent?: SignupIntent;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -114,9 +121,18 @@ export function SocialAuthButtons({
   function run(provider: "google" | "apple") {
     setError(null);
     setWhich(provider);
+    // Persist intent before leaving for Google/Apple
+    if (accountIntent) {
+      setSignupIntentClient(accountIntent);
+    }
     startTransition(async () => {
       const fd = new FormData();
-      fd.set("next", next);
+      // Prefer explicit next; team intent also enforced in auth callback via cookie
+      const resolvedNext =
+        accountIntent === "team"
+          ? "/dashboard/onboarding/studio"
+          : next;
+      fd.set("next", resolvedNext);
       // Match current host (important when APP_URL is 3000 vs 3002)
       if (typeof window !== "undefined") {
         fd.set("origin", window.location.origin);
