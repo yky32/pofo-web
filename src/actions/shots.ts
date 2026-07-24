@@ -700,7 +700,7 @@ export async function updateShotStudioMeta(input: {
 const DELETE_CHUNK = 100;
 
 /**
- * Bulk-delete shots (DB rows + storage objects when keyed).
+ * Bulk-delete shots (DB rows + all storage keys when present).
  * Owner-only; max 200 ids per request.
  */
 export async function deleteProjectShots(input: {
@@ -733,7 +733,7 @@ export async function deleteProjectShots(input: {
 
   const { data: rows, error: fetchErr } = await supabase
     .from("shots")
-    .select("id, storage_key")
+    .select("id, storage_key, raw_key, preview_key, thumbnail_key")
     .eq("project_id", input.projectId)
     .eq("owner_id", user.id)
     .in("id", ids);
@@ -741,10 +741,20 @@ export async function deleteProjectShots(input: {
   if (fetchErr) return { error: fetchErr.message };
   if (!rows?.length) return { error: "No matching photos." };
 
-  // Best-effort storage cleanup (DB delete still proceeds if storage fails)
-  const keys = rows
-    .map((r) => r.storage_key as string | null)
-    .filter((k): k is string => Boolean(k && !k.startsWith("http")));
+  // Best-effort storage cleanup for every object key on the shot
+  const keySet = new Set<string>();
+  for (const r of rows) {
+    for (const k of [
+      r.storage_key,
+      (r as { raw_key?: string | null }).raw_key,
+      (r as { preview_key?: string | null }).preview_key,
+      (r as { thumbnail_key?: string | null }).thumbnail_key,
+    ]) {
+      const key = typeof k === "string" ? k.trim() : "";
+      if (key && !key.startsWith("http")) keySet.add(key);
+    }
+  }
+  const keys = [...keySet];
 
   for (let i = 0; i < keys.length; i += DELETE_CHUNK) {
     const slice = keys.slice(i, i + DELETE_CHUNK);
@@ -756,23 +766,47 @@ export async function deleteProjectShots(input: {
     }
   }
 
+  // DB rows first-class: must actually remove or we report failure
   const deleteIds = rows.map((r) => r.id as string);
   let deleted = 0;
   for (let i = 0; i < deleteIds.length; i += DELETE_CHUNK) {
     const slice = deleteIds.slice(i, i + DELETE_CHUNK);
-    const { error, count } = await supabase
+    const { data: removed, error } = await supabase
       .from("shots")
-      .delete({ count: "exact" })
+      .delete()
       .eq("project_id", input.projectId)
       .eq("owner_id", user.id)
-      .in("id", slice);
+      .in("id", slice)
+      .select("id");
     if (error) {
       return {
         error: error.message,
         deleted,
       };
     }
-    deleted += count ?? slice.length;
+    deleted += removed?.length ?? 0;
+  }
+
+  if (deleted === 0) {
+    return {
+      error:
+        "Could not delete photos (permission or already gone). Refresh and try again.",
+      deleted: 0,
+    };
+  }
+
+  // Confirm gone (catches RLS no-op / soft failures)
+  const { count: stillThere } = await supabase
+    .from("shots")
+    .select("id", { count: "exact", head: true })
+    .eq("project_id", input.projectId)
+    .in("id", deleteIds);
+
+  if ((stillThere ?? 0) > 0) {
+    return {
+      error: `Only partially deleted — ${stillThere} still in database. Check RLS / owner on those rows.`,
+      deleted,
+    };
   }
 
   revalidatePath(`/dashboard/galleries/${input.projectId}`);
